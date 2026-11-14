@@ -605,6 +605,17 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("error"))
 	{
+		// A summon refused with an error frame (e.g. wrong_phase "you join the match at the next round"): it comes back.
+		if (!PendingSummonRef.IsEmpty() && FPlatformTime::Seconds() - PendingSummonAt < 8.0)
+		{
+			const FString Msg = FN7HudJson::Str(D, TEXT("message"));
+			UE_LOG(LogTemp, Display, TEXT("FN7 summon refused: %s %s"), *PendingSummonRef, *Msg);
+			if (AFNTableGods* Tg = AFNTableGods::GetAny(FindStudio() ? FindStudio()->GetWorld() : nullptr)) Tg->CancelSummon(PendingSummonRef);
+			PendingSummonRef.Reset();
+			Toast(Msg.IsEmpty() ? FString(TEXT("Summon refused.")) : Msg);
+			Publish();
+			return;
+		}
 		if (bOut && bTakeAsked)
 		{
 			bTakeAsked = false;
