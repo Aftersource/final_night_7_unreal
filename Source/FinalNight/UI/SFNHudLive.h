@@ -32,6 +32,8 @@ private:
 	FDelegateHandle MessageHandle;
 	FDelegateHandle StatusHandle;
 	TSharedPtr<SFNHudLayout> Layout;
+	TSharedPtr<class SFNStartPanel> StartPanel;
+	bool bInRoom = false;
 	FFNHudModel Model;
 
 	struct FSeatInfo

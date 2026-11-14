@@ -22,6 +22,8 @@
 #include "UnrealClient.h"
 #include "Widgets/SViewport.h"
 #include "Widgets/SWeakWidget.h"
+#include "Widgets/SOverlay.h"
+#include "SFNStartPanel.h"
 
 #define LOCTEXT_NAMESPACE "SFNHudLive"
 
@@ -61,16 +63,27 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	Model.YouName = FText::GetEmpty();
 	Model.ComposeHint = LOCTEXT("Hint", "Write what you'll do. Time slows while you write; SEND to act. Lines starting r: go to your right hand.");
 	Model.PowersNote = LOCTEXT("PowersNote", "Arm a power, write its target (a place, a name or lon,lat), SEND");
-	Model.Status = LOCTEXT("Connecting", "Click the table to connect");
 
 	ChildSlot
 	[
-		SAssignNew(Layout, SFNHudLayout)
-		.Model(Model)
-		.Timer(this, &SFNHudLive::GetTimer)
-		.OnSend(this, &SFNHudLive::OnSend)
-		.OnTypingStarted(this, &SFNHudLive::OnTyping)
-		.OnPower(this, &SFNHudLive::OnPower)
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SAssignNew(Layout, SFNHudLayout)
+			.Model(Model)
+			.Visibility_Lambda([this]() { return bInRoom ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
+			.Timer(this, &SFNHudLive::GetTimer)
+			.OnSend(this, &SFNHudLive::OnSend)
+			.OnTypingStarted(this, &SFNHudLive::OnTyping)
+			.OnPower(this, &SFNHudLive::OnPower)
+		]
+		// The start screen covers everything (and swallows clicks) until we are in a room.
+		+ SOverlay::Slot()
+		[
+			SAssignNew(StartPanel, SFNStartPanel)
+			.Net(Net.Get())
+			.Visibility_Lambda([this]() { return bInRoom ? EVisibility::Collapsed : EVisibility::Visible; })
+		]
 	];
 
 	if (UFNNetClient* N = Net.Get())
@@ -105,13 +118,28 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("room.snapshot") || T == TEXT("room.updated"))
 	{
+		bInRoom = true;
 		const FString Code = FN7HudJson::Str(D, TEXT("code"));
 		if (!Code.IsEmpty()) Model.Room = FText::FromString(Code);
 		if (FN7HudJson::Str(D, TEXT("state")) == TEXT("open"))
 			Model.Status = FText::Format(LOCTEXT("Lobby", "Room {0} is open. Give the code to the other players; the host starts the match."), Model.Room);
 	}
+	else if (T == TEXT("match.snapshot"))
+	{
+		bInRoom = true;
+		Round = (int32)FN7HudJson::Num(D, TEXT("round"), Round);
+		const TSharedPtr<FJsonObject> PV = FN7HudJson::Obj(D, TEXT("public_state"));
+		Model.Beat = (int32)FN7HudJson::Num(PV, TEXT("beat"), Model.Beat);
+		Model.BeatsTotal = (int32)FN7HudJson::Num(PV, TEXT("beats_total"), Model.BeatsTotal);
+		Model.Alive = (int32)FN7HudJson::Num(PV, TEXT("alive"), Model.Alive);
+		ReadEntropy(FN7HudJson::Obj(PV, TEXT("entropy")));
+		ReadSeatView(FN7HudJson::Obj(FN7HudJson::Obj(D, TEXT("you")), TEXT("private_state")));
+		ReadDemigods(PV);
+		Model.Status = FText::GetEmpty();
+	}
 	else if (T == TEXT("match.started"))
 	{
+		bInRoom = true;
 		Model.Status = LOCTEXT("Started", "The match has begun.");
 		Model.News.Reset();
 	}
@@ -122,6 +150,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("round.brief"))
 	{
+		bInRoom = true;
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
 		Round = (int32)FN7HudJson::Num(D, TEXT("round"), Round);
 		Model.Beat = (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round);
