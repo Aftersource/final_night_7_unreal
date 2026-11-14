@@ -305,7 +305,10 @@ void AFNDemigodFigure::SetDemigod(const FFNTableDemigod& D, const FLinearColor& 
 		Back = Part(Card, GodPlane, FVector(0, 0, -0.7f), FVector(0.345f, 0.345f, 1.f), FRotator::ZeroRotator, FLinearColor(0.01f, 0.01f, 0.015f));
 		Matte = Part(Card, GodPlane, FVector(0, 0, -0.35f), FVector(0.33f, 0.33f, 1.f), FRotator::ZeroRotator, FLinearColor::White);
 		Image = Part(Card, GodPlane, FVector::ZeroVector, FVector(0.30f, 0.30f, 1.f), FRotator::ZeroRotator, FLinearColor(0.03f, 0.03f, 0.05f));
+		Pole = Part(nullptr, GodCyl, FVector(0, 0, 24.f), FVector(0.014f, 0.014f, 0.40f), FRotator::ZeroRotator, FLinearColor::White);
+		Pole->SetVisibility(false);
 	}
+	GodSetColor(Pole, (D.bAlive && bOwnerAlive ? InAura : GodGrey) * 0.8f);
 	Ref = D.Ref;
 	Side = D.Side;
 	Aura = InAura;
@@ -394,7 +397,11 @@ void AFNDemigodFigure::Tick(float Dt)
 	const FQuat Flat = FRotationMatrix::MakeFromZY(FVector::UpVector, ToH).ToQuat();
 	Card->SetWorldRotation(FQuat::Slerp(Upright, Flat, Tip));
 	HeldT = FMath::FInterpTo(HeldT, bHeld ? 1.f : 0.f, Dt, 10.f);
-	Card->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(4.2f + 17.f, 4.2f + 0.8f, Tip) + 9.f * HeldT + 1.2f * HeldT * FMath::Sin(Time * 6.f)));
+	// On the board the card stands on a pole ~16 cm of table above its hex (the props top out around 14 cm), so towers,
+	// trees and peaks in front of it never cover it (Chris asked that portraits stay in front of buildings).
+	const float Raise = bOnBoard ? 40.f : 0.f;
+	if (Pole && Pole->IsVisible() != bOnBoard) Pole->SetVisibility(bOnBoard);
+	Card->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(4.2f + 17.f + Raise, 4.2f + 0.8f, Tip) + 9.f * HeldT + 1.2f * HeldT * FMath::Sin(Time * 6.f)));
 	Card->SetRelativeScale3D(FVector(1.f + 0.18f * HeldT));
 	if (Matte && HeldT > 0.001f) GodSetColor(Matte, (bAlive ? Aura : GodGrey) * (1.f + 1.5f * HeldT));
 	GodFaceCamera(NotchText, Cam);
@@ -415,6 +422,359 @@ AFNTableGods::AFNTableGods()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = TG_PostUpdateWork;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Mat(FN7Gods::GodBaseMatPath);
+	if (Mat.Succeeded()) FxMat = Mat.Object;
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Img(FN7Gods::GodImageMatPath);
+	if (Img.Succeeded()) CardMat = Img.Object;
+}
+
+UStaticMeshComponent* AFNTableGods::FxShape(const TCHAR* Mesh, const FVector& At, const FVector& Scale, const FLinearColor& Color)
+{
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+	C->SetupAttachment(RootComponent);
+	C->SetMobility(EComponentMobility::Movable);
+	C->SetUsingAbsoluteLocation(true);
+	C->SetUsingAbsoluteRotation(true);
+	C->SetUsingAbsoluteScale(true);
+	C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, Mesh));
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	C->SetCastShadow(false);
+	if (FxMat)
+	{
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(FxMat, C);
+		M->SetVectorParameterValue(TEXT("Color"), Color);
+		C->SetMaterial(0, M);
+	}
+	C->SetWorldLocation(At);
+	C->SetWorldScale3D(Scale);
+	C->RegisterComponent();
+	FxParts.Add(C);
+	return C;
+}
+
+USceneComponent* AFNTableGods::FxRoot(const FVector& At)
+{
+	USceneComponent* C = NewObject<USceneComponent>(this);
+	C->SetupAttachment(RootComponent);
+	C->SetMobility(EComponentMobility::Movable);
+	C->SetUsingAbsoluteLocation(true);
+	C->SetUsingAbsoluteRotation(true);
+	C->SetUsingAbsoluteScale(true);
+	C->SetWorldLocation(At);
+	C->RegisterComponent();
+	FxParts.Add(C);
+	return C;
+}
+
+UStaticMeshComponent* AFNTableGods::FxChild(USceneComponent* Parent, const TCHAR* Mesh, const FVector& Loc, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color)
+{
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+	C->SetupAttachment(Parent);
+	C->SetMobility(EComponentMobility::Movable);
+	C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, Mesh));
+	C->SetRelativeLocation(Loc);
+	C->SetRelativeRotation(Rot);
+	C->SetRelativeScale3D(Scale);
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	C->SetCastShadow(false);
+	if (FxMat)
+	{
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(FxMat, C);
+		M->SetVectorParameterValue(TEXT("Color"), Color);
+		C->SetMaterial(0, M);
+	}
+	C->RegisterComponent();
+	FxParts.Add(C);
+	return C;
+}
+
+bool AFNTableGods::BoardWorld(double Lat, double Lon, FVector& Out) const
+{
+	const AFNStudio* St = Studio.Get();
+	return St && St->BoardPointFor(Lat, Lon, Out);
+}
+
+bool AFNTableGods::GetBoardPos(const FString& Ref, double& OutLat, double& OutLon) const
+{
+	const FFNTableDemigod* D = BoardInfo.Find(Ref);
+	if (!D || !D->bHasPos) return false;
+	OutLat = D->Lat;
+	OutLon = D->Lon;
+	return true;
+}
+
+void AFNTableGods::PlaySummoning(const FString& Ref, double FromLat, double FromLon, const FLinearColor& Aura)
+{
+	using namespace FN7Gods;
+	if (Dissolved.Contains(Ref)) return;   // already dissolving (your drop showed it at once; then the server's push came)
+	const float S = Studio.IsValid() ? (float)Studio->GetActorScale3D().X : 1.f;
+	FVector At;
+	if (BoardWorld(FromLat, FromLon, At))
+	{
+		// A column of light at the origin: a tall glowing shaft that rises (0.3 s) and thins away; the piece goes with it.
+		FFx F;
+		F.Kind = 0;
+		F.Dur = 0.9f;
+		F.A = At;
+		F.Color = Aura;
+		F.Comps.Add(FxShape(GodCyl, At, FVector(0.05f * S, 0.05f * S, 0.01f), Aura * 3.f));
+		F.Comps.Add(FxShape(GodCyl, At, FVector(0.12f * S, 0.12f * S, 0.01f), Aura * 1.2f));
+		Fx.Add(F);
+	}
+	Dissolved.Add(Ref, 0.f);
+}
+
+void AFNTableGods::CancelSummon(const FString& Ref)
+{
+	Dissolved.Remove(Ref);
+	LocalPos.Remove(Ref);
+	Shake.Add(Ref, 0.7f);
+	for (int32 i = Fx.Num() - 1; i >= 0; --i)
+		if (Fx[i].Ref == Ref)
+		{
+			for (USceneComponent* C : Fx[i].Comps) if (C) { FxParts.Remove(C); C->DestroyComponent(); }
+			Fx.RemoveAt(i);
+		}
+}
+
+void AFNTableGods::PlaySummoned(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, float HealthLost, int32 Roll, const FLinearColor& Aura)
+{
+	using namespace FN7Gods;
+	const float S = Studio.IsValid() ? (float)Studio->GetActorScale3D().X : 1.f;
+	// Its new place holds until the commit agrees (every HUD refresh rebuilds the board from the last commit).
+	SetLocalPos(Ref, ToLat, ToLon);
+	LocalPos.Add(Ref, FVector(ToLat, ToLon, 0.f));
+	FVector A, B;
+	const bool bA = BoardWorld(FromLat, FromLon, A), bB = BoardWorld(ToLat, ToLon, B);
+	if (!bB) { Dissolved.Remove(Ref); return; }   // landed off the board: it simply stands at its new place
+	Dissolved.Add(Ref, 0.f);
+	if (!bA) A = B + FVector(0, 0, 140.f * S);     // from off the board: it falls in from above
+	FFx Arc;
+	Arc.Kind = 1;
+	Arc.Dur = 0.8f;
+	Arc.A = A;
+	Arc.B = B;
+	Arc.Color = Aura;
+	Arc.Ref = Ref;
+	Arc.Value = HealthLost;
+	Arc.Roll = Roll;
+	if (const TWeakObjectPtr<UTexture2D>* T = DioramaOf.Find(Ref)) Arc.Tex = *T;
+	for (int32 i = 0; i < 7; ++i) Arc.Comps.Add(FxShape(GodSph, A, FVector((0.06f - 0.006f * i) * S), Aura * (3.f - 0.3f * i)));
+	Fx.Add(Arc);
+}
+
+void AFNTableGods::TickFx(float Dt)
+{
+	using namespace FN7Gods;
+	const float S = Studio.IsValid() ? (float)Studio->GetActorScale3D().X : 1.f;
+	// Safety: a piece never stays dissolved (no answer from the server) and a local place never outlives the commits.
+	for (auto It = Dissolved.CreateIterator(); It; ++It) if ((It.Value() += Dt) > 12.f) It.RemoveCurrent();
+	for (auto It = LocalPos.CreateIterator(); It; ++It) if ((It.Value().Z += Dt) > 20.f) It.RemoveCurrent();
+	for (auto It = Shake.CreateIterator(); It; ++It) if ((It.Value() -= Dt) <= 0.f) It.RemoveCurrent();
+	const FVector Cam = GodCameraLocation(GetWorld(), GetActorLocation() + FVector(0, 340.f * S, 190.f * S));
+	TArray<FFx> Spawned;
+	for (int32 i = Fx.Num() - 1; i >= 0; --i)
+	{
+		FFx& F = Fx[i];
+		F.T += Dt;
+		const float U = FMath::Clamp(F.T / F.Dur, 0.f, 1.f);
+		if (F.Kind == 0)   // the column: rises fast, then thins away
+		{
+			const float H = FMath::Min(U / 0.33f, 1.f) * 90.f * S;
+			const float Thin = U < 0.33f ? 1.f : 1.f - (U - 0.33f) / 0.67f;
+			for (int32 k = 0; k < F.Comps.Num(); ++k)
+			{
+				const float W = (k == 0 ? 0.05f : 0.12f) * S * FMath::Max(Thin, 0.02f);
+				F.Comps[k]->SetWorldLocation(F.A + FVector(0, 0, H * 0.5f));
+				F.Comps[k]->SetWorldScale3D(FVector(W, W, H / 100.f + 0.001f));
+			}
+		}
+		else if (F.Kind == 1)   // the arc: a parabola, the trail a few steps behind
+		{
+			const float Height = FMath::Max(40.f * S, (float)FVector::Dist(F.A, F.B) * 0.35f);
+			for (int32 k = 0; k < F.Comps.Num(); ++k)
+			{
+				const float V = FMath::Clamp(U - 0.035f * k, 0.f, 1.f);
+				F.Comps[k]->SetWorldLocation(FMath::Lerp(F.A, F.B, V) + FVector(0, 0, 4.f * V * (1.f - V) * Height));
+			}
+			if (U >= 1.f)
+			{
+				// Arrival: a burst, and the demigod's diorama pops up big over its hex.
+				FFx Burst;
+				Burst.Kind = 2;
+				Burst.Dur = 0.9f;
+				Burst.A = F.B;
+				for (int32 k = 0; k < 16; ++k)
+				{
+					const float Ang = 2.f * PI * k / 16.f;
+					Burst.Comps.Add(FxShape(GodCube, F.B, FVector(0.018f * S), (k % 3 == 0 ? FLinearColor::White : F.Color) * 2.5f));
+					Burst.Vel.Add(FVector(FMath::Cos(Ang) * 70.f, FMath::Sin(Ang) * 70.f, FMath::FRandRange(60.f, 130.f)) * S);
+				}
+				Spawned.Add(Burst);
+				FFx Card;
+				Card.Kind = 4;
+				Card.Dur = 1.3f;
+				Card.A = F.B;
+				Card.Color = F.Color;
+				Card.Ref = F.Ref;
+				Card.Value = F.Value;
+				Card.Roll = F.Roll;
+				Card.Tex = F.Tex;
+				USceneComponent* Root = FxRoot(F.B);
+				Card.Comps.Add(Root);
+				Card.Comps.Add(FxChild(Root, GodPlane, FVector(0, 0, -0.8f), FVector(1.08f, 1.08f, 1.f), FRotator::ZeroRotator, FLinearColor(0.01f, 0.01f, 0.015f)));
+				Card.Comps.Add(FxChild(Root, GodPlane, FVector(0, 0, -0.4f), FVector(1.03f, 1.03f, 1.f), FRotator::ZeroRotator, F.Color * 1.6f));
+				UStaticMeshComponent* Img = FxChild(Root, GodPlane, FVector::ZeroVector, FVector(0.95f, 0.95f, 1.f), FRotator::ZeroRotator, F.Color * 0.25f);
+				if (UTexture2D* T = F.Tex.Get())
+					if (CardMat)
+					{
+						UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(CardMat, Img);
+						M->SetTextureParameterValue(TEXT("SlateUI"), T);
+						Img->SetMaterial(0, M);
+					}
+				Card.Comps.Add(Img);
+				Root->SetWorldScale3D(FVector(0.001f));
+				Spawned.Add(Card);
+			}
+		}
+		else if (F.Kind == 2)   // the burst: sparks fly up and out and fall
+		{
+			for (int32 k = 0; k < F.Comps.Num(); ++k)
+			{
+				F.Vel[k] += FVector(0, 0, -260.f * S) * Dt;
+				F.Comps[k]->SetWorldLocation(F.Comps[k]->GetComponentLocation() + F.Vel[k] * Dt);
+				F.Comps[k]->SetWorldScale3D(FVector(0.018f * S * (1.f - U)));
+			}
+		}
+		else if (F.Kind == 3)   // the red -N: rises and turns to the camera
+		{
+			if (UTextRenderComponent* T = Cast<UTextRenderComponent>(F.Comps[0]))
+			{
+				T->SetWorldLocation(F.A + FVector(0, 0, 30.f * S * U));
+				GodFaceCamera(T, Cam);
+				T->SetVisibility(U < 0.95f);
+			}
+		}
+		else if (F.Kind == 4)   // the diorama card: zooms in big over the hex, holds, shrinks down into the piece
+		{
+			USceneComponent* Root = F.Comps.Num() > 0 ? F.Comps[0] : nullptr;
+			if (Root)
+			{
+				const float Big = 0.55f * S;     // ~55 cm of table at the table's scale (it ends where the piece's raised card stands)
+				float Sc, Up;
+				if (U < 0.3f)
+				{
+					const float E = U / 0.3f;
+					const float Back = 1.f + 2.2f * FMath::Pow(E - 1.f, 3.f) + 1.2f * FMath::Pow(E - 1.f, 2.f);   // ease out, a little overshoot
+					Sc = Big * Back;
+					Up = 52.f * S * E;
+				}
+				else if (U < 0.75f)
+				{
+					Sc = Big * (1.f + 0.02f * FMath::Sin((U - 0.3f) * 18.f));
+					Up = 52.f * S + 2.f * S * FMath::Sin((U - 0.3f) * 9.f);
+				}
+				else
+				{
+					const float E = (U - 0.75f) / 0.25f;
+					const float Ease = E * E * (3.f - 2.f * E);
+					Sc = FMath::Lerp(Big, 0.11f * S, Ease);
+					Up = FMath::Lerp(52.f * S, 23.f * S, Ease);
+				}
+				const FVector P = F.A + FVector(0, 0, Up);
+				Root->SetWorldLocation(P);
+				Root->SetWorldScale3D(FVector(FMath::Max(Sc, 0.001f), FMath::Max(Sc, 0.001f), FMath::Max(Sc, 0.001f)));
+				const FVector To = (Cam - P).GetSafeNormal();
+				Root->SetWorldRotation(FRotationMatrix::MakeFromZY(To, -FVector::UpVector).ToQuat());
+			}
+			if (U >= 1.f)
+			{
+				// It settles into its piece: the piece drops onto its hex, the damage rises, the d20 tumbles beside it.
+				Dissolved.Remove(F.Ref);
+				if (TObjectPtr<AFNDemigodFigure>* Fig = OnBoard.Find(F.Ref)) if (Fig->Get()) (*Fig)->SetActorLocation(F.A + FVector(0, 0, 18.f * S));
+				if (F.Value > 0.f)
+				{
+					FFx Dmg;
+					Dmg.Kind = 3;
+					Dmg.Dur = 2.4f;
+					Dmg.A = F.A + FVector(0, 0, 25.f * S);
+					UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+					T->SetupAttachment(RootComponent);
+					T->SetUsingAbsoluteLocation(true);
+					T->SetUsingAbsoluteRotation(true);
+					T->SetUsingAbsoluteScale(true);
+					T->SetHorizontalAlignment(EHTA_Center);
+					T->SetVerticalAlignment(EVRTA_TextCenter);
+					T->SetWorldSize(11.f * S);
+					T->SetTextRenderColor(FColor(255, 70, 50));
+					T->SetText(FText::FromString(FString::Printf(TEXT("-%g"), FMath::RoundToFloat(F.Value * 10.f) / 10.f)));
+					T->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					T->SetWorldLocation(Dmg.A);
+					T->RegisterComponent();
+					FxParts.Add(T);
+					Dmg.Comps.Add(T);
+					Spawned.Add(Dmg);
+				}
+				if (F.Roll > 0)
+				{
+					// The d20: an ivory gem thrown out beside the piece, tumbling, settling with its number over it.
+					FFx Die;
+					Die.Kind = 5;
+					Die.Dur = 3.6f;
+					FVector Side = FVector::CrossProduct(FVector::UpVector, (Cam - F.A).GetSafeNormal2D()).GetSafeNormal();
+					if (Side.IsNearlyZero()) Side = FVector(1, 0, 0);
+					Die.A = F.A + FVector(0, 0, 10.f * S);
+					Die.B = F.A + Side * 16.f * S + FVector(0, 0, 3.f * S);
+					Die.Roll = F.Roll;
+					USceneComponent* Gem = FxRoot(Die.A);
+					Gem->SetWorldScale3D(FVector(S));
+					Die.Comps.Add(Gem);
+					Die.Comps.Add(FxChild(Gem, GodCone, FVector(0, 0, 4.f), FVector(0.1f, 0.1f, 0.08f), FRotator::ZeroRotator, GodIvory * 1.5f));
+					Die.Comps.Add(FxChild(Gem, GodCone, FVector(0, 0, -4.f), FVector(0.1f, 0.1f, 0.08f), FRotator(180.f, 0.f, 0.f), GodIvory * 1.2f));
+					UTextRenderComponent* N = NewObject<UTextRenderComponent>(this);
+					N->SetupAttachment(RootComponent);
+					N->SetUsingAbsoluteLocation(true);
+					N->SetUsingAbsoluteRotation(true);
+					N->SetUsingAbsoluteScale(true);
+					N->SetHorizontalAlignment(EHTA_Center);
+					N->SetVerticalAlignment(EVRTA_TextCenter);
+					N->SetWorldSize(10.f * S);
+					N->SetTextRenderColor(F.Roll == 1 ? FColor(255, 70, 50) : (F.Roll == 20 ? FColor(120, 255, 140) : FColor(255, 214, 120)));
+					N->SetText(FText::AsNumber(F.Roll));
+					N->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					N->SetVisibility(false);
+					N->SetWorldLocation(Die.B + FVector(0, 0, 12.f * S));
+					N->RegisterComponent();
+					FxParts.Add(N);
+					Die.Comps.Add(N);
+					Spawned.Add(Die);
+				}
+			}
+		}
+		else if (F.Kind == 5)   // the d20: thrown in an arc, spinning, rests; then its number shows
+		{
+			if (USceneComponent* Gem = F.Comps.Num() > 0 ? F.Comps[0] : nullptr)
+			{
+				const float Throw = FMath::Clamp(F.T / 0.7f, 0.f, 1.f);
+				const float Bounce = Throw < 1.f ? 4.f * Throw * (1.f - Throw) * 14.f * S : 0.f;
+				Gem->SetWorldLocation(FMath::Lerp(F.A, F.B, Throw) + FVector(0, 0, Bounce));
+				const float Spin = (1.f - Throw) * (1.f - Throw);
+				Gem->SetWorldRotation(FRotator(F.T * 720.f * Spin + 20.f, F.T * 540.f * Spin, F.T * 300.f * Spin));
+			}
+			if (F.Comps.Num() > 3)
+				if (UTextRenderComponent* N = Cast<UTextRenderComponent>(F.Comps[3]))
+				{
+					N->SetVisibility(F.T > 0.75f && U < 0.97f);
+					GodFaceCamera(N, Cam);
+				}
+		}
+		if (U >= 1.f)
+		{
+			for (int32 k = F.Comps.Num() - 1; k >= 0; --k) if (USceneComponent* C = F.Comps[k]) { FxParts.Remove(C); C->DestroyComponent(); }
+			Fx.RemoveAt(i);
+		}
+	}
+	Fx.Append(Spawned);
 }
 
 AFNTableGods* AFNTableGods::Get(AFNStudio* InStudio, bool bCreate)
@@ -468,10 +828,12 @@ FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPix
 			FVector C;
 			float Half;
 			if (!F || !F->CardBounds(C, Half)) continue;
-			FVector2D P0, P1;
+			FVector2D P0, P1, PF;
 			if (!PC->ProjectWorldLocationToScreen(C, P0) || !PC->ProjectWorldLocationToScreen(C + Right * Half, P1)) continue;
-			const double R = FVector2D::Distance(P0, P1) * 1.15;
-			const double D = FVector2D::Distance(P0, ViewportPixel);
+			// Easy to click (Chris): well past the card's edge, at least 22 px, and the foot of its pole too.
+			const double R = FMath::Max(FVector2D::Distance(P0, P1) * 1.7, 22.0);
+			double D = FVector2D::Distance(P0, ViewportPixel);
+			if (PC->ProjectWorldLocationToScreen(F->GetActorLocation(), PF)) D = FMath::Min(D, FVector2D::Distance(PF, ViewportPixel) * 1.4);
 			if (D < R && D < BestD) { BestD = D; Best = F->GetRef().IsEmpty() ? KV.Key : F->GetRef(); }
 		}
 	};
@@ -502,13 +864,14 @@ void AFNTableGods::SetLocalPos(const FString& Ref, double Lat, double Lon)
 	D->Lat = Lat;
 	D->Lon = Lon;
 	D->bHasPos = true;
+	if (const TWeakObjectPtr<UTexture2D>* T = DioramaOf.Find(Ref)) if (!D->Diorama) D->Diorama = T->Get();
 	TObjectPtr<AFNDemigodFigure>& Fig = OnBoard.FindOrAdd(Ref);
 	if (!Fig && GetWorld())
 	{
 		FActorSpawnParameters P;
 		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		Fig = GetWorld()->SpawnActor<AFNDemigodFigure>(GetActorLocation(), FRotator::ZeroRotator, P);
-		if (Fig) Fig->SetDemigod(*D, BoardAura.FindRef(Ref), true);
+		if (Fig) { Fig->SetDemigod(*D, BoardAura.FindRef(Ref), true); Fig->SetOnBoard(true); }
 	}
 }
 
@@ -586,6 +949,7 @@ void AFNTableGods::SetGods(const TArray<FFNTableGod>& Gods, int32 MySeat)
 		{
 			const FFNTableDemigod& Dg = G.Demigods[d];
 			const FString Key = Dg.Ref.IsEmpty() ? FString::Printf(TEXT("%s#%d"), *G.Player, d) : Dg.Ref;
+			if (Dg.Diorama) DioramaOf.Add(Key, Dg.Diorama);
 			if (G.bMine)
 			{
 				if (Dg.bHasPos && Dg.bAlive) { BoardInfo.Add(Key, Dg); BoardAura.Add(Key, G.Aura); }
@@ -609,6 +973,18 @@ void AFNTableGods::SetGods(const TArray<FFNTableGod>& Gods, int32 MySeat)
 			}
 		}
 	}
+	// A summon that landed this beat holds its new place until a commit agrees (within 25 km: the server's nudge).
+	for (auto It = LocalPos.CreateIterator(); It; ++It)
+	{
+		FFNTableDemigod* D = BoardInfo.Find(It.Key());
+		if (!D) continue;
+		const double La1 = FMath::DegreesToRadians(D->Lat), La2 = FMath::DegreesToRadians(It.Value().X);
+		const double DLo = FMath::DegreesToRadians(It.Value().Y - D->Lon);
+		const double Cos = FMath::Clamp(FMath::Sin(La1) * FMath::Sin(La2) + FMath::Cos(La1) * FMath::Cos(La2) * FMath::Cos(DLo), -1.0, 1.0);
+		if (FMath::Acos(Cos) * 6371.0 < 25.0) { It.RemoveCurrent(); continue; }
+		D->Lat = It.Value().X;
+		D->Lon = It.Value().Y;
+	}
 	// Gone from the table: remove.
 	for (auto It = Pedestals.CreateIterator(); It; ++It)
 		if (!UsedSlots.Contains(It.Key())) { if (It.Value()) It.Value()->Destroy(); It.RemoveCurrent(); }
@@ -620,13 +996,14 @@ void AFNTableGods::SetGods(const TArray<FFNTableGod>& Gods, int32 MySeat)
 	{
 		TObjectPtr<AFNDemigodFigure>& Fig = OnBoard.FindOrAdd(KV.Key);
 		if (!Fig) Fig = W->SpawnActor<AFNDemigodFigure>(GetActorLocation(), FRotator::ZeroRotator, P);
-		if (Fig) Fig->SetDemigod(KV.Value, BoardAura.FindRef(KV.Key), true);
+		if (Fig) { Fig->SetDemigod(KV.Value, BoardAura.FindRef(KV.Key), true); Fig->SetOnBoard(true); }
 	}
 }
 
 void AFNTableGods::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	TickFx(Dt);
 	AFNStudio* St = Studio.Get();
 	if (!St || !bHasGods || !bShown) return;
 	St->HideClassicSeats();
@@ -638,12 +1015,14 @@ void AFNTableGods::Tick(float Dt)
 		const FFNTableDemigod* D = BoardInfo.Find(KV.Key);
 		if (!Fig || !D) continue;
 		FVector Wp;
-		const bool bOn = St->BoardPointFor(D->Lat, D->Lon, Wp);
+		const bool bOn = St->BoardPointFor(D->Lat, D->Lon, Wp) && !Dissolved.Contains(KV.Key);
 		Fig->SetActorHiddenInGame(!bOn);
 		if (bOn)
 		{
-			// Glide to its point (a summon, a server move, the map zooming).
-			Fig->SetActorLocation(FMath::VInterpTo(Fig->GetActorLocation(), Wp, Dt, 5.f));
+			// Glide to its point (a summon, a server move, the map zooming); a refused summon shakes.
+			FVector At = FMath::VInterpTo(Fig->GetActorLocation(), Wp, Dt, 5.f);
+			if (const float* Sh = Shake.Find(KV.Key)) At += FVector(FMath::Sin(*Sh * 70.f) * 3.f * S * (*Sh / 0.7f), 0.f, 0.f);
+			Fig->SetActorLocation(At);
 			Fig->SetActorScale3D(FVector(0.36f * S));
 		}
 	}

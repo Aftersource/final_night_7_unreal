@@ -93,8 +93,12 @@ public:
 	void SetHeld(bool bInHeld) { bHeld = bInHeld; }
 	/** The card's centre and half-size in world units, for hit tests. */
 	bool CardBounds(FVector& OutCenter, float& OutHalf) const;
+	/** A piece on the board: its card rides on a pole above the board's towers, trees and peaks, so nothing hides it. */
+	void SetOnBoard(bool bInOnBoard) { bOnBoard = bInOnBoard; }
 
 private:
+	bool bOnBoard = false;
+	UStaticMeshComponent* Pole = nullptr;
 	bool bHeld = false;
 	float HeldT = 0.f;
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Parts;
@@ -146,6 +150,22 @@ public:
 	static AFNTableGods* GetAny(UWorld* World);
 	/** Show a demigod's board piece at a new point right away (a summon sent, before the server's next state). */
 	void SetLocalPos(const FString& Ref, double Lat, double Lon);
+	/** Where a demigod's board piece stands now (false when it has none). */
+	bool GetBoardPos(const FString& Ref, double& OutLat, double& OutLon) const;
+
+	/** The summon, as the contract shows it: accepted = the piece lifts and dissolves upward in a column of light at its
+	 *  origin; resolved = a bright arc from origin to target, an arrival burst, the piece dropping onto its hex with a
+	 *  bounce, and a red "-N" when it lost health. */
+	void PlaySummoning(const FString& Ref, double FromLat, double FromLon, const FLinearColor& Aura);
+	/** In sequence: the arc from origin to target (0.8 s), the demigod's DIORAMA popping up big over the target (a card
+	 *  zooming in, held, then shrinking into its piece, 1.3 s), the piece dropping onto its hex, a red "-N" and the d20
+	 *  tumbling beside it (Roll 0 = no die). */
+	void PlaySummoned(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, float HealthLost, int32 Roll, const FLinearColor& Aura);
+	/** A refused summon: the piece comes back where it was, with a red shake. */
+	void CancelSummon(const FString& Ref);
+	bool IsSummoning(const FString& Ref) const { return Dissolved.Contains(Ref); }
+	/** Seconds the whole PlaySummoned sequence takes until the piece stands on its hex. */
+	static constexpr float SummonLandDelay = 2.1f;
 
 private:
 	TWeakObjectPtr<AFNStudio> Studio;
@@ -154,6 +174,34 @@ private:
 	UPROPERTY() TMap<FString, TObjectPtr<AFNDemigodFigure>> OnBoard;  // by ref
 	TMap<FString, FFNTableDemigod> BoardInfo;
 	TMap<FString, FLinearColor> BoardAura;
+
+	// Summon effects (component pools on this actor).
+	struct FFx
+	{
+		int32 Kind = 0;          // 0 column, 1 arc, 2 burst, 3 damage text
+		float T = 0.f, Dur = 1.f;
+		FVector A = FVector::ZeroVector, B = FVector::ZeroVector;
+		FLinearColor Color = FLinearColor::White;
+		FString Ref;
+		float Value = 0.f;
+		int32 Roll = 0;
+		TWeakObjectPtr<UTexture2D> Tex;
+		TArray<USceneComponent*> Comps;
+		TArray<FVector> Vel;
+	};
+	TArray<FFx> Fx;
+	TMap<FString, float> Dissolved;      // pieces hidden between `summoning` and landing (value: seconds hidden)
+	TMap<FString, FVector> LocalPos;     // a landed summon's place (X lat, Y lon, Z age s) until the commit agrees
+	TMap<FString, float> Shake;          // a refused summon's red shake (seconds left)
+	TMap<FString, TWeakObjectPtr<UTexture2D>> DioramaOf;   // every demigod's diorama, for the summon card
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> FxParts;
+	UPROPERTY() TObjectPtr<UMaterialInterface> FxMat;
+	UPROPERTY() TObjectPtr<UMaterialInterface> CardMat;
+	UStaticMeshComponent* FxShape(const TCHAR* Mesh, const FVector& At, const FVector& Scale, const FLinearColor& Color);
+	UStaticMeshComponent* FxChild(USceneComponent* Parent, const TCHAR* Mesh, const FVector& Loc, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color);
+	USceneComponent* FxRoot(const FVector& At);
+	void TickFx(float Dt);
+	bool BoardWorld(double Lat, double Lon, FVector& Out) const;
 	bool bShown = true;
 	bool bHasGods = false;
 	static float SlotAngle(int32 Slot);

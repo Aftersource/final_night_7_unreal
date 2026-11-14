@@ -90,6 +90,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnLobby = InArgs._OnLobby;
 	OnResetView = InArgs._OnResetView;
 	OnCardDrag = InArgs._OnCardDrag;
+	OnCardDoubleClick = InArgs._OnCardDoubleClick;
 
 	// Screen map v2: four corners, the centre (the hex board and the globe) completely clear.
 	ChildSlot
@@ -129,6 +130,37 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
 				[
 					MakeComposePanel()
+				]
+			]
+		]
+		// A big moment (a summon's deed): top centre, over the board, for a few seconds. Never takes a click.
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 76.f, 0.f, 0.f))
+		[
+			SNew(SBox)
+			.MaxDesiredWidth(760.f)
+			.Visibility_Lambda([this]() { return Model.Banner.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+			[
+				SNew(SBorder)
+				.BorderImage(FN7Style::Brush::Panel())
+				.Padding(FMargin(FN7Style::Space::L, FN7Style::Space::M))
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, FN7Style::Space::XS)
+					[
+						SNew(STextBlock)
+						.TextStyle(&FN7Style::Type::Label())
+						.Font(FN7Style::Type::Font(13, TEXT("Bold")))
+						.ColorAndOpacity_Lambda([this]() { return FSlateColor(Model.BannerColor); })
+						.Text_Lambda([this]() { return Model.BannerTitle; })
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.TextStyle(&FN7Style::Type::Body())
+						.WrapTextAt(700.f)   // a fixed width: auto-wrap lags a frame and clipped long deeds
+						.Justification(ETextJustify::Center)
+						.Text_Lambda([this]() { return Model.Banner; })
+					]
 				]
 			]
 		]
@@ -393,13 +425,21 @@ public:
 	SLATE_BEGIN_ARGS(SFN7CardDragSource) {}
 		SLATE_ARGUMENT(FString, Ref)
 		SLATE_EVENT(FOnFNHudCardDrag, OnCardDrag)
+		SLATE_EVENT(FOnFNHudCardDouble, OnCardDouble)
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
 	void Construct(const FArguments& InArgs)
 	{
 		Ref = InArgs._Ref;
 		OnCardDrag = InArgs._OnCardDrag;
+		OnCardDouble = InArgs._OnCardDouble;
 		ChildSlot[InArgs._Content.Widget];
+	}
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry&, const FPointerEvent& E) override
+	{
+		if (E.GetEffectingButton() != EKeys::LeftMouseButton || Ref.IsEmpty()) return FReply::Unhandled();
+		OnCardDouble.ExecuteIfBound(Ref);
+		return FReply::Handled();
 	}
 	virtual FReply OnMouseButtonDown(const FGeometry&, const FPointerEvent& E) override
 	{
@@ -419,6 +459,7 @@ public:
 private:
 	FString Ref;
 	FOnFNHudCardDrag OnCardDrag;
+	FOnFNHudCardDouble OnCardDouble;
 };
 
 TSharedRef<SWidget> SFNHudLayout::MakeMine()
@@ -472,6 +513,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 					SNew(SFN7CardDragSource)
 					.Ref(D.bAlive ? D.Ref : FString())
 					.OnCardDrag(OnCardDrag)
+					.OnCardDouble(OnCardDoubleClick)
 					.ToolTipText(D.bAlive ? LOCTEXT("DragToSummon", "Drag onto the board or the globe to summon this demigod there") : LOCTEXT("HandFallenTip", "This demigod has fallen"))
 					[
 						SNew(SBorder).BorderImage(AuraFrame()).Padding(3.f)[CardW_]

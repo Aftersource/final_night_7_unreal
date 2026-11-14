@@ -269,7 +269,7 @@ void AFNStudio::FocusBoard(double Lat, double Lon, int32 Level)
 	static const double LevelHexM[4] = { 3.0, 30.0, 3000.0, 120000.0 };
 	static constexpr double HexesToEdge = 22.0;
 	if (!bHasFocus) return;   // only during a match
-	MapLevel = FMath::Clamp(Level, 0, 3);
+	MapLevel = Level < 0 ? FMath::Max(MapLevel - 1, 0) : FMath::Clamp(Level, 0, 3);   // -1: one level closer than now
 	PickRadiusM = LevelHexM[MapLevel] * HexesToEdge;
 	PickLat = FMath::Clamp(Lat, -89.9, 89.9);
 	PickLon = Lon;

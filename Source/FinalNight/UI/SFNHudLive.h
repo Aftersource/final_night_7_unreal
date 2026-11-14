@@ -58,6 +58,26 @@ private:
 	FString LastMineLog;
 	void OnSummonOver(const FString& Ref, const FVector2D& ScreenPosition);
 	void OnSummonDropped(const FString& Ref, const FVector2D& ScreenPosition);
+	// The summon display (rules 0.8.0): `summoning` at accept, `summoned` at the resolve, refusals.
+	FString PendingSummonRef;            // your drop, waiting for the server's answer
+	double PendingSummonAt = 0.0;
+	TSet<FString> SeenSummons;           // summoned events already played (they come in summons[], events[] and dm_events[])
+	TMap<FString, FString> LastDioHash;  // to log a demigod's new diorama (a takeover rename)
+	double BannerAt = 0.0, BannerUntil = 0.0;
+	FText NextBannerTitle, NextBanner;
+	FLinearColor NextBannerColor = FLinearColor::White;
+	FLinearColor AuraOf(const FString& Ref) const;
+	FString NameOf(const FString& Ref) const;
+	void HandleSummoning(const TSharedPtr<FJsonObject>& Pub);
+	void HandleSummoned(const TSharedPtr<FJsonObject>& E, const TArray<TSharedPtr<FJsonValue>>* Dice, int32 Beat);
+	void ShowBanner(const FText& Title, const FText& Text, const FLinearColor& Color, double Delay, double Secs);
+	void OnDemigodDoubleClick(const FString& Ref);
+	FString SelectedRef;                 // your demigod last double-clicked (a brief glow; it also picks who challenges)
+	double SelectedUntil = 0.0;
+public:
+	/** FN7.Hud ... summon: the whole summon sequence on the preview table (step 0 your Left Hand, 1 your Right Hand). */
+	void PreviewSummon(int32 Step);
+private:
 	/** Where a ring hex would land: over the globe (mega), on a board hex (mini), or neither; and the point to hover it at. */
 	int32 RingTarget(const FVector2D& ScreenPosition, double& OutLat, double& OutLon, FVector& OutWorld, FVector2D& OutPixel) const;
 	TSharedPtr<SFNHudLayout> Layout;
