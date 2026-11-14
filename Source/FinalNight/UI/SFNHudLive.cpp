@@ -28,6 +28,15 @@
 #include "FNPowerDrag.h"
 #include "SFNDragToken.h"
 #include "SFNPanelMover.h"
+#include "FNStyle.h"
+#include "Framework/Application/IInputProcessor.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/PlatformTime.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SFNHudLive"
 
@@ -61,6 +70,19 @@ namespace FN7HudJson
 	}
 }
 
+/** Esc (no modifiers) opens and closes the lobby while we are in a room. */
+class FFN7LobbyKeys : public IInputProcessor
+{
+public:
+	TFunction<bool()> OnEscape;
+	virtual void Tick(const float, FSlateApplication&, TSharedRef<ICursor>) override {}
+	virtual bool HandleKeyDownEvent(FSlateApplication&, const FKeyEvent& E) override
+	{
+		if (E.GetKey() != EKeys::Escape || E.IsShiftDown() || E.IsControlDown() || E.IsAltDown() || E.IsCommandDown()) return false;
+		return OnEscape ? OnEscape() : false;
+	}
+};
+
 void SFNHudLive::Construct(const FArguments& InArgs)
 {
 	Net = InArgs._Net;
@@ -80,15 +102,22 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnSend(this, &SFNHudLive::OnSend)
 			.OnTypingStarted(this, &SFNHudLive::OnTyping)
 			.OnPower(this, &SFNHudLive::OnPower)
-			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) N->TakeSeat(); })
+			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) { N->bWatchOnly = false; N->bSeatAsked = true; N->TakeSeat(); } })
+			.OnLobby_Lambda([this]() { SetLobbyOpen(true); })
 		]
-		// The start screen covers everything (and swallows clicks) until we are in a room.
+		// Out of the match: a small card under the header, never over the board's centre.
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 92.f, 0.f, 0.f))
+		[
+			MakeOutCard()
+		]
+		// The lobby: covers everything (and swallows clicks) until we are in a room, and over the game when opened.
 		+ SOverlay::Slot()
 		[
 			SAssignNew(StartPanel, SFNStartPanel)
 			.Net(Net.Get())
-			.OnChoice_Lambda([this](bool bTakeSeat) { bWantSeat = bTakeSeat; bSeatAsked = false; })
-			.Visibility_Lambda([this]() { return bInRoom ? EVisibility::Collapsed : EVisibility::Visible; })
+			.bInGame_Lambda([this]() { return bInRoom; })
+			.OnBack_Lambda([this]() { SetLobbyOpen(false); })
+			.Visibility_Lambda([this]() { return (!bInRoom || bLobbyOpen) ? EVisibility::Visible : EVisibility::Collapsed; })
 		]
 		// The power being dragged, floating over everything (never takes input).
 		+ SOverlay::Slot()
@@ -107,6 +136,133 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	DragEndHandle = FFNPowerDragDrop::OnDragEnded().AddSP(this, &SFNHudLive::OnPowerDragEnded);
 	FFNPowerDragDrop::SnapToBoard().BindSP(this, &SFNHudLive::SnapPowerToBoard);
 	RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLive::TickTimer));
+
+	if (FSlateApplication::IsInitialized())
+	{
+		TSharedRef<FFN7LobbyKeys> Keys = MakeShared<FFN7LobbyKeys>();
+		TWeakPtr<SFNHudLive> Weak = StaticCastSharedRef<SFNHudLive>(AsShared());
+		Keys->OnEscape = [Weak]()
+		{
+			TSharedPtr<SFNHudLive> Self = Weak.Pin();
+			if (!Self.IsValid() || !Self->bInRoom) return false;
+			Self->SetLobbyOpen(!Self->bLobbyOpen);
+			return true;
+		};
+		LobbyKeys = Keys;
+		FSlateApplication::Get().RegisterInputPreProcessor(LobbyKeys);
+	}
+}
+
+void SFNHudLive::DebugPreview(bool bLobby, bool bFell)
+{
+	Model = SFNHudLayout::SampleModel();
+	bInRoom = true;
+	if (bFell)
+	{
+		bOut = true;
+		bOutDismissed = false;
+		OutBeat = Model.Beat;
+		OutReason = TEXT("(preview) Both of your demigods have fallen: the Left Hand to Mara's army at Tashkent, the Right Hand to the flood.");
+		OutNote.Reset();
+	}
+	if (Layout.IsValid()) Layout->SetModel(Model);   // the sample seats as they are (Publish would rebuild them from the live list)
+	SetLobbyOpen(bLobby);
+}
+
+void SFNHudLive::SetLobbyOpen(bool bOpen)
+{
+	bLobbyOpen = bOpen;
+	if (bOpen && StartPanel.IsValid()) StartPanel->Opened();
+}
+
+void SFNHudLive::ResetForNewRoom()
+{
+	bInRoom = false;
+	bLobbyOpen = false;
+	bOut = false;
+	bTakeAsked = false;
+	Seats.Reset();
+	MySeat = -1;
+	Model.Seats.Reset();
+	Model.Powers.Reset();
+	Model.News.Reset();
+	Model.BeatsTotal = 0;
+	Model.Beat = 0;
+	Model.Room = FText::GetEmpty();
+}
+
+TSharedRef<SWidget> SFNHudLive::MakeOutCard()
+{
+	using namespace FN7Style;
+	const FLinearColor OutInk(0.1f, 0.06f, 0.02f);
+	return SNew(SBox)
+		.WidthOverride(520.f)
+		.Visibility_Lambda([this]() { return (bOut && !bOutDismissed && !bLobbyOpen && bInRoom) ? EVisibility::Visible : EVisibility::Collapsed; })
+		[
+			SNew(SBorder)
+			.BorderImage(Brush::Card())
+			.Padding(FMargin(Space::XL, Space::L))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(STextBlock).TextStyle(&Type::Title()).Text_Lambda([this]() { return FText::Format(LOCTEXT("YouFell", "You fell at beat {0}."), OutBeat); })
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true).Text_Lambda([this]() { return FText::FromString(OutReason); })
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Body()).ColorAndOpacity(Color::Accent()).AutoWrapText(true)
+					.Visibility_Lambda([this]() { return OutNote.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+					.Text_Lambda([this]() { return FText::FromString(OutNote); })
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+					[
+						SNew(SBox).HeightOverride(40.f)
+						[
+							SNew(SButton)
+							.ButtonStyle(&AccentButton())
+							.VAlign(VAlign_Center)
+							.IsEnabled_Lambda([this]() { return !bTakeAsked; })
+							.OnClicked_Lambda([this]()
+							{
+								if (UFNNetClient* N = Net.Get()) N->TakeSeat();
+								bTakeAsked = true;
+								TakeAskedAt = FPlatformTime::Seconds();
+								OutNote = TEXT("Asking for a free demigod...");
+								return FReply::Handled();
+							})
+							[
+								SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(OutInk).Text(LOCTEXT("TakeAnother", "TAKE ANOTHER DEMIGOD"))
+							]
+						]
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+					[
+						SNew(SButton)
+						.ButtonStyle(&PillButton())
+						.OnClicked_Lambda([this]() { bOutDismissed = true; return FReply::Handled(); })
+						[
+							SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::Text()).Text(LOCTEXT("OutWatch", "WATCH"))
+						]
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+					[
+						SNew(SButton)
+						.ButtonStyle(&PillButton())
+						.OnClicked_Lambda([this]() { SetLobbyOpen(true); return FReply::Handled(); })
+						[
+							SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::Text()).Text(LOCTEXT("OutLobby", "RETURN TO LOBBY"))
+						]
+					]
+				]
+			]
+		];
 }
 
 SFNHudLive::~SFNHudLive()
@@ -120,6 +276,7 @@ SFNHudLive::~SFNHudLive()
 	FFNPowerDragDrop::OnDragOverWorld().Remove(DragOverHandle);
 	FFNPowerDragDrop::OnDragEnded().Remove(DragEndHandle);
 	FFNPowerDragDrop::SnapToBoard().Unbind();
+	if (LobbyKeys.IsValid() && FSlateApplication::IsInitialized()) FSlateApplication::Get().UnregisterInputPreProcessor(LobbyKeys);
 }
 
 void SFNHudLive::HandleStatus(const FString& Status)
@@ -130,16 +287,40 @@ void SFNHudLive::HandleStatus(const FString& Status)
 
 void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 {
-	// JOIN = TAKE A SEAT: joined as a viewer (the house is replaying, or between seats), ask for a seat once.
-	if ((T == TEXT("room.snapshot") || T == TEXT("match.snapshot") || T == TEXT("room.updated")) && bWantSeat && !bSeatAsked)
+	// JOIN = TAKE A SEAT: joined as a viewer (the house is replaying, or between seats), ask for a seat once. The net's
+	// bWatchOnly (WATCH) and bSeatAsked (the shared once-only guard; the root resets it at match.ended) decide.
+	if (T == TEXT("room.snapshot") || T == TEXT("match.snapshot") || T == TEXT("room.updated"))
 		if (UFNNetClient* N = Net.Get())
-			if (N->bViewer)
+			if (N->bViewer && !N->bWatchOnly && !N->bSeatAsked)
 			{
-				bSeatAsked = true;
+				N->bSeatAsked = true;
 				N->TakeSeat();
 				Model.Status = LOCTEXT("TakingSeat", "Taking a seat...");
 			}
-	if (T == TEXT("seat.joined")) Model.Status = FText::GetEmpty();
+	// TAKE ANOTHER DEMIGOD answered: the house moved us to the lowest active bot seat (from the next round).
+	if (T == TEXT("seat.retaken"))
+	{
+		const bool bMine = FN7HudJson::Str(D, TEXT("display_name")) == Model.YouName.ToString() || (int32)FN7HudJson::Num(D, TEXT("from_seat"), -2) == MySeat;
+		if (bMine)
+		{
+			MySeat = (int32)FN7HudJson::Num(D, TEXT("to_seat"), MySeat);
+			bOut = false;
+			bTakeAsked = false;
+			OutNote.Reset();
+			Model.Status = LOCTEXT("Retaken", "You take over a new demigod from the next beat.");
+			Publish();
+			return;
+		}
+	}
+	if (T == TEXT("seat.joined"))
+	{
+		Model.Status = FText::GetEmpty();
+		if (FN7HudJson::Str(D, TEXT("display_name")) == Model.YouName.ToString() || (int32)FN7HudJson::Num(D, TEXT("seat"), -2) == MySeat)
+		{
+			bOut = false;   // took another demigod
+			bTakeAsked = false;
+		}
+	}
 
 	if (T == TEXT("auth.ok"))
 	{
@@ -169,6 +350,8 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	else if (T == TEXT("match.started"))
 	{
 		bInRoom = true;
+		bOut = false;
+		bTakeAsked = false;
 		Model.Status = LOCTEXT("Started", "The match has begun.");
 		Model.News.Reset();
 	}
@@ -258,6 +441,14 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("error"))
 	{
+		if (bOut && bTakeAsked)
+		{
+			bTakeAsked = false;
+			OutNote = Model.BeatsTotal > Model.Beat
+				? FString::Printf(TEXT("No demigod is free right now. The next match starts in about %d beats."), Model.BeatsTotal - Model.Beat)
+				: FString(TEXT("No demigod is free right now. You'll get one next match."));
+			return;
+		}
 		if (FN7HudJson::Str(D, TEXT("code")) == TEXT("room_full"))
 		{
 			Model.Status = LOCTEXT("TableFull", "Table full: watching. You'll get a seat next match.");
@@ -268,12 +459,29 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("seat.eliminated"))
 	{
-		if ((int32)FN7HudJson::Num(D, TEXT("seat"), -2) == MySeat)
-			AddNews(LOCTEXT("Fallen", "FALLEN"), FString::Printf(TEXT("You fell: %s"), *FN7HudJson::Str(D, TEXT("reason"))));
+		if ((int32)FN7HudJson::Num(D, TEXT("seat"), -2) == MySeat && MySeat >= 0)
+		{
+			// Rules 0.7.0: this comes once, when both of your demigods have fallen.
+			OutReason = FN7HudJson::Str(D, TEXT("reason"));
+			OutBeat = (int32)FN7HudJson::Num(D, TEXT("round"), Round);
+			OutNote.Reset();
+			bOut = true;
+			bOutDismissed = false;
+			bTakeAsked = false;
+			AddNews(LOCTEXT("Fallen", "FALLEN"), FString::Printf(TEXT("You fell: %s"), *OutReason));
+		}
+	}
+	else if (T == TEXT("seat.revived"))
+	{
+		if ((int32)FN7HudJson::Num(D, TEXT("seat"), -2) == MySeat) bOut = false;
+	}
+	else if (T == TEXT("room.left"))
+	{
+		ResetForNewRoom();
 	}
 	else if (T == TEXT("match.ended"))
 	{
-		bSeatAsked = false;   // still a viewer next match: JOIN asks again
+		if (UFNNetClient* N = Net.Get()) N->bSeatAsked = false;   // still a viewer next match: JOIN asks again
 		const TSharedPtr<FJsonObject> Summary = FN7HudJson::Obj(D, TEXT("summary"));
 		FString Champ;
 		if (const TArray<TSharedPtr<FJsonValue>>* C = FN7HudJson::Arr(Summary, TEXT("champions")))
@@ -473,11 +681,11 @@ void SFNHudLive::OnSend(const FString& Text)
 	if (!N) return;
 	if (!ArmedPower.IsEmpty())
 	{
-		// ArmedPower is "slug" or "slug:tier"; the cast call carries no tier yet (UFNNetClient needs a Tier argument).
+		// ArmedPower is "slug" or "slug:tier" (mega spends a bolt, mini a spark; a server without tiers takes mini).
 		FString ArmedSlug = ArmedPower, ArmedTier;
 		ArmedPower.Split(TEXT(":"), &ArmedSlug, &ArmedTier);
 		if (ArmedSlug.IsEmpty()) ArmedSlug = ArmedPower;
-		N->CastPower(Round, ArmedSlug, Text);
+		N->CastPower(Round, ArmedSlug, Text, ArmedTier.IsEmpty() ? FString(TEXT("mini")) : ArmedTier);
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %s"), *ArmedPower, *Text));
 		ArmedPower.Reset();
 		Publish();
@@ -579,7 +787,9 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 	FVector World;
 	if (N && St && FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) && St->HexAtScreen(Pixel, La, Lo, World, HexM))
 	{
-		N->CastAt(Round, Power, Lo, La);
+		const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();   // still set while OnDroppedOnWorld runs
+		const FString Tier = (Op.IsValid() && !Op->Tier.IsEmpty()) ? Op->Tier : FString(TEXT("mini"));
+		N->CastAt(Round, Power, Lo, La, Tier);
 		St->FlashAt(Lo, La);
 		ArmedPower.Reset();
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
@@ -607,6 +817,14 @@ FText SFNHudLive::GetTimer() const
 
 EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 {
+	// TAKE ANOTHER DEMIGOD unanswered for a few seconds: say when the next chance comes.
+	if (bOut && bTakeAsked && FPlatformTime::Seconds() - TakeAskedAt > 6.0)
+	{
+		bTakeAsked = false;
+		OutNote = Model.BeatsTotal > Model.Beat
+			? FString::Printf(TEXT("No demigod is free right now. The next match starts in about %d beats."), Model.BeatsTotal - Model.Beat)
+			: FString(TEXT("No demigod is free right now. You'll get one next match."));
+	}
 	Invalidate(EInvalidateWidgetReason::Paint);
 	return EActiveTimerReturnType::Continue;
 }
@@ -670,11 +888,17 @@ namespace FN7HudMount
 	}
 
 	bool IsMounted() { return GMountLive.IsValid(); }
+
+	void Preview(bool bLobby, bool bFell)
+	{
+		if (GMountLive.IsValid()) StaticCastSharedPtr<SFNHudLive>(GMountLive)->DebugPreview(bLobby, bFell);
+	}
 }
 
 static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 	TEXT("FN7.Hud"),
-	TEXT("FN7.Hud on | off [connect] [shot] [quit]: the live style-kit HUD over the game (hides the old HUD while on). ")
+	TEXT("FN7.Hud on | off [connect] [shot] [quit] [lobby] [fell]: the live style-kit HUD over the game (hides the old HUD while on). ")
+	TEXT("lobby / fell = preview the lobby over the game / the out card on the sample table (no game joined). ")
 	TEXT("connect = start the net client now; shot = save Saved/FN7HudLive_<n>.png every 8 s; quit = exit after 4 shots."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
@@ -684,15 +908,18 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 		const bool bShot = Args.Contains(TEXT("shot"));
 		const bool bQuit = Args.Contains(TEXT("quit"));
 		const bool bAoe = Args.Contains(TEXT("aoe"));
+		const bool bLobby = Args.Contains(TEXT("lobby"));
+		const bool bFell = Args.Contains(TEXT("fell"));
 		TWeakObjectPtr<UWorld> WeakWorld(World);
 		// Wait for the player controller and its net client, then mount (and optionally connect / photograph).
-		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe](float)
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell](float)
 		{
 			UWorld* W = WeakWorld.Get();
 			AFNPlayerController* PC = W ? Cast<AFNPlayerController>(W->GetFirstPlayerController()) : nullptr;
 			if (!PC || !PC->Net) return true;
 			FN7HudMount::Mount(PC->Net);
 			if (bConnect) PC->Net->Start();
+			if (bLobby || bFell) FN7HudMount::Preview(bLobby, bFell);
 			if (bAoe)
 			{
 				// Test: light an Earthquake's area (250 km) around the board hex at 42% / 78% of the viewport, as a drag would.

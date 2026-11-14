@@ -6,30 +6,41 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class FJsonObject;
+class SBox;
 class SFNTextBox;
 class UFNNetClient;
 
 /**
- * The FN7 start screen, shown until you are in a room: title, server status (GET /stats), tonight's game
- * (GET /api/house, else Config/FN7JoinCode.txt), your name and one JOIN THE GAME button.
+ * The FN7 lobby. Shown until you are in a room, and over the game whenever it is opened (Esc or the LOBBY pill).
  * It covers the whole viewport and swallows clicks, so nothing behind it reaches the globe.
  *
- * JOIN saves the name to Config/FN7DisplayName.txt and connects (the root joins the house at auth.ok), or calls
- * UFNNetClient::JoinHouse() when already connected. JOIN never hosts: with no house game it says so.
+ * - The server (GET /stats) and the house game (GET /api/house, polled every 3 s): LIVE or REPLAYING, beat N of M,
+ *   who sits at the table (human, AI, away, out), how many watch, and the next match when the server says.
+ * - JOIN THE GAME takes a seat; WATCH joins without one (room.join {house:true, viewer:true}). Both save the name to
+ *   Config/FN7DisplayName.txt and connect (the root joins the house at auth.ok), or join directly when connected.
+ *   JOIN never hosts: with no house game it says so.
+ * - Over the game: BACK TO THE GAME, TAKE A SEAT while only watching, and OTHER ROOMS (room.list) with a JOIN each.
  */
 DECLARE_DELEGATE_OneParam(FOnFNJoinChoice, bool /*bTakeSeat*/);
 
 class FINALNIGHT_API SFNStartPanel : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SFNStartPanel) {}
+	SLATE_BEGIN_ARGS(SFNStartPanel) : _bInGame(false) {}
 		SLATE_ARGUMENT(UFNNetClient*, Net)
+		/** True while we are in a room: the lobby was opened over the game. */
+		SLATE_ATTRIBUTE(bool, bInGame)
 		/** JOIN (take a seat) or WATCH (stay a viewer), told before connecting. */
 		SLATE_EVENT(FOnFNJoinChoice, OnChoice)
+		/** Close the lobby and go back to the game. */
+		SLATE_EVENT(FSimpleDelegate, OnBack)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 	virtual ~SFNStartPanel() override;
+
+	/** Called when the lobby is shown over the game: refresh at once and ask for the room list. */
+	void Opened();
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -37,33 +48,75 @@ public:
 
 private:
 	TWeakObjectPtr<UFNNetClient> Net;
+	TAttribute<bool> bInGame;
 	FDelegateHandle MessageHandle;
 	TSharedPtr<SFNTextBox> NameBox;
+	TSharedPtr<SBox> HouseHolder;
+	TSharedPtr<SBox> RoomsHolder;
+	FOnFNJoinChoice OnChoice;
+	FSimpleDelegate OnBack;
 
+	// GET /stats
 	bool bServerOnline = false;
 	bool bStatsKnown = false;
 	int32 PlayersConnected = 0;
-	int32 Rooms = 0;
+	int32 RoomCount = 0;
+
+	// GET /api/house
+	struct FHouseSeat
+	{
+		FString Name;
+		FString Kind;   // Human, AI, away, out
+	};
+	bool bHouseKnown = false;
 	FString HouseCode;
 	FString HouseSource;   // "house" or "file"
-	FString HouseDetail;   // "beat 12, 3 at the table"
-	bool bWroteJoinFile = false;
+	FString HouseState;    // in_match, open, post_match ...
+	bool bReplaying = false;
+	int32 HouseBeat = 0;
+	int32 HouseBeats = 0;
+	int32 HouseViewers = 0;
+	double NextMatchS = -1.0;
+	TArray<FHouseSeat> HouseSeats;
+	FString HouseSignature;
+
+	// room.listed
+	struct FRoomRow
+	{
+		FString Code;
+		int32 SeatsTaken = 0;
+		int32 MaxPlayers = 0;
+		FString State;
+	};
+	TArray<FRoomRow> OtherRooms;
+	bool bRoomsKnown = false;
+	FString RoomsSignature;
+
 	bool bConnected = false;
 	bool bJoining = false;
 	FString Progress;
 
 	void HandleMessage(const FString& T, TSharedPtr<FJsonObject> D);
 	void RefreshStats();
-	void RefreshHouse(int32 PathIndex = 0);
+	void RefreshHouse();
+	void ReadHouse(const TSharedPtr<FJsonObject>& O);
 	FString ReadLocalLine(const TCHAR* File) const;
-	FReply OnJoin();
-	FReply OnWatch();
-	FReply Enter(bool bTakeSeat);
-	FOnFNJoinChoice OnChoice;
+	TSharedRef<SWidget> MakeHouse();
+	TSharedRef<SWidget> MakeRooms();
+	void RebuildHouse();
+	void RebuildRooms();
 
+	FReply OnPrimary();
+	FReply OnSecondary();
+	FReply Enter(bool bTakeSeat);
+	void JoinOther(const FString& Code);
+
+	bool IsViewer() const;
 	FText GetStatusText() const;
 	FSlateColor GetStatusColor() const;
-	FText GetGameText() const;
+	FText GetPrimaryText() const;
+	FText GetSecondaryText() const;
+	EVisibility GetSecondaryVisibility() const;
 	FText GetProgressText() const;
 	bool CanJoin() const { return !bJoining; }
 	EActiveTimerReturnType TickRefresh(double InCurrentTime, float InDeltaTime);

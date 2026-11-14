@@ -80,6 +80,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnTypingStarted = InArgs._OnTypingStarted;
 	OnPower = InArgs._OnPower;
 	OnTakeSeat = InArgs._OnTakeSeat;
+	OnLobby = InArgs._OnLobby;
 
 	ChildSlot
 	[
@@ -243,6 +244,17 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 		];
 		Row->AddSlot().AutoWidth().VAlign(VAlign_Center)[Chip(Brush::Pill(EFNSeatRole::AI), Model.Entropy, Color::AIAura())];
 	}
+	// LOBBY: the way out and to the other rooms (Esc does the same).
+	Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(Space::L, 0.f, 0.f, 0.f)
+	[
+		SNew(SButton)
+		.ButtonStyle(&PillButton())
+		.ToolTipText(LOCTEXT("LobbyTip", "The lobby (Esc)"))
+		.OnClicked_Lambda([this]() { OnLobby.ExecuteIfBound(); return FReply::Handled(); })
+		[
+			SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::Text()).Text(LOCTEXT("LobbyPill", "LOBBY"))
+		]
+	];
 
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)

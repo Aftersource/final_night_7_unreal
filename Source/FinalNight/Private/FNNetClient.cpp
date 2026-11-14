@@ -299,6 +299,8 @@ FString UFNNetClient::MediaUrl(const FString& Path) const
 void UFNNetClient::TakeSeat() { Send(TEXT("room.take_seat"), Obj()); }
 void UFNNetClient::LeaveRoom() { Send(TEXT("room.leave"), Obj()); bViewer = false; bSeatAsked = false; }
 
+void UFNNetClient::ListRooms() { Send(TEXT("room.list"), Obj()); }
+
 void UFNNetClient::JoinHouse(bool bAsViewer)
 {
 	// ONE GAME. JOIN THE GAME = JoinHouse(false), and if the reply says we are only a viewer (the house is replaying), TakeSeat().

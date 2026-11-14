@@ -71,6 +71,7 @@ DECLARE_DELEGATE_OneParam(FOnFNHudSend, const FString& /*Text*/);
 DECLARE_DELEGATE(FOnFNHudTyping);
 DECLARE_DELEGATE_OneParam(FOnFNHudPower, const FString& /*Slug*/);
 DECLARE_DELEGATE(FOnFNHudTakeSeat);
+DECLARE_DELEGATE(FOnFNHudLobby);
 
 /**
  * The full FN7 HUD on a corner grid around a clear centre (the globe): header strip top left, WORLD news top right,
@@ -88,6 +89,8 @@ public:
 		SLATE_EVENT(FOnFNHudTyping, OnTypingStarted)
 		SLATE_EVENT(FOnFNHudPower, OnPower)
 		SLATE_EVENT(FOnFNHudTakeSeat, OnTakeSeat)
+		/** The LOBBY pill in the header. */
+		SLATE_EVENT(FOnFNHudLobby, OnLobby)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -104,6 +107,7 @@ private:
 	FOnFNHudTyping OnTypingStarted;
 	FOnFNHudPower OnPower;
 	FOnFNHudTakeSeat OnTakeSeat;
+	FOnFNHudLobby OnLobby;
 	bool bTypingSignalled = false;
 
 	TSharedPtr<SBox> HeaderHolder, NewsHolder, SeatsHolder, YouHolder, PowersHolder;
