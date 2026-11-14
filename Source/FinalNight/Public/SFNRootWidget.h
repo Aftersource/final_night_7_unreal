@@ -55,6 +55,7 @@ private:
 	TArray<TSharedPtr<FJsonObject>> DiceQueue;
 	float DiceWait = 0.f;
 	FTSTicker::FDelegateHandle DiceTicker;
+	bool bSawRoomSnapshot = false;   // since the last auth.ok (resume watchdog)
 	// --- Benito's feature actors (Source/FinalNight/Private/Features/), spawned on first use, fed from the FN7 messages ---
 	TWeakObjectPtr<class AFNDayNight> DayNightActor;
 	class AFNDayNight* DayNight();

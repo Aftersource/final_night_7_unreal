@@ -1034,6 +1034,7 @@ void SFNRootWidget::PushSeats()
 
 bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 {
+	if (T == TEXT("room.snapshot")) bSawRoomSnapshot = true;
 	// Benito's features 4 + 5: the encounter and loot markers read the game queries' replies (game.encounters / region / node)
 	if (T == TEXT("game.encounters") || T == TEXT("game.region") || T == TEXT("game.node"))
 		if (AFNEncounters* En = Encounters()) En->Apply(D);
@@ -1101,6 +1102,24 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 			if (!Join.IsEmpty()) Net->JoinRoom(Join);
 			else if (bDevCreate) Net->CreateRoom();
 			else Net->JoinHouse(Net->bWatchOnly);   // keep a WATCH choice across reconnects
+		}
+		else if (Net.IsValid())
+		{
+			// A resume (we already had a room). The server should re-send room.snapshot + match.snapshot; the sync check
+			// (2026-11-14) saw a viewer's auth.resume answered by auth.ok and then nothing. If no room.snapshot comes
+			// within 4 s, join again (same room, same WATCH choice) so the HUD and board rebuild without waiting a beat.
+			bSawRoomSnapshot = false;
+			const FString Room = RoomCode;
+			TWeakPtr<SFNRootWidget> Weak = SharedThis(this);
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Weak, Room, Join](float)
+			{
+				const TSharedPtr<SFNRootWidget> Self = Weak.Pin();
+				if (!Self.IsValid() || Self->bSawRoomSnapshot || !Self->Net.IsValid()) return false;
+				UE_LOG(LogTemp, Warning, TEXT("FN7 resume: no room.snapshot 4 s after auth.ok; joining %s again"), *Room);
+				if (!Join.IsEmpty()) Self->Net->JoinRoom(Join);
+				else Self->Net->JoinHouse(Self->Net->bWatchOnly);
+				return false;
+			}), 4.f);
 		}
 		return true;
 	}
