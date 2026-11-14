@@ -86,6 +86,14 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 	if (WasInputKeyJustPressed(EKeys::LeftMouseButton) && !Root->IsTyping())
 	{
 		Studio->PlaySfx(EFNSfx::Click, Id != NAME_None ? 1.f : 0.5f);
-		Root->OnWorldClick(Id);
+		// during a match a click on the table map zooms in there (web-map style) instead of opening WILL
+		// a click on a demigod (map marker, minifig or silhouette) centres the map on it and opens its card
+		if (Id != NAME_None && Studio->ClickDemigod(Id)) {}
+		else if (Id != NAME_None || !Studio->MapClick(true)) Root->OnWorldClick(Id);
+	}
+	if (!Root->IsTyping())
+	{
+		if (WasInputKeyJustPressed(EKeys::RightMouseButton)) Studio->MapClick(false);
+		if (WasInputKeyJustPressed(EKeys::Home)) Studio->MapHome();
 	}
 }

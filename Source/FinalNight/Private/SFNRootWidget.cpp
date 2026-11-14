@@ -102,7 +102,11 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 	Net = InArgs._Net;
 	Studio = InArgs._Studio;
 	// A click on a point of the globe: the studio reports [lon, lat]; with an Entropy power armed, it is cast there.
-	if (AFNStudio* St = Studio.Get()) St->OnUserPickedSpot = [this](double Lon, double Lat) { OnGlobePicked(Lon, Lat); };
+	if (AFNStudio* St = Studio.Get())
+	{
+		St->OnUserPickedSpot = [this](double Lon, double Lat) { OnGlobePicked(Lon, Lat); };
+		St->OnDemigodClicked = [this](const FString& Ref, const FString& Name) { ShowDemigodCard(Ref, Name); };
+	}
 	if (Net.IsValid())
 	{
 		MsgHandle = Net->OnServerMessage.AddSP(this, &SFNRootWidget::OnServerMessage);
@@ -161,6 +165,14 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(28.f, 150.f)
 		[
 			SNew(SBox).WidthOverride(380.f).Visibility(EVisibility::HitTestInvisible)[SAssignNew(BannerBox, SVerticalBox)]
+		]
+		// Final Night 7: the demigods' portraits, top centre
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0.f, 14.f, 0.f, 0.f)
+		[
+			SNew(SBox).Visibility_Lambda([this]() { return (Net.IsValid() && Net->bFn7 && Day > 0) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			[
+				SAssignNew(PortraitStrip, SHorizontalBox)
+			]
 		]
 		// Final Night 7: ENTROPY power bar, bottom centre. Pick a power, then click the globe.
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0.f, 0.f, 0.f, 92.f)
@@ -442,6 +454,11 @@ FText SFNRootWidget::HoverText() const
 FText SFNRootWidget::NotificationText() const
 {
 	if (!bNotificationOpen) return FText::FromString(TEXT("≡"));
+	if (Net.IsValid() && Net->bFn7)
+		return FText::FromString(TEXT("FINAL NIGHT 7. You are a demigod on the real Earth; the last one standing wins.\n\n"
+			"TIME: click WILL and write orders for your two hands. Time slows while you write; Enter seals your orders and cuts off anyone slower. Time sends a bill.\n\n"
+			"ENTROPY: pick a power below, then click the globe. Every bolt you spend gives each rival +2.\n\n"
+			"Stay inside Time's circle."));
 	return FText::FromString(Intro.Left(FMath::Clamp((int32)IntroShown, 0, Intro.Len())));
 }
 
@@ -596,7 +613,7 @@ void SFNRootWidget::Choose(int32 Index)
 
 void SFNRootWidget::AddBanner(const FString& Text, const FLinearColor& Color)
 {
-	Banners.Add({ Day > 0 ? FString::Printf(TEXT("Day %d  -  %s"), Day, *Text) : Text, Color, Clock });
+	Banners.Add({ Day > 0 ? FString::Printf(TEXT("%s %d  -  %s"), (Net.IsValid() && Net->bFn7) ? TEXT("Beat") : TEXT("Day"), Day, *Text) : Text, Color, Clock });
 	while (Banners.Num() > ((Net.IsValid() && Net->bFn7) ? 5 : 7)) Banners.RemoveAt(0);
 	RebuildBanners();
 }
@@ -767,11 +784,14 @@ void SFNRootWidget::ApplyFn7Public(const TSharedPtr<FJsonObject>& PV)
 			const TSharedPtr<FJsonValue> SeatV = O->TryGetField(TEXT("seat"));
 			const bool bAi = !SeatV.IsValid() || SeatV->IsNull();   // seat null = the built-in AI's demigod
 			Pc.Name = bMine ? FString::Printf(TEXT("YOU  %d/10"), Health) : Str(O, TEXT("name"));
+			Pc.Ref = Str(O, TEXT("ref"));
 			Pc.Kind = bMine ? 0 : (bAi ? 2 : 1);
 			Pc.Color = 1 + Board.Num() % 3;
 			Board.Add(Pc);
 		}
 	if (AFNStudio* St = Studio.Get()) St->ShowWorld(Board);
+	LastPublicView = PV;
+	PushSeats();
 }
 
 void SFNRootWidget::RebuildPowerBar(const TArray<TSharedPtr<FJsonValue>>& Powers)
@@ -813,14 +833,213 @@ void SFNRootWidget::OnGlobePicked(double Lon, double Lat)
 	ArmedPower.Reset();
 }
 
+void SFNRootWidget::FetchPortrait(const FString& Hash, const FString& Url)
+{
+	if (Hash.IsEmpty() || Url.IsEmpty() || PortraitTex.Contains(Hash) || PortraitPending.Contains(Hash) || !Net.IsValid()) return;
+	// Images are immutable by hash: the disk cache (Saved/FN7Media/<hash>.<ext>) is tried first, so each image downloads once ever.
+	FString Ext = FPaths::GetExtension(Url.Left(Url.Find(TEXT("?")) == INDEX_NONE ? Url.Len() : Url.Find(TEXT("?"))));
+	if (Ext.IsEmpty()) Ext = TEXT("png");
+	const FString CachePath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("FN7Media"), Hash + TEXT(".") + Ext);
+	{
+		TArray<uint8> Disk;
+		if (FFileHelper::LoadFileToArray(Disk, *CachePath))
+		{
+			UTexture2D* Tex = FImageUtils::ImportBufferAsTexture2D(TArrayView64<const uint8>(Disk.GetData(), Disk.Num()));
+			UE_LOG(LogTemp, Warning, TEXT("FNPortrait: disk cache %s, %d bytes, decode %s"), *Hash.Left(12), Disk.Num(), Tex ? TEXT("OK") : TEXT("FAILED"));
+			if (Tex) { PortraitTex.Add(Hash, TStrongObjectPtr<UTexture2D>(Tex)); return; }
+		}
+	}
+	PortraitPending.Add(Hash);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(Net->MediaUrl(Url));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetHeader(TEXT("ngrok-skip-browser-warning"), TEXT("1"));
+	TWeakPtr<SFNRootWidget> Weak = SharedThis(this);
+	Req->OnProcessRequestComplete().BindLambda([Weak, Hash, CachePath](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		TSharedPtr<SFNRootWidget> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		Self->PortraitPending.Remove(Hash);
+		if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("FNPortrait: fetch %s failed (HTTP %d); retried next beat"), *Hash.Left(12), Resp.IsValid() ? Resp->GetResponseCode() : 0);
+			return;   // a placeholder stays until the next beat retries
+		}
+		const TArray<uint8>& Bytes = Resp->GetContent();
+		UTexture2D* Tex = FImageUtils::ImportBufferAsTexture2D(TArrayView64<const uint8>(Bytes.GetData(), Bytes.Num()));   // PNG/JPG; an SVG placeholder fails and is skipped
+		UE_LOG(LogTemp, Warning, TEXT("FNPortrait: fetched %s HTTP 200, %d bytes, decode %s"), *Hash.Left(12), Bytes.Num(), Tex ? TEXT("OK") : TEXT("FAILED"));
+		if (!Tex) return;
+		FFileHelper::SaveArrayToFile(Bytes, *CachePath);   // next time (and next match) it loads from disk
+		Self->PortraitTex.Add(Hash, TStrongObjectPtr<UTexture2D>(Tex));
+		Self->PushSeats();
+	});
+	Req->ProcessRequest();
+}
+
+void SFNRootWidget::RebuildPortraitStrip(const TArray<FFNSeatInfo>& Seats)
+{
+	if (!PortraitStrip.IsValid()) return;
+	PortraitStrip->ClearChildren();
+	for (const FFNSeatInfo& S : Seats)
+	{
+		TSharedPtr<FSlateBrush> Brush;
+		if (S.Portrait)
+		{
+			if (TSharedPtr<FSlateBrush>* Found = PortraitBrush.Find(S.Portrait)) Brush = *Found;
+			else
+			{
+				Brush = MakeShared<FSlateBrush>();
+				Brush->SetResourceObject(S.Portrait);
+				Brush->ImageSize = FVector2D(112.f, 112.f);
+				Brush->DrawAs = ESlateBrushDrawType::Image;
+				PortraitBrush.Add(S.Portrait, Brush);
+				UE_LOG(LogTemp, Warning, TEXT("FNPortrait: %s %s texture %dx%d drawn"), *S.Ref, *S.Name, S.Portrait->GetSizeX(), S.Portrait->GetSizeY());
+			}
+		}
+		const FLinearColor Aura = !S.bAlive ? FLinearColor(0.3f, 0.3f, 0.3f) : (S.bHuman ? FLinearColor(1.f, 0.8f, 0.3f) : FLinearColor(0.2f, 0.9f, 1.f));
+		const FString Label = FString::Printf(TEXT("%s%s\n%s"), *S.Name, S.bMine ? TEXT("  (you)") : TEXT(""), !S.bAlive ? TEXT("FALLEN") : (S.bHuman ? (S.bConnected ? TEXT("HUMAN") : TEXT("HUMAN (away)")) : TEXT("AI")));
+		TSharedRef<SWidget> Face = Brush.IsValid()
+			? StaticCastSharedRef<SWidget>(SNew(SImage).Image(Brush.Get()))
+			: StaticCastSharedRef<SWidget>(SNew(SBorder).BorderImage(White()).BorderBackgroundColor(S.Color * 0.35f).HAlign(HAlign_Center).VAlign(VAlign_Center)
+				[ SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Pale).Justification(ETextJustify::Center).Text(FText::FromString(TEXT("portrait\ncoming..."))) ]);
+		PortraitStrip->AddSlot().AutoWidth().Padding(6.f, 0.f)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			[
+				SNew(SBorder).BorderImage(White()).BorderBackgroundColor(Aura).Padding(3.f)
+				[ SNew(SBox).WidthOverride(112.f).HeightOverride(112.f)[Face] ]
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 3, 0, 0)
+			[ SNew(STextBlock).Font(Font(10, TEXT("Bold"))).ColorAndOpacity(Aura).Justification(ETextJustify::Center).Text(FText::FromString(Label)) ]
+		];
+	}
+}
+
+void SFNRootWidget::ShowDemigodCard(const FString& Ref, const FString& Name)
+{
+	AFNStudio* St = Studio.Get();
+	if (!St || !LastPublicView.IsValid()) return;
+	UE_LOG(LogTemp, Warning, TEXT("FNPick: card for %s ref=%s"), *Name, *Ref);
+	TSharedPtr<FJsonObject> G;
+	if (const TArray<TSharedPtr<FJsonValue>>* Dg = Arr(LastPublicView, TEXT("demigods")))
+		for (const TSharedPtr<FJsonValue>& V : *Dg)
+			if (V->AsObject().IsValid() && (Str(V->AsObject(), TEXT("ref")) == Ref || (Ref.IsEmpty() && Str(V->AsObject(), TEXT("name")) == Name))) G = V->AsObject();
+	if (!G.IsValid()) return;
+	const FString R = Str(G, TEXT("ref"));
+	bool bAlive = true; G->TryGetBoolField(TEXT("alive"), bAlive);
+	const TSharedPtr<FJsonValue> SeatV = G->TryGetField(TEXT("seat"));
+	const bool bHuman = SeatV.IsValid() && !SeatV->IsNull();
+	FString Body = bAlive
+		? FString::Printf(TEXT("%s demigod, alive.  %d lightning bolts.\nStands in %s, %s.\n"), bHuman ? TEXT("Human") : TEXT("AI"), (int32)Numb(G, TEXT("bolts")), *Str(G, TEXT("place")), *Str(G, TEXT("region")))
+		: FString::Printf(TEXT("FALLEN on beat %d: %s\n"), (int32)Numb(G, TEXT("eliminated_beat")), *Str(G, TEXT("cause")));
+	if (R == Fn7Demigod) Body += FString::Printf(TEXT("Your health: %d/10.\n"), Health);   // rivals' health is never sent (hidden information)
+	// Territory: its strongest regions
+	TArray<TPair<double, FString>> Inf;
+	if (const TArray<TSharedPtr<FJsonValue>>* In = Arr(LastPublicView, TEXT("influence")))
+		for (const TSharedPtr<FJsonValue>& V : *In)
+			if (Str(V->AsObject(), TEXT("demigod_ref")) == R) Inf.Add({ Numb(V->AsObject(), TEXT("share")), Str(V->AsObject(), TEXT("region")) });
+	Inf.Sort([](const TPair<double, FString>& A, const TPair<double, FString>& B) { return A.Key > B.Key; });
+	if (Inf.Num())
+	{
+		Body += TEXT("\nTERRITORY: ");
+		for (int32 i = 0; i < Inf.Num() && i < 4; ++i) Body += FString::Printf(TEXT("%s%s %d%%"), i ? TEXT(", ") : TEXT(""), *Inf[i].Value, FMath::RoundToInt(Inf[i].Key * 100.0));
+		Body += TEXT("\n");
+	}
+	// Armies and their captains
+	int32 NA = 0;
+	if (const TArray<TSharedPtr<FJsonValue>>* Ar = Arr(LastPublicView, TEXT("armies")))
+		for (const TSharedPtr<FJsonValue>& V : *Ar)
+			if (Str(V->AsObject(), TEXT("demigod_ref")) == R && NA++ < 4)
+				Body += FString::Printf(TEXT("%sARMY %s: %d strong in %s\n"), NA == 1 ? TEXT("\n") : TEXT(""), *Str(V->AsObject(), TEXT("name")), (int32)Numb(V->AsObject(), TEXT("size")), *Str(V->AsObject(), TEXT("region")));
+	// Last things it did (public events naming it)
+	int32 NE = 0;
+	if (LastOutcome.IsValid())
+		if (const TArray<TSharedPtr<FJsonValue>>* Ev = Arr(LastOutcome, TEXT("events")))
+			for (const TSharedPtr<FJsonValue>& V : *Ev)
+			{
+				bool bNamed = false;
+				if (const TArray<TSharedPtr<FJsonValue>>* Rf = Arr(V->AsObject(), TEXT("refs"))) for (const TSharedPtr<FJsonValue>& X : *Rf) if (X->AsString() == R) bNamed = true;
+				if (bNamed && NE++ < 4) Body += FString::Printf(TEXT("%s- %s\n"), NE == 1 ? TEXT("\nLAST BEAT:\n") : TEXT(""), *Str(V->AsObject(), TEXT("text")));
+			}
+	St->ShowEaselText(Str(G, TEXT("name")).ToUpper(), Body);
+	if (St) St->PlaySfx(EFNSfx::Click, 0.5f);
+}
+
+void SFNRootWidget::PushSeats()
+{
+	AFNStudio* St = Studio.Get();
+	if (!St || !LastPublicView.IsValid()) return;
+	TArray<FFNSeatInfo> Seats;
+	// Debug: Config/FN7PortraitTest.txt lists media paths (one per line); seat i shows path i through the same fetch/cache/decode.
+	TArray<FString> TestPaths;
+	{
+		FString Txt;
+		if (FFileHelper::LoadFileToString(Txt, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7PortraitTest.txt")))) Txt.ParseIntoArrayLines(TestPaths);
+		for (FString& L : TestPaths) L.TrimStartAndEndInline();
+		TestPaths.RemoveAll([](const FString& L) { return L.IsEmpty() || L.StartsWith(TEXT("#")); });
+	}
+	if (const TArray<TSharedPtr<FJsonValue>>* Dg = Arr(LastPublicView, TEXT("demigods")))
+		for (const TSharedPtr<FJsonValue>& V : *Dg)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject();
+			if (!O.IsValid()) continue;
+			FFNSeatInfo S;
+			S.Ref = Str(O, TEXT("ref"));
+			S.Name = Str(O, TEXT("name"));
+			const TSharedPtr<FJsonValue> SeatV = O->TryGetField(TEXT("seat"));
+			S.Seat = (SeatV.IsValid() && !SeatV->IsNull()) ? (int32)SeatV->AsNumber() : -1;
+			const FString Ctl = Str(O, TEXT("controller"));
+			S.bHuman = Ctl.IsEmpty() ? S.Seat >= 0 : Ctl == TEXT("human");
+			bool bConn = true;
+			if (!O->TryGetBoolField(TEXT("connected"), bConn) && S.Seat >= 0 && SeatConnected.Contains(S.Seat)) bConn = SeatConnected[S.Seat];
+			S.bConnected = bConn;
+			S.bMine = S.Ref == Fn7Demigod;
+			O->TryGetBoolField(TEXT("alive"), S.bAlive);
+			const uint32 H = GetTypeHash(S.Ref);   // a stable colour per demigod
+			S.Color = FLinearColor::MakeFromHSV8((uint8)(H % 256), 170, 230);
+			if (TestPaths.IsValidIndex(Seats.Num()))
+			{
+				const FString TP = TestPaths[Seats.Num()];
+				const FString TH = FPaths::GetBaseFilename(TP.Left(TP.Find(TEXT("?")) == INDEX_NONE ? TP.Len() : TP.Find(TEXT("?"))));
+				FetchPortrait(TH, TP);
+				if (const TStrongObjectPtr<UTexture2D>* Tx = PortraitTex.Find(TH)) S.Portrait = Tx->Get();
+			}
+			else
+			for (const TCHAR* Kind : { TEXT("portrait_image"), TEXT("diorama_image") })
+				if (const TSharedPtr<FJsonObject> Img = Sub(O, Kind))
+				{
+					const FString Hash = Str(Img, TEXT("hash"));
+					if (Str(Img, TEXT("status")) == TEXT("ready")) FetchPortrait(Hash, Str(Img, TEXT("url")));
+					if (const TStrongObjectPtr<UTexture2D>* Tx = PortraitTex.Find(Hash))
+						(FCString::Strcmp(Kind, TEXT("portrait_image")) == 0 ? S.Portrait : S.Diorama) = Tx->Get();
+				}
+			Seats.Add(S);
+		}
+	St->ShowSeats(Seats);
+	RebuildPortraitStrip(Seats);
+}
+
 bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 {
 	AFNStudio* St = Studio.Get();
+	if (T == TEXT("room.snapshot") || T == TEXT("room.updated"))
+	{
+		// Presence per seat: a human who leaves (or comes back) flips their aura live.
+		if (const TArray<TSharedPtr<FJsonValue>>* Ss = Arr(D, TEXT("seats")))
+			for (const TSharedPtr<FJsonValue>& V : *Ss)
+			{
+				bool bC = true; V->AsObject()->TryGetBoolField(TEXT("connected"), bC);
+				bool bBot = false; V->AsObject()->TryGetBoolField(TEXT("is_bot"), bBot);
+				SeatConnected.Add((int32)Numb(V->AsObject(), TEXT("seat")), bC && !bBot);
+			}
+		PushSeats();   // then fall through to the room handling below
+	}
 	if (T == TEXT("match.started"))
 	{
 		Days = (int32)Numb(Sub(D, TEXT("rules")), TEXT("beats_total"), 100);
 		SetState(EState::Waiting);
-		AddBanner(TEXT("The match has begun. Click the WILL panel and start typing: time slows while you write."), Gold);
+		// (no banner: the intro note and the WILL hint already explain how to play)
 		return true;
 	}
 	// One click to play: connected -> create a room -> ready + start (no hero cards in Final Night 7).
@@ -900,6 +1119,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	if (T == TEXT("round.outcome"))
 	{
 		const TSharedPtr<FJsonObject> Pub = Sub(D, TEXT("public"));
+		LastOutcome = Pub;
 		Alive = (int32)Numb(Pub, TEXT("alive"), Alive);
 		const FString Cap = Str(Pub, TEXT("previous_caption"));
 		if (!Cap.IsEmpty()) { AddBanner(Cap, Pale); CutLines.Add(Cap); CutSpots.Add(FVector2D(MyLon, MyLat)); }

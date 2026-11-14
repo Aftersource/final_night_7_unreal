@@ -19,6 +19,7 @@ class USpotLightComponent;
 struct FFNPiece
 {
 	FString Name;
+	FString Ref;   // the demigod's ref when known (lets a click on it open the right card)
 	double Lon = 0.0, Lat = 0.0;
 	/** 0 you, 1 another player, 2 villager (AI), 3 fallen, 4 drop spot (day 1) */
 	int32 Kind = 1;
@@ -97,6 +98,14 @@ public:
 	/** 4 seats round the table: mine faces the camera, the others clockwise. Other seats show a silhouette
 	 *  (gold halo = human, cyan orbiting cubes = AI); every seat has a minifig (or its diorama standee) on the table. */
 	void ShowSeats(const TArray<FFNSeatInfo>& Seats);
+	/** The table map, web-map style (during a match): zoom in on the spot under the cursor, or out. False if the cursor isn't over the map. */
+	bool MapClick(bool bZoomIn);
+	/** Centre the table map back on your demigod and follow it again. */
+	void MapHome();
+	/** A click on a demigod (its marker on the table map, or a seat's minifig/silhouette): centres the map on it and
+	 *  fires OnDemigodClicked so the widget can pull up that demigod's card. False if Id isn't a demigod. */
+	bool ClickDemigod(FName Id);
+	TFunction<void(const FString& /*Ref*/, const FString& /*Name*/)> OnDemigodClicked;
 	void ShowRibbons(const TArray<FFNEpisode>& Choices);
 	void ChooseRibbon(int32 Index);
 	void ClearRibbons();
@@ -182,6 +191,9 @@ private:
 	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> HexSets;   // biome x shade x fog level
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PeopleSet;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TownSet;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> HeadSet;    // heads on the people
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> RoofSet;    // roofs on the houses
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TowerSet;   // buildings / towers
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> PickRing;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PickPin;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> BeamRays;
@@ -189,6 +201,19 @@ private:
 	UPROPERTY() TObjectPtr<USpotLightComponent> Projector;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> TableInfo;
 	double PickLat = 46.5, PickLon = 9.0, PickRadiusM = 300000.0;
+	// the scene now on the table (set by BuildTable): cube face, centre on that face's plane (m), cm per m, hex size, relief range
+	int32 TableFace = -1;
+	double TableCx = 0.0, TableCy = 0.0, TableK = 0.0, TableS = 1.0, TableLo = 0.0, TableRange = 1.0;
+	void PlaceTableHeroes();   // demigods standing on the table map at true scale
+	bool MapPointUnderCursor(double& Px, double& Py) const;   // the face-plane point (m) under the mouse, on top of the hexes
+	void ZoomMapAt(double Px, double Py, int32 Step);          // one zoom level (-1 closer), keeping that point under the cursor
+	int32 MapLevel = 3;                                         // 0 people, 1 houses, 2 villages, 3 regions (FNStudioTable.cpp)
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> HeroMarks;
+	UPROPERTY() TArray<TObjectPtr<UTextRenderComponent>> HeroLabels;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> HeroBeams;   // a coloured light column over each demigod
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> HeroRings;   // a coloured disc at its feet
+	TArray<FFNPiece> HeroShown;                                          // which piece each marker shows now
+	void CenterMapOn(const FString& Ref, const FString& Name);
 	FVector PickDir = FVector::ZeroVector;
 	bool bUserPicked = false;
 	float RebuildIn = -1.f;

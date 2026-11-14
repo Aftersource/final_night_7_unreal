@@ -18,6 +18,7 @@ namespace FNSeats
 	static constexpr int32 NumSeats = 4, HaloBeads = 14, AiCubes = 6;
 	static constexpr float BodyR = 330.f;   // silhouettes stand just past the table edge (table radius 240 cm)
 	static constexpr float FigR = 222.f;    // minifigs stand near the table rim
+	static const FVector ImageUp = -FVector::UpVector;   // the plane's texture V runs along +Y, top of the image at -Y
 	static const FLinearColor Shadow(0.006f, 0.006f, 0.009f);
 	static const FLinearColor HumanAura(1.f, 0.72f, 0.25f);
 	static const FLinearColor AiAura(0.2f, 0.85f, 1.f);
@@ -51,6 +52,8 @@ void AFNStudio::BuildSeats()
 		const float A = SlotAngle(k);
 		const FString P = FString::Printf(TEXT("Seat%d"), k);
 		auto N = [&P](const TCHAR* What) { return FName(*(P + What)); };
+		// clicking the minifig or the silhouette picks that demigod (AFNStudio::ClickDemigod, id "SeatN")
+		auto Clickable = [&P](UStaticMeshComponent* C) { C->SetCollisionEnabled(ECollisionEnabled::QueryOnly); C->ComponentTags.Add(FName(*(TEXT("FN:") + P))); return C; };
 
 		if (k > 0)   // my own seat is the camera: no silhouette there
 		{
@@ -60,12 +63,12 @@ void AFNStudio::BuildSeats()
 			S.Body->SetRelativeLocation(Dir(A) * BodyR);
 			S.Body->SetRelativeRotation(FRotator(0.f, A + 180.f, 0.f));   // local +X looks at the table
 			S.Body->RegisterComponent();
-			Keep(Quiet(Shape(Cyl, N(TEXT("Torso")), FVector(0, 0, 128), FVector(0.55f, 0.36f, 0.95f), Shadow, S.Body)));
+			Keep(Clickable(Shape(Cyl, N(TEXT("Torso")), FVector(0, 0, 128), FVector(0.55f, 0.36f, 0.95f), Shadow, S.Body)));
 			Keep(Quiet(Box(N(TEXT("Shoulders")), FVector::ZeroVector, FVector(36, 64, 16), Shadow)));
 			SeatParts.Last()->AttachToComponent(S.Body, FAttachmentTransformRules::KeepRelativeTransform);
 			SeatParts.Last()->SetRelativeLocation(FVector(0, 0, 170));
-			Keep(Quiet(Shape(Sph, N(TEXT("Head")), FVector(0, 0, 196), FVector(0.34f), Shadow, S.Body)));
-			S.Face = Quiet(Shape(Pln, N(TEXT("Face")), FVector(20, 0, 196), FVector(0.36f), FLinearColor::White, S.Body));
+			Keep(Clickable(Shape(Sph, N(TEXT("Head")), FVector(0, 0, 196), FVector(0.34f), Shadow, S.Body)));
+			S.Face = Clickable(Shape(Pln, N(TEXT("Face")), FVector(20, 0, 196), FVector(0.36f), FLinearColor::White, S.Body));
 			S.Face->SetVisibility(false);
 			Keep(S.Face);
 			for (int32 i = 0; i < HaloBeads + AiCubes; ++i)
@@ -91,9 +94,9 @@ void AFNStudio::BuildSeats()
 		S.Fig->SetRelativeLocation(Dir(FigAngle(k)) * FigR + FVector(0, 0, 80));   // table top is at 80 cm
 		S.Fig->RegisterComponent();
 		S.FigBase = Keep(Quiet(Shape(Cyl, N(TEXT("FigBase")), FVector(0, 0, 1.25f), FVector(0.13f, 0.13f, 0.025f), Brass, S.Fig)));
-		S.FigBody = Keep(Quiet(Shape(Cyl, N(TEXT("FigBody")), FVector(0, 0, 10.5f), FVector(0.07f, 0.07f, 0.16f), FLinearColor::White, S.Fig)));
-		S.FigHead = Keep(Quiet(Shape(Sph, N(TEXT("FigHead")), FVector(0, 0, 22.5f), FVector(0.08f), FLinearColor::White, S.Fig)));
-		S.Standee = Keep(Quiet(Shape(Pln, N(TEXT("Standee")), FVector(0, 0, 15.5f), FVector(0.26f, 0.2f, 1.f), FLinearColor::White, S.Fig)));
+		S.FigBody = Keep(Clickable(Shape(Cyl, N(TEXT("FigBody")), FVector(0, 0, 10.5f), FVector(0.07f, 0.07f, 0.16f), FLinearColor::White, S.Fig)));
+		S.FigHead = Keep(Clickable(Shape(Sph, N(TEXT("FigHead")), FVector(0, 0, 22.5f), FVector(0.08f), FLinearColor::White, S.Fig)));
+		S.Standee = Keep(Clickable(Shape(Pln, N(TEXT("Standee")), FVector(0, 0, 15.5f), FVector(0.2f, 0.26f, 1.f), FLinearColor::White, S.Fig)));
 		S.FigLabel = Keep(Text(N(TEXT("FigLabel")), FVector(0, 0, 33.f), FRotator::ZeroRotator, 3.5f, FColor(225, 218, 205), FString(), S.Fig));
 		S.Fig->SetVisibility(false, true);
 	}
@@ -189,8 +192,8 @@ void AFNStudio::UpdateSeats(float Dt)
 		if (!C || !C->IsVisible()) return;
 		FVector To = Cam - C->GetComponentLocation(); To.Z = 0.f;
 		if (!To.Normalize()) return;
-		// text faces its +X; a plane faces its +Z (we stand it up with +X pointing up)
-		C->SetWorldRotation(bPlane ? FRotationMatrix::MakeFromZX(To, FVector::UpVector).Rotator() : To.Rotation());
+		// text faces its +X; a plane faces its +Z. The image's up runs along the plane's Y (with X up, every picture lay on its side)
+		C->SetWorldRotation(bPlane ? FRotationMatrix::MakeFromZY(To, ImageUp).Rotator() : To.Rotation());
 	};
 
 	for (int32 k = 0; k < SeatSlots.Num(); ++k)

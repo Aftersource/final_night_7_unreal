@@ -13,6 +13,7 @@
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/FileHelper.h"
+#include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/DateTime.h"
 
@@ -194,6 +195,17 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 	{
 		FString Game; D->TryGetStringField(TEXT("game"), Game);
 		bFn7 = Game == TEXT("final_night_7");
+		// Take a forked (time-travel) seat: Config/FN7ResumeToken.txt holds a resume token from /admin/fork; used once, then deleted.
+		{
+			const FString TokFile = FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7ResumeToken.txt"));
+			FString Tok;
+			if (FFileHelper::LoadFileToString(Tok, *TokFile) && !Tok.TrimStartAndEnd().IsEmpty())
+			{
+				ResumeToken = Tok.TrimStartAndEnd();
+				IFileManager::Get().Delete(*TokFile);
+				UE_LOG(LogFNNet, Warning, TEXT("Resuming a forked seat from Config/FN7ResumeToken.txt (file deleted)"));
+			}
+		}
 		// Log in, or take our seat back after a dropped connection.
 		TSharedRef<FJsonObject> A = Obj();
 		if (!ResumeToken.IsEmpty())
@@ -295,7 +307,8 @@ void UFNNetClient::CreateRoom()
 		S->SetNumberField(TEXT("players"), MatchPlayers);
 		S->SetNumberField(TEXT("flow_ms"), MatchFlowMs);
 		S->SetBoolField(TEXT("llm"), true);
-		S->SetNumberField(TEXT("first_compose_seconds"), 30);   // playtest-3+: beat 1 waits up to 30 s for the humans' first orders
+		S->SetNumberField(TEXT("first_compose_seconds"), 30);
+		S->SetNumberField(TEXT("arena_close_beats"), MatchRounds);   // rules 0.6.0+: Time's circle closes on the last beat (older servers drop unknown keys)   // playtest-3+: beat 1 waits up to 30 s for the humans' first orders
 		// Optional per-machine override: Config/FN7RoomSettings.json (any room settings object, merged on top).
 		FString Json;
 		if (FFileHelper::LoadFileToString(Json, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7RoomSettings.json"))))

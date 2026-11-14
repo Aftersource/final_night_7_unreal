@@ -12,6 +12,7 @@ class AFNStudio;
 class SVerticalBox;
 class SHorizontalBox;
 class FJsonValue;
+struct FFNSeatInfo;
 class SMultiLineEditableTextBox;
 class FJsonObject;
 
@@ -68,6 +69,12 @@ private:
 	TSet<FString> PortraitPending;
 	TSharedPtr<FJsonObject> LastPublicView;
 	void PushSeats();
+	TSharedPtr<FJsonObject> LastOutcome;   // round.outcome.public, for demigod cards
+	void ShowDemigodCard(const FString& Ref, const FString& Name);
+	// Portrait row at the top of the screen: one card per demigod (portrait when ready, a placeholder until then)
+	TSharedPtr<SHorizontalBox> PortraitStrip;
+	TMap<class UTexture2D*, TSharedPtr<struct FSlateBrush>> PortraitBrush;
+	void RebuildPortraitStrip(const TArray<FFNSeatInfo>& Seats);
 	void FetchPortrait(const FString& Hash, const FString& Url);
 public:
 	/** Called by the studio when the player clicks a point on the globe: casts the armed power there. */
