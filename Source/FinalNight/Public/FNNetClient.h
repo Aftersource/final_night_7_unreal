@@ -64,6 +64,8 @@ public:
 	 * (read at click time, so no rebuild or restart). Empty = create and start our own match.
 	 */
 	FString ResolveJoinCode() const;
+	/** Full https URL (with the access key) for a server media path like "/media/<hash>.png". */
+	FString MediaUrl(const FString& Path) const;
 	void CreateRoom();
 	void SetReady(bool bReady);
 	void StartMatch();

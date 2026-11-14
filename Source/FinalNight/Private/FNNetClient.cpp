@@ -265,6 +265,17 @@ void UFNNetClient::JoinRoom(const FString& Code)
 	Send(TEXT("room.join"), D);
 }
 
+FString UFNNetClient::MediaUrl(const FString& Path) const
+{
+	if (Path.StartsWith(TEXT("http"))) return Path + (Path.Contains(TEXT("?")) ? TEXT("&key=") : TEXT("?key=")) + ResolveAccessKey();
+	FString Base = ServerUrl.TrimStartAndEnd().TrimQuotes();
+	if (!Base.StartsWith(TEXT("ws://")) && !Base.StartsWith(TEXT("wss://"))) Base = TEXT("wss://balladic-graeme-garbledly.ngrok-free.dev/ws");
+	Base = Base.Replace(TEXT("wss://"), TEXT("https://")).Replace(TEXT("ws://"), TEXT("http://"));
+	if (Base.EndsWith(TEXT("/ws"))) Base.LeftChopInline(3);
+	const FString P = Path.StartsWith(TEXT("/")) ? Path : TEXT("/") + Path;
+	return Base + P + (P.Contains(TEXT("?")) ? TEXT("&key=") : TEXT("?key=")) + ResolveAccessKey();
+}
+
 FString UFNNetClient::ResolveJoinCode() const
 {
 	FString Txt;
@@ -284,6 +295,7 @@ void UFNNetClient::CreateRoom()
 		S->SetNumberField(TEXT("players"), MatchPlayers);
 		S->SetNumberField(TEXT("flow_ms"), MatchFlowMs);
 		S->SetBoolField(TEXT("llm"), true);
+		S->SetNumberField(TEXT("first_compose_seconds"), 30);   // playtest-3+: beat 1 waits up to 30 s for the humans' first orders
 		// Optional per-machine override: Config/FN7RoomSettings.json (any room settings object, merged on top).
 		FString Json;
 		if (FFileHelper::LoadFileToString(Json, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7RoomSettings.json"))))

@@ -62,6 +62,13 @@ private:
 	int32 PowersShown = 0;
 	FString ArmedPower, ArmedPowerName;
 	void RebuildPowerBar(const TArray<TSharedPtr<FJsonValue>>& Powers);
+	// Seats around the table: presence per seat (room.updated) and demigod portraits (fetched once per image hash)
+	TMap<int32, bool> SeatConnected;
+	TMap<FString, TStrongObjectPtr<class UTexture2D>> PortraitTex;   // image hash -> texture
+	TSet<FString> PortraitPending;
+	TSharedPtr<FJsonObject> LastPublicView;
+	void PushSeats();
+	void FetchPortrait(const FString& Hash, const FString& Url);
 public:
 	/** Called by the studio when the player clicks a point on the globe: casts the armed power there. */
 	void OnGlobePicked(double Lon, double Lat);
