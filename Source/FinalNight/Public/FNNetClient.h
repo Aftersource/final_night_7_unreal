@@ -60,9 +60,12 @@ public:
 	/** Join someone else's room by its 6-letter code (room.join). */
 	void JoinRoom(const FString& Code);
 	/** ONE GAME: join the server's always-on house room (room.join {house:true}). The server seats us (ready) and never lets clients start it. */
-	void JoinHouse();
+	void JoinHouse(bool bAsViewer = false);
 	/** Viewers (no seat): true when room.snapshot.you.viewer says we only watch. */
 	bool bViewer = false;
+	/** True after JoinHouse(true) (WATCH): never auto-take a seat. */
+	bool bWatchOnly = false;
+	bool bSeatAsked = false;
 	/** A viewer asks to become a player (room.take_seat {}); a refusal keeps us a viewer. */
 	void TakeSeat();
 	/**
@@ -92,9 +95,9 @@ public:
 	/** Enter: orders to your two hands, into the window you typed in (or as a Compose action). */
 	void SubmitOrders(int32 Round, const FString& Left, const FString& Right);
 	/** A god power (instant, any phase). Target: a ref ("dg:2"), a name, or "lon,lat". */
-	void CastPower(int32 Round, const FString& Power, const FString& Target);
+	void CastPower(int32 Round, const FString& Power, const FString& Target, const FString& Tier = TEXT("mini"));
 	/** A god power at a point on the globe, [lon, lat]. */
-	void CastAt(int32 Round, const FString& Power, double Lon, double Lat);
+	void CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier = TEXT("mini"));
 
 	void HandleIncomingFrame(const FString& Frame);
 

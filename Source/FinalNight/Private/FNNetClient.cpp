@@ -196,7 +196,7 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 		const TSharedPtr<FJsonObject>* You = nullptr;
 		bool bV = false;
 		if (D->TryGetObjectField(TEXT("you"), You) && You && You->IsValid()) (*You)->TryGetBoolField(TEXT("viewer"), bV);
-		bViewer = bV;
+		bViewer = bV;   // the HUD decides whether to TakeSeat() (JOIN) or stay watching (WATCH)
 	}
 	else if (T == TEXT("seat.joined")) bViewer = false;
 	if (T == TEXT("server.hello"))
@@ -298,10 +298,14 @@ FString UFNNetClient::MediaUrl(const FString& Path) const
 
 void UFNNetClient::TakeSeat() { Send(TEXT("room.take_seat"), Obj()); }
 
-void UFNNetClient::JoinHouse()
+void UFNNetClient::JoinHouse(bool bAsViewer)
 {
+	// ONE GAME. JOIN THE GAME = JoinHouse(false), and if the reply says we are only a viewer (the house is replaying), TakeSeat().
+	// WATCH = JoinHouse(true): stay a viewer (no take_seat).
 	TSharedRef<FJsonObject> D = Obj();
 	D->SetBoolField(TEXT("house"), true);
+	if (bAsViewer) D->SetBoolField(TEXT("viewer"), true);
+	bWatchOnly = bAsViewer;
 	Send(TEXT("room.join"), D);
 }
 
@@ -416,10 +420,11 @@ void UFNNetClient::SubmitOrders(int32 Round, const FString& Left, const FString&
 	Send(TEXT("action.submit"), D);
 }
 
-void UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& Target)
+void UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& Target, const FString& Tier)
 {
 	TSharedRef<FJsonObject> D = Obj(), F = Obj(), C = Obj();
 	C->SetStringField(TEXT("power"), Power);
+	C->SetStringField(TEXT("tier"), Tier.IsEmpty() ? TEXT("mini") : Tier);   // "mega" (1 lightning bolt, level-1 area) or "mini" (1 spark, on the board)
 	// "lon,lat" goes as a [lon, lat] point; anything else is a ref or a name.
 	FString A, B;
 	if (Target.Split(TEXT(","), &A, &B) && A.TrimStartAndEnd().IsNumeric() && B.TrimStartAndEnd().IsNumeric())
@@ -434,9 +439,9 @@ void UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& T
 	Send(TEXT("action.submit"), D);
 }
 
-void UFNNetClient::CastAt(int32 Round, const FString& Power, double Lon, double Lat)
+void UFNNetClient::CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier)
 {
-	CastPower(Round, Power, FString::Printf(TEXT("%.6f,%.6f"), Lon, Lat));
+	CastPower(Round, Power, FString::Printf(TEXT("%.6f,%.6f"), Lon, Lat), Tier);
 }
 
 // ---------------------------------------------------------------------------
