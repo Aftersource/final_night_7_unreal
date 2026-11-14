@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SFNDuelTray.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "UObject/StrongObjectPtr.h"
@@ -94,7 +95,21 @@ private:
 	// by duel_id, until its challenge.end. bMine: one of your demigods fights in it.
 	struct FDuelInfo { FString A, B, AName, BName; bool bMine = false; float HpA = 0.f, HpB = 0.f; int32 Blows = 0; };
 	TMap<FString, FDuelInfo> Duels;
-	void HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock);
+	void HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock, bool bRestore = false);
+	// The duel you play or watch, and its tray (DUEL_UNREAL.md D, the input half: Chris, "the challenge thing entirely end
+	// to end").
+	TSharedPtr<FFNDuelSession> Duel;
+	TSharedPtr<SFNDuelTray> Tray;
+	FString KeysSentText, KeysLatestText;
+	bool bKeysPending = false, bDuelTimer = false;
+	void StartDuelSession(const TSharedPtr<FJsonObject>& Lock, bool bMineDuel, bool bRestore);
+	void HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub);
+	void StoreDuelPanels(const FString& DuelId, const TArray<TSharedPtr<FJsonValue>>* Panels);
+	void DuelSendLine(const FString& Line);
+	void DuelTyping(const FString& Text);
+	void TrySendDuelKeys();
+	void RestoreDuels(const TSharedPtr<FJsonObject>& Present);
+	EActiveTimerReturnType TickDuelFast(double, float);
 	void HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub);
 	// Every challenge moves every view (everyone centers on the fight): flash, banner, glide. The glide waits
 	// while you type or drag; the view you had comes back when that duel ends (unless you moved it yourself).

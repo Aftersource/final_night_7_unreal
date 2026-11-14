@@ -34,6 +34,7 @@
 #include "SFNPanelMover.h"
 #include "FNPowerRing.h"
 #include "FNTableGods.h"
+#include "FNDuelStage.h"
 #include "FNWood.h"
 #include "FNMedia.h"
 #include "FNStyle.h"
@@ -166,6 +167,16 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 92.f, 0.f, 0.f))
 		[
 			MakeOutCard()
+		]
+		// The duel tray: bottom centre while a duel runs (yours to type in, or one you watch).
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0.f, 0.f, 0.f, 64.f))
+		[
+			SAssignNew(Tray, SFNDuelTray)
+			.Visibility_Lambda([this]() { return Duel.IsValid() ? EVisibility::Visible : EVisibility::Collapsed; })
+			.Session_Lambda([this]() { return Duel; })
+			.ServerNowMs_Lambda([this]() { UFNNetClient* N = Net.Get(); return N ? N->NowServerMs() : 0.0; })
+			.OnSend_Lambda([this](const FString& Line) { DuelSendLine(Line); })
+			.OnTyping_Lambda([this](const FString& Text) { DuelTyping(Text); })
 		]
 		// The victory screen: a veil, then an onyx tablet with the champion (never takes input: the next match is coming).
 		+ SOverlay::Slot()
@@ -359,6 +370,12 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		Keys->OnEnter = [Weak]()
 		{
 			TSharedPtr<SFNHudLive> Self = Weak.Pin();
+			// In a duel of yours, Enter goes to your line, not the WILL.
+			if (Self.IsValid() && Self->Duel.IsValid() && !Self->Duel->MySide.IsEmpty() && !Self->Duel->bOver && Self->Tray.IsValid())
+			{
+				Self->Tray->FocusInput();
+				return true;
+			}
 			if (!Self.IsValid() || !Self->bInRoom || Self->bLobbyOpen || !Self->Layout.IsValid() || Self->Layout->IsWillOpen() || Self->Model.bViewer) return false;
 			Self->Layout->FocusWill();
 			return true;
@@ -626,6 +643,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		ReadEntropy(FN7HudJson::Obj(PV, TEXT("entropy")));
 		ReadSeatView(FN7HudJson::Obj(FN7HudJson::Obj(D, TEXT("you")), TEXT("private_state")));
 		ReadDemigods(PV);
+		RestoreDuels(FN7HudJson::Obj(PV, TEXT("present")));   // an open duel, at the exact present (schema 8+)
 		// The power hexes at once on joining (not a beat later): the snapshot's brief, else ask the powers query.
 		if (const TArray<TSharedPtr<FJsonValue>>* P = FN7HudJson::Arr(FN7HudJson::Obj(D, TEXT("brief")), TEXT("powers"))) ReadPowers(*P);
 		if (Model.Powers.Num() == 0) FetchPowers();
@@ -806,6 +824,10 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		// A summon accepted (rules 0.8.0): the piece lifts and dissolves at its origin, for everyone.
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("summoning")) { HandleSummoning(Pub); return; }
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("challenge.lock")) { HandleChallengeLock(Pub); return; }
+		{
+			const FString Ev = FN7HudJson::Str(Pub, TEXT("event"));
+			if (Ev == TEXT("duel.scene") || Ev == TEXT("duel.panel") || Ev == TEXT("duel.typing") || Ev == TEXT("duel.blow")) { HandleDuelEvent(Pub); return; }
+		}
 		// Time slowed: when it is you, the Slowed event carries the bill's terms (rules 0.7.0).
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("slowed") && (int32)FN7HudJson::Num(Pub, TEXT("by_seat"), -2) == MySeat && MySeat >= 0)
 		{
@@ -1717,7 +1739,7 @@ static bool FN7LonLat(const TSharedPtr<FJsonObject>& O, const TCHAR* Key, double
 	return true;
 }
 
-void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock)
+void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock, bool bRestore)
 {
 	const FString DuelId = FN7HudJson::Str(Lock, TEXT("duel_id"));
 	const TSharedPtr<FJsonObject> A = FN7HudJson::Obj(Lock, TEXT("a")), B = FN7HudJson::Obj(Lock, TEXT("b"));
@@ -1735,6 +1757,12 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock)
 	UE_LOG(LogTemp, Display, TEXT("FN7 challenge.lock: %s %s vs %s%s%s"), *DuelId, *Info.AName, *Info.BName, bAi ? TEXT(" (AI)") : TEXT(""), Info.bMine ? TEXT(" (yours)") : TEXT(""));
 	if (!DuelId.IsEmpty() && Duels.Contains(DuelId)) return;   // already shown
 	if (!DuelId.IsEmpty()) Duels.Add(DuelId, Info);
+	// The tray: your duel always takes it; another's when you aren't in one.
+	StartDuelSession(Lock, Info.bMine, bRestore);
+	if (const TArray<TSharedPtr<FJsonValue>>* Also = FN7HudJson::Arr(Lock, TEXT("also")))   // duel.scene, duel.panel 0
+		for (const TSharedPtr<FJsonValue>& V : *Also)
+			if (const TSharedPtr<FJsonObject> E = V.IsValid() ? V->AsObject() : nullptr) HandleDuelEvent(E);
+	if (bRestore) return;   // a reconnect redraws the duel, it doesn't re-announce it
 	if (!PendingChallengeRef.IsEmpty() && Info.B == PendingChallengeRef) PendingChallengeRef.Reset();   // ours: no refusal is coming
 	// The AI teleported beside its rival first: the red pulse and the warp-in, as for any summon.
 	if (const TSharedPtr<FJsonObject> Leap = FN7HudJson::Obj(Lock, TEXT("leap"))) HandleSummoning(Leap);
@@ -1753,6 +1781,222 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock)
 		TickDuelView();
 	}
 	Publish();
+}
+
+void SFNHudLive::StartDuelSession(const TSharedPtr<FJsonObject>& Lock, bool bMineDuel, bool bRestore)
+{
+	if (Duel.IsValid() && !Duel->bOver && !Duel->MySide.IsEmpty() && !bMineDuel) return;   // keep yours over a watched one
+	const TSharedPtr<FJsonObject> A = FN7HudJson::Obj(Lock, TEXT("a")), B = FN7HudJson::Obj(Lock, TEXT("b"));
+	TSharedPtr<FFNDuelSession> S = MakeShared<FFNDuelSession>();
+	S->DuelId = FN7HudJson::Str(Lock, TEXT("duel_id"));
+	S->A = FN7HudJson::Str(A, TEXT("demigod"));
+	S->B = FN7HudJson::Str(B, TEXT("demigod"));
+	S->AName = FN7HudJson::Str(A, TEXT("name"));
+	S->BName = FN7HudJson::Str(B, TEXT("name"));
+	if (S->AName.IsEmpty()) S->AName = NameOf(S->A);
+	if (S->BName.IsEmpty()) S->BName = NameOf(S->B);
+	// The server's skin when it sends one (kept for the whole duel), else the name rule every client shares.
+	S->ASkin = FN7HudJson::Str(A, TEXT("skin"));
+	S->BSkin = FN7HudJson::Str(B, TEXT("skin"));
+	if (S->ASkin.IsEmpty()) S->ASkin = AFNDuelStage::SkinNames()[AFNDuelStage::SkinForName(S->AName)];
+	if (S->BSkin.IsEmpty()) S->BSkin = AFNDuelStage::SkinNames()[AFNDuelStage::SkinForName(S->BName)];
+	S->HpA = (float)FN7HudJson::Num(A, TEXT("health"), 10.0);
+	S->HpB = (float)FN7HudJson::Num(B, TEXT("health"), 10.0);
+	S->MaxA = (float)FN7HudJson::Num(A, TEXT("max_health"), 10.0);
+	S->MaxB = (float)FN7HudJson::Num(B, TEXT("max_health"), 10.0);
+	S->DeadlineMs = FN7HudJson::Num(Lock, TEXT("deadline_ms"), 0.0);
+	S->MySide = MineRefs.Contains(S->A) ? TEXT("a") : MineRefs.Contains(S->B) ? TEXT("b") : TEXT("");
+	Duel = S;
+	KeysSentText.Reset();
+	KeysLatestText.Reset();
+	bKeysPending = false;
+	if (Tray.IsValid()) Tray->ClearInput();
+	UE_LOG(LogTemp, Display, TEXT("FN7 duel tray: %s %s (%s) vs %s (%s)%s%s"), *S->DuelId, *S->AName, *S->ASkin, *S->BName, *S->BSkin,
+		S->MySide.IsEmpty() ? TEXT(" (watching)") : *FString::Printf(TEXT(" (you are %s)"), *S->MySide), bRestore ? TEXT(" (restored)") : TEXT(""));
+	if (!S->MySide.IsEmpty())
+	{
+		// Yours: the WILL rolls up, the keyboard goes to your line once the tray is on screen.
+		if (Layout.IsValid() && Layout->IsWillOpen()) Layout->RollUpWill();
+		RegisterActiveTimer(0.12f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float)
+		{
+			if (Tray.IsValid()) Tray->FocusInput();
+			return EActiveTimerReturnType::Stop;
+		}));
+	}
+	if (!bDuelTimer)
+	{
+		bDuelTimer = true;
+		RegisterActiveTimer(0.05f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLive::TickDuelFast));
+	}
+}
+
+void SFNHudLive::StoreDuelPanels(const FString& DuelId, const TArray<TSharedPtr<FJsonValue>>* Panels)
+{
+	if (!Panels || !Duel.IsValid() || Duel->DuelId != DuelId) return;
+	for (const TSharedPtr<FJsonValue>& V : *Panels)
+		if (const TSharedPtr<FJsonObject> P = V.IsValid() ? V->AsObject() : nullptr)
+			Duel->Panels.Add((int32)FN7HudJson::Num(P, TEXT("n"), -1.0), P);
+}
+
+void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
+{
+	if (!Pub.IsValid()) return;
+	const FString Ev = FN7HudJson::Str(Pub, TEXT("event"));
+	const FString DuelId = FN7HudJson::Str(Pub, TEXT("duel_id"));
+	const bool bOurs = Duel.IsValid() && Duel->DuelId == DuelId;
+	if (bOurs && Ev == TEXT("duel.scene")) Duel->Scene = Pub;
+	else if (bOurs && Ev == TEXT("duel.panel")) Duel->Panels.Add((int32)FN7HudJson::Num(Pub, TEXT("n"), -1.0), Pub);
+	else if (bOurs && Ev == TEXT("duel.typing"))
+	{
+		const FString Side = FN7HudJson::Str(Pub, TEXT("by"));
+		FFNDuelSession::FSideLine& L = Duel->Line(Side);
+		const double AtMs = FN7HudJson::Num(Pub, TEXT("at_ms"), 0.0);
+		const int32 Seq = (int32)FN7HudJson::Num(Pub, TEXT("seq"), 0.0);
+		const bool bNewer = AtMs > L.AtMs || (AtMs == L.AtMs && Seq > L.Seq);
+		if (bNewer && Side != Duel->MySide)   // your own line is drawn from your keyboard
+		{
+			L.Len = (int32)FN7HudJson::Num(Pub, TEXT("len"), 0.0);
+			L.Tail = FN7HudJson::Str(Pub, TEXT("tail"));
+			L.FrameAt = FPlatformTime::Seconds();
+			L.AtMs = AtMs;
+			L.Seq = Seq;
+		}
+	}
+	else if (bOurs && Ev == TEXT("duel.blow"))
+	{
+		auto LogBlow = [this](const TSharedPtr<FJsonObject>& Bl, bool bCounter)
+		{
+			const FString By = FN7HudJson::Str(Bl, TEXT("by"));
+			const FString Side = By == Duel->A ? TEXT("a") : TEXT("b");
+			const FString ByName = FN7HudJson::Str(Bl, TEXT("by_name")).IsEmpty() ? NameOf(By) : FN7HudJson::Str(Bl, TEXT("by_name"));
+			const FString Text = FN7HudJson::Str(Bl, TEXT("text"));
+			const int32 Roll = (int32)FN7HudJson::Num(Bl, TEXT("roll"), 0.0), Mod = (int32)FN7HudJson::Num(Bl, TEXT("modifier"), 0.0);
+			const int32 Total = (int32)FN7HudJson::Num(Bl, TEXT("total"), (double)(Roll + Mod)), Dc = (int32)FN7HudJson::Num(Bl, TEXT("target_dc"), 10.0);
+			const double Dmg = FN7HudJson::Num(Bl, TEXT("damage"), 0.0);
+			FString Flavor = FN7HudJson::Str(Bl, TEXT("flavor"));
+			if (Flavor.Len() > 120) Flavor = Flavor.Left(117) + TEXT("...");
+			Duel->AddLog(FString::Printf(TEXT("%s%s: \"%s\"  d20 %d%s = %d vs %d: %s, %.1f dmg.  %s"), bCounter ? TEXT("counter, ") : TEXT(""), *ByName, *Text,
+				Roll, Mod ? *FString::Printf(TEXT(" %+d"), Mod) : TEXT(""), Total, Dc, *FN7HudJson::Str(Bl, TEXT("verdict")).Replace(TEXT("_"), TEXT(" ")).ToUpper(), Dmg, *Flavor));
+			// A typed line clears its side's typing (an automatic counter clears nothing).
+			if (!FN7HudJson::Flag(Bl, TEXT("auto")) && !Text.IsEmpty())
+			{
+				FFNDuelSession::FSideLine& L = Duel->Line(Side);
+				L.Sent = Text;
+				L.SentAt = FPlatformTime::Seconds();
+				L.Len = 0;
+				L.Tail.Reset();
+			}
+		};
+		LogBlow(Pub, false);
+		if (const TSharedPtr<FJsonObject> Counter = FN7HudJson::Obj(Pub, TEXT("counter"))) LogBlow(Counter, true);
+		const TSharedPtr<FJsonObject> HpAfter = FN7HudJson::Obj(Pub, TEXT("hp_after")).IsValid() ? FN7HudJson::Obj(Pub, TEXT("hp_after")) : FN7HudJson::Obj(Pub, TEXT("hp"));
+		Duel->HpA = (float)FN7HudJson::Num(HpAfter, TEXT("a"), Duel->HpA);
+		Duel->HpB = (float)FN7HudJson::Num(HpAfter, TEXT("b"), Duel->HpB);
+		const TSharedPtr<FJsonObject> Choreo = FN7HudJson::Obj(FN7HudJson::Obj(Pub, TEXT("counter")).IsValid() ? FN7HudJson::Obj(Pub, TEXT("counter")) : Pub, TEXT("choreo"));
+		if (Choreo.IsValid())
+		{
+			Duel->Range = FN7HudJson::Str(Choreo, TEXT("range_after"));
+			Duel->Initiative = FN7HudJson::Str(Choreo, TEXT("initiative_after"));
+		}
+	}
+	// Everything that rode along (the panels a tick or a line made due): as if each had arrived on its own.
+	if (const TArray<TSharedPtr<FJsonValue>>* Also = FN7HudJson::Arr(Pub, TEXT("also")))
+		for (const TSharedPtr<FJsonValue>& V : *Also)
+			if (const TSharedPtr<FJsonObject> E = V.IsValid() ? V->AsObject() : nullptr) HandleDuelEvent(E);
+}
+
+void SFNHudLive::DuelSendLine(const FString& Line)
+{
+	UFNNetClient* N = Net.Get();
+	if (!N || !Duel.IsValid() || Duel->MySide.IsEmpty() || Duel->bOver) return;
+	N->DuelLine(Round, Duel->DuelId, Line);   // a line is a blow: resolved at once by the server (duel.blow)
+	FFNDuelSession::FSideLine& L = Duel->Line(Duel->MySide);
+	L.Sent = Line;
+	L.SentAt = FPlatformTime::Seconds();
+	L.Len = 0;
+	KeysSentText.Reset();
+	KeysLatestText.Reset();
+	bKeysPending = false;
+	UE_LOG(LogTemp, Display, TEXT("FN7 duel line sent: %s (%d chars)"), *Duel->DuelId, Line.Len());
+}
+
+void SFNHudLive::DuelTyping(const FString& Text)
+{
+	KeysLatestText = Text;
+	bKeysPending = Text != KeysSentText;
+	TrySendDuelKeys();
+}
+
+void SFNHudLive::TrySendDuelKeys()
+{
+	UFNNetClient* N = Net.Get();
+	if (!bKeysPending || !N || !Duel.IsValid() || Duel->MySide.IsEmpty() || Duel->bOver) return;
+	const FString& Now = KeysLatestText;
+	const FString Tail = Now.StartsWith(KeysSentText, ESearchCase::CaseSensitive) ? Now.Mid(KeysSentText.Len()).Right(8) : FString();   // "" after a deletion
+	if (N->DuelKeys(Round, Duel->DuelId, Now.Len(), Tail))
+	{
+		KeysSentText = Now;
+		bKeysPending = false;
+	}
+}
+
+EActiveTimerReturnType SFNHudLive::TickDuelFast(double, float)
+{
+	if (!Duel.IsValid()) { bDuelTimer = false; return EActiveTimerReturnType::Stop; }
+	if (Duel->bOver && FPlatformTime::Seconds() - Duel->OverAt > 5.0) { Duel.Reset(); bDuelTimer = false; return EActiveTimerReturnType::Stop; }
+	UFNNetClient* N = Net.Get();
+	if (N && !Duel->MySide.IsEmpty() && !Duel->bOver)
+	{
+		// The pacing tick: at each panel's input close, by the server's clock, plus ~30 ms (viewers never tick).
+		const double NowMs = N->NowServerMs();
+		for (const TPair<int32, TSharedPtr<FJsonObject>>& P : Duel->Panels)
+		{
+			const double Closes = FN7HudJson::Num(P.Value, TEXT("input_closes_ms"), 0.0);
+			if (Closes <= 0.0 || Duel->Ticked.Contains(P.Key) || NowMs < Closes + 30.0 || NowMs > Closes + 4000.0) continue;
+			Duel->Ticked.Add(P.Key);
+			N->DuelTick(Round, Duel->DuelId);
+			UE_LOG(LogTemp, Display, TEXT("FN7 duel tick: %s panel %d"), *Duel->DuelId, P.Key);
+		}
+		TrySendDuelKeys();   // a keystroke the bucket held back
+	}
+	return EActiveTimerReturnType::Continue;
+}
+
+void SFNHudLive::RestoreDuels(const TSharedPtr<FJsonObject>& Present)
+{
+	const TArray<TSharedPtr<FJsonValue>>* Open = FN7HudJson::Arr(Present, TEXT("duels"));
+	if (!Open) return;
+	for (const TSharedPtr<FJsonValue>& V : *Open)
+	{
+		const TSharedPtr<FJsonObject> D = V.IsValid() ? V->AsObject() : nullptr;
+		if (!D.IsValid() || FN7HudJson::Flag(D, TEXT("over"))) continue;
+		const TSharedPtr<FJsonObject> Lock = FN7HudJson::Obj(D, TEXT("lock"));
+		if (!Lock.IsValid()) continue;
+		HandleChallengeLock(Lock, true);
+		const FString DuelId = FN7HudJson::Str(D, TEXT("duel_id"));
+		if (!Duel.IsValid() || Duel->DuelId != DuelId) continue;
+		if (const TSharedPtr<FJsonObject> Sc = FN7HudJson::Obj(D, TEXT("scene"))) Duel->Scene = Sc;
+		StoreDuelPanels(DuelId, FN7HudJson::Arr(D, TEXT("panels")));
+		const TSharedPtr<FJsonObject> Hp = FN7HudJson::Obj(D, TEXT("hp"));
+		Duel->HpA = (float)FN7HudJson::Num(Hp, TEXT("a"), Duel->HpA);
+		Duel->HpB = (float)FN7HudJson::Num(Hp, TEXT("b"), Duel->HpB);
+		Duel->Range = FN7HudJson::Str(D, TEXT("range"));
+		Duel->Initiative = FN7HudJson::Str(D, TEXT("initiative"));
+		if (const TSharedPtr<FJsonObject> Ty = FN7HudJson::Obj(D, TEXT("typing")))
+			for (const TCHAR* Side : { TEXT("a"), TEXT("b") })
+				if (FString(Side) != Duel->MySide)
+					Duel->Line(Side).Len = (int32)FN7HudJson::Num(FN7HudJson::Obj(Ty, Side), TEXT("len"), 0.0);
+		if (const TArray<TSharedPtr<FJsonValue>>* Blows = FN7HudJson::Arr(D, TEXT("blows")))
+			for (int32 i = FMath::Max(0, Blows->Num() - 3); i < Blows->Num(); ++i)
+				if (const TSharedPtr<FJsonObject> Bl = (*Blows)[i].IsValid() ? (*Blows)[i]->AsObject() : nullptr)
+				{
+					TSharedPtr<FJsonObject> Copy = MakeShared<FJsonObject>(*Bl);
+					Copy->SetStringField(TEXT("duel_id"), DuelId);
+					Copy->RemoveField(TEXT("also"));
+					HandleDuelEvent(Copy);
+				}
+		UE_LOG(LogTemp, Display, TEXT("FN7 duel restored: %s (%d panels)"), *DuelId, Duel->Panels.Num());
+	}
 }
 
 float SFNHudLive::VictoryAlpha() const
@@ -1921,6 +2165,14 @@ void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
 			Info.HpA = Hp(O, TEXT("a"), Info.HpA);
 			Info.HpB = Hp(O, TEXT("b"), Info.HpB);
 			Info.Blows = (int32)FN7HudJson::Num(O, TEXT("blows"), Info.Blows);
+			StoreDuelPanels(DuelId, FN7HudJson::Arr(O, TEXT("panels")));
+			if (Duel.IsValid() && Duel->DuelId == DuelId)
+			{
+				Duel->HpA = Info.HpA;
+				Duel->HpB = Info.HpB;
+				if (FN7HudJson::Has(O, TEXT("range"))) Duel->Range = FN7HudJson::Str(O, TEXT("range"));
+				if (FN7HudJson::Has(O, TEXT("initiative"))) Duel->Initiative = FN7HudJson::Str(O, TEXT("initiative"));
+			}
 			if (Info.bMine)
 				Toast(FString::Printf(TEXT("DUEL  %s %.1f  -  %s %.1f   (%d blows)"), *Info.AName, Info.HpA, *Info.BName, Info.HpB, Info.Blows));
 		}
@@ -1952,6 +2204,19 @@ void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
 				const FLinearColor Col = Winner.IsEmpty() ? FLinearColor(0.75f, 0.75f, 0.78f) : bWon ? FLinearColor(1.f, 0.82f, 0.3f) : FLinearColor(0.95f, 0.25f, 0.2f);
 				ShowBanner(Title, FText::FromString(Line), Col, 0.0, 6.0);
 			}
+			StoreDuelPanels(DuelId, FN7HudJson::Arr(O, TEXT("panels")));
+			if (Duel.IsValid() && Duel->DuelId == DuelId && !Duel->bOver)
+			{
+				const bool bWonIt = !Winner.IsEmpty() && Duel->MySide == (Winner == Ar ? TEXT("a") : TEXT("b"));
+				Duel->bOver = true;
+				Duel->OverAt = FPlatformTime::Seconds();
+				Duel->Result = Duel->MySide.IsEmpty() ? (WinName.IsEmpty() ? FString(TEXT("DRAW")) : WinName + TEXT(" WINS"))
+					: Winner.IsEmpty() ? FString(TEXT("DRAW")) : bWonIt ? FString(TEXT("VICTORY")) : FString(TEXT("DEFEAT"));
+				Duel->HpA = Hp(O, TEXT("a"), Duel->HpA);
+				Duel->HpB = Hp(O, TEXT("b"), Duel->HpB);
+				if (!Deed.IsEmpty()) Duel->AddLog(Deed);
+				if (Tray.IsValid()) Tray->ClearInput();
+			}
 			if (bGlidePending && GlideDuel == DuelId) bGlidePending = false;
 			if (bHaveSavedView && ViewDuel == DuelId) RestoreAt = FPlatformTime::Seconds() + 3.0;   // after the result banner
 			Duels.Remove(DuelId);
@@ -1964,6 +2229,7 @@ void SFNHudLive::NewMatch(const FString& Id)
 	UE_LOG(LogTemp, Display, TEXT("FN7 match: %s -> %s (summon state reset)"), MatchId.IsEmpty() ? TEXT("none") : *MatchId, *Id);
 	MatchId = Id;
 	Duels.Reset();
+	Duel.Reset();
 	bWiped = false;
 	MineRefs.Reset();
 	MineAlive.Reset();
