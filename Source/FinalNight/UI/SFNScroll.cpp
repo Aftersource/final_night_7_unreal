@@ -53,7 +53,8 @@ void SFNScroll::Construct(const FArguments& InArgs)
 				SNew(SOverlay)
 				+ SOverlay::Slot()
 				[
-					SNew(SImage).Image(FN7Wood::FabricBrush())
+					// The cloth never sizes the scroll (its texture is 640 px tall): only the inscription does.
+					SNew(SImage).Image(FN7Wood::FabricBrush()).DesiredSizeOverride(FVector2D(8.f, 8.f))
 				]
 				+ SOverlay::Slot().VAlign(VAlign_Top).Padding(ContentPadding)
 				[
@@ -132,6 +133,9 @@ void SFNScroll::Tick(const FGeometry& G, const double Now, const float Dt)
 
 FOptionalSize SFNScroll::GetBodyHeight() const
 {
+	// Open and still: size to the content (no override). A panel rebuilt on every refresh otherwise measured its content
+	// at 0 for a frame and collapsed ("the scrolls keep scrolling up").
+	if (!bAnimating && Progress >= 1.f) return FOptionalSize();
 	const float Full = Inner.IsValid() ? Inner->GetDesiredSize().Y + ContentPadding.GetTotalSpaceAlong<Orient_Vertical>() + 12.f : 0.f;
 	return FMath::Max(0.f, Full * Progress);
 }

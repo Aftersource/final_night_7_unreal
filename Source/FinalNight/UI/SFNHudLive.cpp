@@ -188,6 +188,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	{
 		TWeakPtr<SFNHudLive> WeakSelf = StaticCastSharedRef<SFNHudLive>(AsShared());
 		RingInput->SetIsMine([WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() && Self->WhyNotSummon(Ref).IsEmpty(); });
+		RingInput->SetOnFigureWheel([WeakSelf](const FString& Ref, float Delta) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() && Self->OnDemigodWheel(Ref, Delta); });
 		RingInput->SetOnFigureDoubleClick([WeakSelf](const FString& Ref) { if (const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin()) Self->OnDemigodDoubleClick(Ref); });
 		RingInput->SetSummonCheck(
 			[WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() ? Self->WhyNotSummon(Ref) : FString(); },
@@ -1643,6 +1644,22 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		SelectedUntil = FPlatformTime::Seconds() + 2.0;
 		T->SetFigureHeld(Ref, true);
 	}
+}
+
+bool SFNHudLive::OnDemigodWheel(const FString& Ref, float Delta)
+{
+	// The wheel near a demigod: one level in (or out), centred on its exact position.
+	AFNStudio* St = FindStudio();
+	AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr);
+	if (!St || FMath::IsNearlyZero(Delta)) return false;
+	double La = 0.0, Lo = 0.0;
+	bool bPos = T && T->GetBoardPos(Ref, La, Lo);
+	for (const FSeatInfo& S : Seats) if (!bPos && S.Ref == Ref && S.bHasPos && S.bAlive) { La = S.Lat; Lo = S.Lon; bPos = true; }
+	if (!bPos) return false;
+	const int32 Lv = FMath::Clamp(St->GetMapLevel() + (Delta > 0.f ? -1 : 1), 0, 3);
+	UE_LOG(LogTemp, Display, TEXT("FN7 wheel: %s -> level %d at %.5f, %.5f"), *Ref, Lv, La, Lo);
+	St->FocusBoard(La, Lo, Lv);
+	return true;
 }
 
 void SFNHudLive::ShowBanner(const FText& Title, const FText& Text, const FLinearColor& Color, double Delay, double Secs)

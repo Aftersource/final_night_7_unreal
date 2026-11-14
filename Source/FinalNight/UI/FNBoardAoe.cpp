@@ -152,7 +152,8 @@ bool AFNStudio::BoardPointFor(double Lat, double Lon, FVector& OutWorld) const
 	const double Px = U * RadiusM, Py = W * RadiusM;
 	if (FVector2D::Distance(FVector2D(Px, Py), FVector2D(TableCx, TableCy)) > PickRadiusM) return false;
 	const float Top = FN7Board::GroundTop(ElevationM(V, TableS, Lat, Lon), TableLo, TableRange);
-	const FVector Local = FN7Board::ActionC + FVector((float)((Px - TableCx) * TableK), (float)(-(Py - TableCy) * TableK), Top);
+	FVector Local = FN7Board::ActionC + FVector((float)((Px - TableCx) * TableK), (float)(-(Py - TableCy) * TableK), Top);
+	if (MapPivot) Local = MapPivot->GetRelativeTransform().TransformPosition(Local);   // ride the zoom animation
 	OutWorld = GetActorTransform().TransformPosition(Local);
 	return true;
 }
@@ -282,14 +283,23 @@ void AFNStudio::FocusBoard(double Lat, double Lon, int32 Level)
 	static const double LevelHexM[4] = { 3.0, 30.0, 3000.0, 120000.0 };
 	static constexpr double HexesToEdge = 22.0;
 	if (!bHasFocus) return;   // only during a match
+	FVector OldW;
+	const bool bOld = BoardPointFor(Lat, Lon, OldW);
+	const FVector OldLocal = GetActorTransform().InverseTransformPosition(OldW);
+	const double OldR = PickRadiusM;
 	MapLevel = Level < 0 ? FMath::Max(MapLevel - 1, 0) : FMath::Clamp(Level, 0, 3);   // -1: one level closer than now
 	PickRadiusM = LevelHexM[MapLevel] * HexesToEdge;
 	PickLat = FMath::Clamp(Lat, -89.9, 89.9);
 	PickLon = Lon;
 	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
 	bUserPicked = true;
+	ZoomAnimT = -1.f;
+	if (MapPivot) { MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); }
 	BuildTable();
 	RebuildIn = -1.f;
+	FVector NewW;
+	const FVector NewLocal = BoardPointFor(Lat, Lon, NewW) ? GetActorTransform().InverseTransformPosition(NewW) : FN7Board::ActionC;
+	BeginViewAnim(bOld, OldLocal, NewLocal, (float)(PickRadiusM / FMath::Max(OldR, 1.0)));
 }
 
 void AFNStudio::SetFaultLinesAlpha(float Alpha)
@@ -335,14 +345,22 @@ void AFNStudio::ResetView()
 void AFNStudio::CenterBoardAndGlobe(double Lat, double Lon)
 {
 	// The zoom level stays; only the centre moves (Chris noted that double clicking is not centring the globe map and table map).
+	FVector OldW;
+	const bool bOld = BoardPointFor(Lat, Lon, OldW);
+	const FVector OldLocal = GetActorTransform().InverseTransformPosition(OldW);
 	PickLat = FMath::Clamp(Lat, -89.9, 89.9);
 	PickLon = Lon;
 	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
 	bUserPicked = true;
 	FocusDir = PickDir;          // the globe turns this point toward you (UpdateGlobe's slerp)
 	ManualUntil = -1.f;          // even if you spun it by hand a moment ago
+	ZoomAnimT = -1.f;
+	if (MapPivot) { MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); }
 	BuildTable();
 	RebuildIn = -1.f;
+	FVector NewW;
+	const FVector NewLocal = BoardPointFor(Lat, Lon, NewW) ? GetActorTransform().InverseTransformPosition(NewW) : FN7Board::ActionC;
+	BeginViewAnim(bOld, OldLocal, NewLocal, 1.f);   // same zoom: it slides the demigod to the centre
 }
 
 void AFNStudio::SetGlobeFocus(double Lat, double Lon)
@@ -361,4 +379,45 @@ void AFNStudio::PreviewFocus(double Lat, double Lon, int32 Level)
 	bUserPicked = true;
 	BuildTable();
 	RebuildIn = -1.f;
+}
+
+namespace FN7View
+{
+	struct FAnim { float T = -1.f, Dur = 0.45f, S0 = 1.f; FVector From = FVector::ZeroVector, To = FVector::ZeroVector; };
+	static TMap<TWeakObjectPtr<AFNStudio>, FAnim> Anims;
+}
+
+void AFNStudio::BeginViewAnim(bool bHaveOld, const FVector& OldLocal, const FVector& NewLocal, float ScaleFrom)
+{
+	// The new scene starts looking like the old one (the point drawn where it was, at the old scale) and eases into
+	// place: zooming expands or contracts, re-centring slides. MapPivot: drawn = Scale * X + Location (studio local).
+	if (!MapPivot) return;
+	FN7View::FAnim& A = FN7View::Anims.FindOrAdd(this);
+	A.T = 0.f;
+	A.Dur = 0.45f;
+	A.S0 = FMath::Clamp(ScaleFrom, 0.03f, 2.5f);
+	A.To = NewLocal;
+	A.From = bHaveOld ? OldLocal : NewLocal;
+	MapPivot->SetRelativeScale3D(FVector(A.S0));
+	MapPivot->SetRelativeLocation(A.From - A.To * A.S0);
+}
+
+void AFNStudio::TickViewAnim(float Dt)
+{
+	FN7View::FAnim* A = FN7View::Anims.Find(this);
+	if (!A || A->T < 0.f || !MapPivot) return;
+	if (ZoomAnimT >= 0.f) { A->T = -1.f; return; }   // the studio's own zoom took over
+	A->T += Dt;
+	const float U = FMath::Clamp(A->T / A->Dur, 0.f, 1.f);
+	const float E = 1.f - FMath::Cube(1.f - U);                          // ease out
+	const float Sc = FMath::Exp(FMath::Loge(A->S0) * (1.f - E));         // even speed in log scale, like a web map
+	const FVector P = FMath::Lerp(A->From, A->To, E);                    // the point glides from where it was to its place
+	MapPivot->SetRelativeScale3D(FVector(Sc));
+	MapPivot->SetRelativeLocation(P - A->To * Sc);
+	if (U >= 1.f)
+	{
+		A->T = -1.f;
+		MapPivot->SetRelativeScale3D(FVector::OneVector);
+		MapPivot->SetRelativeLocation(FVector::ZeroVector);
+	}
 }
