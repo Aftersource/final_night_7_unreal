@@ -732,6 +732,7 @@ void AFNStudio::ShowWorld(const TArray<FFNPiece>& Pieces)
 	}
 	if (All.Num() > 0 && PieceRoots.Num() > 0)
 		UE_LOG(LogTemp, Display, TEXT("FNBoard: %d pieces; first '%s' kind %d at %s (visible %d)"), All.Num(), *All[0].Name, All[0].Kind, *PieceRoots[0]->GetComponentLocation().ToString(), PieceRoots[0]->IsVisible() ? 1 : 0);
+	PlaceTableHeroes();
 }
 
 void AFNStudio::PlacePiece(int32 i, const FFNPiece& P)

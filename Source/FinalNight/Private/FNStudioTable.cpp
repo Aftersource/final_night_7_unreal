@@ -34,6 +34,35 @@ namespace FNTableScene
 		if (M >= 1000) return FString::Printf(TEXT("%.1f km"), M / 1000);
 		return M < 10 ? FString::Printf(TEXT("%.1f m"), M) : FString::Printf(TEXT("%.0f m"), M);
 	}
+	// The board's zoom levels, board-game style: one thing per hexagon, about 500 hexagons on the board (22 from centre to edge).
+	// Globe click -> REGIONS -> VILLAGES -> HOUSES -> PEOPLE; right-click goes back up one level.
+	struct FLevel { double HexM; const TCHAR* Name; };
+	static const FLevel Levels[4] = {
+		{ 3.0,      TEXT("PEOPLE: 1 hexagon = 1 character (a house covers 7)") },
+		{ 30.0,     TEXT("HOUSES: 1 hexagon = 1 house") },
+		{ 3000.0,   TEXT("VILLAGES: 1 hexagon = 1 village (a city covers 2-4)") },
+		{ 120000.0, TEXT("REGIONS: 1 hexagon = a region (big cities glow)") } };
+	static constexpr int32 NumLevels = 4;
+	static constexpr double HexRadius = 22.0;
+	static double LevelR(int32 L) { return Levels[L].HexM * HexRadius; }
+	static double HexDice(int32 Q, int32 R, int32 i) { const double X = FMath::Sin(Q * 127.1 + R * 311.7 + i * 74.7) * 43758.5453; return X - FMath::FloorToDouble(X); }
+	// where people settle, as smooth patterns on the planet so every zoom level agrees (a readable board, not a census):
+	static double RegionCity(const FVector3d& V) { return FMath::Max(0.0, FNPlanet::ValueNoise(V.X * 300, V.Y * 300, V.Z * 300, 99)); }   // big-city regions, ~40 km
+	static double CityCore(const FVector3d& V) { return FMath::Max(0.0, FNPlanet::ValueNoise(V.X * 2000, V.Y * 2000, V.Z * 2000, 61)) * (0.4 + RegionCity(V)); }  // a city, 2-4 village hexes
+	static double VillageSpot(const FVector3d& V) { return FMath::Max(0.0, FNPlanet::ValueNoise(V.X * 4000, V.Y * 4000, V.Z * 4000, 41)); }   // a village, ~1 km
+	static bool IsCity(const FVector3d& V) { return CityCore(V) > 0.45; }
+	static bool IsVillage(const FVector3d& V) { return VillageSpot(V) > 0.5; }
+	static bool Livable(FNPlanet::EBiome B) { return B == FNPlanet::Beach || B == FNPlanet::Grass || B == FNPlanet::Forest; }
+	// one house per 30 m hexagon, or none: the same answer on the HOUSES and the PEOPLE level
+	static bool HouseAt(int32 Face, int32 Q, int32 R)
+	{
+		using namespace FNPlanet;
+		const FVector2D C = HexToPlane(Q, R, Levels[1].HexM);
+		const FVector3d V = PlaneToVec(Face, C.X, C.Y);
+		double La, Lo; VecToLatLon(V, La, Lo);
+		if (!Livable(BiomeOf(ElevationM(V, Levels[1].HexM, La, Lo), La))) return false;
+		return HexDice(Q, R, 5) < (IsCity(V) ? 0.8 : IsVillage(V) ? 0.6 : 0.03);
+	}
 	static FString FmtN(double N)
 	{
 		if (N >= 1e9) return FString::Printf(TEXT("%.1f billion"), N / 1e9);
@@ -81,22 +110,25 @@ void AFNStudio::BuildTable()
 				}
 		PeopleSet = MakeSet(TEXT("TablePeople"), FLinearColor::FromSRGBColor(FColor(255, 225, 176)));
 		TownSet = MakeSet(TEXT("TableTowns"), FLinearColor::FromSRGBColor(FColor(217, 212, 204)));
+		HeadSet = MakeSet(TEXT("TableHeads"), FLinearColor::FromSRGBColor(FColor(120, 80, 50)));    // dark hair: reads as a person
+		RoofSet = MakeSet(TEXT("TableRoofs"), FLinearColor::FromSRGBColor(FColor(178, 70, 45)));    // terracotta: reads as a house
+		TowerSet = MakeSet(TEXT("TableTowers"), FLinearColor::FromSRGBColor(FColor(150, 170, 195)));  // glassy blue-grey: buildings
 	}
 	for (UInstancedStaticMeshComponent* C : HexSets) C->ClearInstances();
-	PeopleSet->ClearInstances();
-	TownSet->ClearInstances();
+	for (UInstancedStaticMeshComponent* C : { PeopleSet.Get(), TownSet.Get(), HeadSet.Get(), RoofSet.Get(), TowerSet.Get() }) C->ClearInstances();
 
 	// the hex lattice on the cube face under the picked spot
 	const FVector3d C0 = LatLonToVec(PickLat, PickLon);
 	int32 Face; double U, W;
 	VecToFaceUV(C0, Face, U, W);
+	MapLevel = FMath::Clamp(MapLevel, 0, NumLevels - 1);
+	PickRadiusM = LevelR(MapLevel);
 	const double Cx = U * RadiusM, Cy = W * RadiusM, R = PickRadiusM;
-	double S = HexSizeFor(R, 22);
-	while (PI * FMath::Square(R / S) / 2.6 > MaxHex) S *= 2;   // hard cap on tiles
+	const double S = Levels[MapLevel].HexM;
 	const double K = ActionR / R;                                // cm on the table per planet meter
 	int32 Q0, R0; PlaneToHex(Cx, Cy, S, Q0, R0);
 	const int32 Span = FMath::CeilToInt(R / (S * 1.5)) + 1;
-	struct FT { int32 Q, Rr; float X, Y, D; double Elev; EBiome B; double People; };
+	struct FT { int32 Q, Rr; float X, Y, D; double Elev; EBiome B; double People; FVector3d V; FVector2D P; };
 	TArray<FT> Cells;
 	for (int32 Dq = -Span * 2; Dq <= Span * 2; ++Dq)
 		for (int32 Dr = -Span; Dr <= Span; ++Dr)
@@ -110,15 +142,26 @@ void AFNStudio::BuildTable()
 			const double E = ElevationM(V, S, La, Lo);
 			const EBiome B = BiomeOf(E, La);
 			// east = table +X (your right), north = table -Y (away from you)
-			Cells.Add({ Q, Rr, (float)(Dx * K), (float)(-Dy * K), (float)(D / R), E, B, PeopleIn(B, 2.6 * S * S, V) });
+			Cells.Add({ Q, Rr, (float)(Dx * K), (float)(-Dy * K), (float)(D / R), E, B, PeopleIn(B, 2.6 * S * S, V), V, P });
 		}
 	double Lo = 1e30, Hi = -1e30, Crowd = 0, People = 0;
 	int32 Mix[NumBiomes] = {};
 	for (const FT& T : Cells) { const double L = FMath::Max(0.0, T.Elev); Lo = FMath::Min(Lo, L); Hi = FMath::Max(Hi, L); Crowd = FMath::Max(Crowd, T.People); People += T.People; Mix[T.B]++; }
 	const double Range = FMath::Max3(Hi - Lo, R * 0.002, 1.0);   // exaggerated: an action-game table, not a survey map
-	const float TileW = (float)(S * K) * 0.97f, UnitPerson = (float)(1.7 * K);
-	const bool bFine = S <= 6.0;
+	TableFace = Face; TableCx = Cx; TableCy = Cy; TableK = K; TableS = S; TableLo = Lo; TableRange = Range;
+	const float TileW = (float)(S * K) * 0.97f;
+	const float HexW = (float)(S * K) * 1.7320508f;   // flat-to-flat width of one hexagon on the table (cm)
 	int32 NM = 0;
+	auto House = [&](const FVector& Base, float Wd, float Yaw)   // walls + pitched roof
+	{
+		const float Wall = Wd * 0.6f;
+		TownSet->AddInstance(FTransform(FRotator(0.f, Yaw, 0.f), Base + FVector(0, 0, Wall * 0.5f), FVector(Wd / 100.f, Wd * 0.8f / 100.f, Wall / 100.f)));
+		RoofSet->AddInstance(FTransform(FRotator(0.f, Yaw, 45.f), Base + FVector(0, 0, Wall), FVector(Wd * 1.05f / 100.f, Wd * 0.58f / 100.f, Wd * 0.58f / 100.f)));
+	};
+	auto Tower = [&](const FVector& Base, float Wd, float Ht, float Yaw)
+	{
+		TowerSet->AddInstance(FTransform(FRotator(0.f, Yaw, 0.f), Base + FVector(0, 0, Ht * 0.5f), FVector(Wd / 100.f, Wd / 100.f, Ht / 100.f)));
+	};
 	for (const FT& T : Cells)
 	{
 		const float H = 0.4f + Relief * (float)((FMath::Max(0.0, T.Elev) - Lo) / Range);
@@ -129,17 +172,62 @@ void AFNStudio::BuildTable()
 		const FVector Pos = ActionC + FVector(T.X, T.Y, H * 0.5f);
 		for (int32 k = 0; k < 3; ++k)
 			Set->AddInstance(FTransform(FRotator(0.f, 60.f * k, 0.f), Pos, FVector(TileW * 1.7320508f / 100.f, TileW / 100.f, H / 100.f)));
-		// what lives on this tile: people when tiles are small, towns when they are big. Same tile -> same dice.
-		if (T.People < 0.5 || NM >= MaxMarks || Fog >= 2) continue;
-		auto Dice = [&T](int32 i) { const double X = FMath::Sin(T.Q * 127.1 + T.Rr * 311.7 + i * 74.7) * 43758.5453; return X - FMath::FloorToDouble(X); };
-		const double Rel = T.People / FMath::Max(Crowd, 1e-9);
-		const int32 Count = bFine ? FMath::Min((int32)T.People + (Dice(9) < FMath::Fmod(T.People, 1.0) ? 1 : 0), 5) : (Rel > 0.35 ? FMath::CeilToInt(Rel * 3) : 0);
-		for (int32 i = 0; i < Count && NM < MaxMarks; ++i, ++NM)
+		// what stands on this hexagon: at most ONE thing (board-game rule). Same hexagon -> same answer, every visit.
+		if (NM >= MaxMarks || Fog >= 2 || !Livable(T.B)) continue;
+		const FVector Mid = ActionC + FVector(T.X, T.Y, H);
+		const float Yaw = (float)HexDice(T.Q, T.Rr, 40) * 90.f;
+		if (MapLevel == 0)        // PEOPLE: one character per hexagon; a house covers a hexagon and its 6 neighbours
 		{
-			const float A = (float)Dice(i) * 2.f * PI, Rr = TileW * 0.45f * FMath::Sqrt((float)Dice(i + 20));
-			const float Wd = bFine ? FMath::Max(UnitPerson * 0.25f, 0.4f) : TileW * 0.18f;
-			const float Ht = bFine ? FMath::Max(UnitPerson, 1.2f) : TileW * (0.3f + 1.2f * (float)Rel) * (1.f - 0.25f * i);
-			(bFine ? PeopleSet : TownSet)->AddInstance(FTransform(FRotator::ZeroRotator, ActionC + FVector(T.X + FMath::Cos(A) * Rr, T.Y + FMath::Sin(A) * Rr, H + Ht * 0.5f), FVector(Wd / 100.f, Wd / 100.f, Ht / 100.f)));
+			int32 Q2, R2; PlaneToHex(T.P.X, T.P.Y, Levels[1].HexM, Q2, R2);
+			if (HouseAt(Face, Q2, R2))
+			{
+				const FVector2D C2 = HexToPlane(Q2, R2, Levels[1].HexM);
+				int32 Qc, Rc; PlaneToHex(C2.X, C2.Y, S, Qc, Rc);
+				const int32 Dq = T.Q - Qc, Dr = T.Rr - Rc;
+				if ((FMath::Abs(Dq) + FMath::Abs(Dr) + FMath::Abs(Dq + Dr)) / 2 <= 1)
+				{
+					if (Dq == 0 && Dr == 0) { House(Mid, HexW * 2.6f, Yaw); ++NM; }   // drawn once, from its middle hexagon
+					continue;   // nobody stands inside the walls
+				}
+			}
+			const double Busy = IsCity(T.V) ? 0.3 : IsVillage(T.V) ? 0.2 : 0.02;
+			if (HexDice(T.Q, T.Rr, 9) < Busy)
+			{
+				const float Ht = HexW * 0.9f, Wd = HexW * 0.3f;   // a game token that fills its hexagon
+				PeopleSet->AddInstance(FTransform(FRotator::ZeroRotator, Mid + FVector(0, 0, Ht * 0.41f), FVector(Wd / 100.f, Wd / 100.f, Ht * 0.82f / 100.f)));
+				HeadSet->AddInstance(FTransform(FRotator::ZeroRotator, Mid + FVector(0, 0, Ht * 0.82f + Wd * 0.55f), FVector(Wd * 1.1f / 100.f)));
+				++NM;
+			}
+		}
+		else if (MapLevel == 1)   // HOUSES: one house per hexagon, or none
+		{
+			if (HouseAt(Face, T.Q, T.Rr)) { House(Mid, HexW * 0.62f, Yaw); ++NM; }
+		}
+		else if (MapLevel == 2)   // VILLAGES: one village per hexagon; a city is a few neighbouring hexagons of towers
+		{
+			if (IsCity(T.V))
+			{
+				for (int32 i = 0; i < 3; ++i)
+				{
+					const float A = 2.f * PI * i / 3.f + Yaw, Rr = HexW * 0.2f;
+					Tower(Mid + FVector(FMath::Cos(A) * Rr, FMath::Sin(A) * Rr, 0.f), HexW * 0.2f, HexW * (0.8f + 0.5f * (float)HexDice(T.Q, T.Rr, i)), Yaw);
+				}
+				++NM;
+			}
+			else if (IsVillage(T.V))
+			{
+				for (int32 i = 0; i < 3; ++i)
+				{
+					const float A = 2.f * PI * i / 3.f + Yaw, Rr = HexW * 0.2f;
+					House(Mid + FVector(FMath::Cos(A) * Rr, FMath::Sin(A) * Rr, 0.f), HexW * 0.22f, Yaw + 30.f * i);
+				}
+				++NM;
+			}
+		}
+		else                      // REGIONS: where the big cities are, as glowing towers
+		{
+			const double C = RegionCity(T.V);
+			if (C > 0.6) { Tower(Mid, HexW * 0.3f, HexW * (0.6f + 2.f * (float)C), Yaw); ++NM; }
 		}
 	}
 
@@ -148,9 +236,10 @@ void AFNStudio::BuildTable()
 	const int32 Visits = ++SceneVisits.FindOrAdd(Cell + FString::Printf(TEXT("@%g"), S));
 	FString Terr;
 	for (int32 B = 0; B < NumBiomes; ++B) if (Mix[B] * 100 >= Cells.Num() * 5) Terr += FString::Printf(TEXT("%s%d%% %s"), Terr.IsEmpty() ? TEXT("") : TEXT(", "), Mix[B] * 100 / FMath::Max(1, Cells.Num()), BiomeName(B));
-	const FString Info = FString::Printf(TEXT("%.2f%s %.2f%s   radius %s   hexes of %s\n%s\n~%s people   cell %s   seen %dx"),
+	const FString Info = FString::Printf(TEXT("ZOOM %d of %d   %s\nmap %s across   click: closer   right-click: farther   Home: back to you\n%.2f%s %.2f%s   hexes of %s\n%s\n~%s people   cell %s   seen %dx"),
+		NumLevels - MapLevel, NumLevels, Levels[MapLevel].Name, *FmtM(R * 2),
 		FMath::Abs(PickLat), PickLat >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(PickLon), PickLon >= 0 ? TEXT("E") : TEXT("W"),
-		*FmtM(R), *FmtM(S), *Terr, *FmtN(People), *Cell, Visits);
+		*FmtM(S), *Terr, *FmtN(People), *Cell, Visits);
 	if (TableInfo) TableInfo->SetText(FText::FromString(Info));
 	FFileHelper::SaveStringToFile(FString::Printf(TEXT("%s\t%.5f\t%.5f\t%.0f\t%s\t%d tiles\t%s\n"), *FDateTime::Now().ToString(), PickLat, PickLon, R, *Cell, Cells.Num(), *Terr.Replace(TEXT("%"), TEXT("pct"))),
 		*(FPaths::ProjectSavedDir() / TEXT("GlobeScenes.txt")), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM, &IFileManager::Get(), FILEWRITE_Append);
@@ -168,6 +257,190 @@ void AFNStudio::BuildTable()
 		PickRing[i]->SetRelativeRotation(FRotationMatrix::MakeFromZ(D).Rotator());
 	}
 	if (PickPin) { PickPin->SetRelativeLocation(PickDir * (BoardR + 4.f)); }
+	PlaceTableHeroes();
+}
+
+void AFNStudio::PlaceTableHeroes()
+{
+	using namespace FNPlanet;
+	if (TableFace < 0 || TableK <= 0.0) return;
+	int32 N = 0;
+	for (const FFNPiece& P : WorldPieces)
+	{
+		if (P.Kind == 4) continue;   // day-1 drop spots aren't people
+		const FVector3d V = LatLonToVec(P.Lat, P.Lon);
+		int32 F; double U, W;
+		VecToFaceUV(V, F, U, W);
+		if (F != TableFace) continue;
+		const float X = (float)((U * RadiusM - TableCx) * TableK), Y = (float)(-(W * RadiusM - TableCy) * TableK);
+		if (X * X + Y * Y > ActionR * ActionR) continue;
+		const double E = ElevationM(V, TableS, P.Lat, P.Lon);
+		const float Ground = 0.4f + Relief * (float)((FMath::Max(0.0, E) - TableLo) / TableRange);
+		// true scale: a 1.7 m person; never smaller than a piece you can see (and click) from the chair
+		const float Ht = FMath::Max((float)(1.7 * TableK), 14.f), Wd = FMath::Max(Ht * 0.25f, 4.f);
+		if (!HeroMarks.IsValidIndex(N))
+		{
+			const FName Id(*FString::Printf(TEXT("Hero%d"), N));
+			UStaticMeshComponent* M = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("HeroMark%d"), N)), FVector::ZeroVector, FVector(0.05f), FLinearColor::White);
+			M->SetCollisionEnabled(ECollisionEnabled::QueryOnly);   // clickable
+			Tag(M, Id);                                              // hover bump + "FN:HeroN" for the click trace
+			HeroMarks.Add(M);
+			UStaticMeshComponent* B = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("HeroBeam%d"), N)), FVector::ZeroVector, FVector(0.05f), FLinearColor::White);
+			B->SetCollisionEnabled(ECollisionEnabled::QueryOnly);   // the beam is clickable too: an easy target from far out
+			B->ComponentTags.Add(FName(*(FString(TEXT("FN:")) + Id.ToString())));
+			B->SetCastShadow(false);
+			HeroBeams.Add(B);
+			UStaticMeshComponent* R = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("HeroRing%d"), N)), FVector::ZeroVector, FVector(0.05f), FLinearColor::White);
+			R->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			R->SetCastShadow(false);
+			HeroRings.Add(R);
+			HeroLabels.Add(Text(FName(*FString::Printf(TEXT("HeroLabel%d"), N)), FVector::ZeroVector, FRotator(0.f, 90.f, 0.f), 6.f, FColor::White, FString()));
+		}
+		// gold for you (white got lost among the towns), the player colour for rivals, dark grey for the fallen
+		const FLinearColor Col = P.Kind == 0 ? FLinearColor(1.f, 0.78f, 0.15f) : P.Kind == 3 ? FLinearColor(0.15f, 0.15f, 0.15f) : PlayerColor(P.Color);
+		const FVector Foot = ActionC + FVector(X, Y, Ground);
+		const float BeamH = 55.f;
+		auto Paint = [&Col](UStaticMeshComponent* C, float Mul) { if (UMaterialInstanceDynamic* Mi = Cast<UMaterialInstanceDynamic>(C->GetMaterial(0))) Mi->SetVectorParameterValue(TEXT("Color"), Col * Mul); };
+		UStaticMeshComponent* M = HeroMarks[N];
+		Paint(M, 1.f);
+		M->SetRelativeLocation(Foot + FVector(0, 0, Ht * 0.5f));
+		M->SetRelativeScale3D(FVector(Wd / 100.f, Wd / 100.f, Ht / 100.f));
+		BaseScale.Add(FName(*FString::Printf(TEXT("Hero%d"), N)), M->GetRelativeScale3D());   // Tick's hover bump scales from this
+		M->SetVisibility(true);
+		UStaticMeshComponent* B = HeroBeams[N];
+		Paint(B, 1.6f);
+		B->SetRelativeLocation(Foot + FVector(0, 0, Ht + BeamH * 0.5f));
+		B->SetRelativeScale3D(FVector(0.015f, 0.015f, BeamH / 100.f));
+		B->SetVisibility(P.Kind != 3);
+		UStaticMeshComponent* R = HeroRings[N];
+		Paint(R, 1.2f);
+		R->SetRelativeLocation(Foot + FVector(0, 0, 0.6f));
+		R->SetRelativeScale3D(FVector(Wd * 3.f / 100.f, Wd * 3.f / 100.f, 0.006f));
+		R->SetVisibility(true);
+		UTextRenderComponent* L = HeroLabels[N];
+		L->SetRelativeLocation(Foot + FVector(0, 0, Ht + (P.Kind != 3 ? BeamH : 0.f) + 6.f));
+		L->SetWorldSize(FMath::Clamp(Ht * 0.12f, 6.f, 14.f));
+		L->SetTextRenderColor(Col.ToFColor(true));
+		L->SetText(FText::FromString(P.Kind == 0 ? P.Name + TEXT(" (you)") : P.Kind == 3 ? P.Name + TEXT(" (fallen)") : P.Name));
+		L->SetVisibility(true);
+		HeroShown.SetNum(N + 1);
+		HeroShown[N] = P;
+		++N;
+	}
+	HeroShown.SetNum(N);
+	for (int32 i = N; i < HeroMarks.Num(); ++i)
+	{
+		HeroMarks[i]->SetVisibility(false); HeroBeams[i]->SetVisibility(false); HeroRings[i]->SetVisibility(false); HeroLabels[i]->SetVisibility(false);
+		HeroMarks[i]->SetCollisionEnabled(ECollisionEnabled::NoCollision); HeroBeams[i]->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+	for (int32 i = 0; i < N; ++i) { HeroMarks[i]->SetCollisionEnabled(ECollisionEnabled::QueryOnly); HeroBeams[i]->SetCollisionEnabled(ECollisionEnabled::QueryOnly); }
+}
+
+bool AFNStudio::ClickDemigod(FName Id)
+{
+	const FString S = Id.ToString();
+	FString Ref, Name;
+	if (S.StartsWith(TEXT("Hero")))
+	{
+		const int32 i = FCString::Atoi(*S.RightChop(4));
+		if (!HeroShown.IsValidIndex(i)) return false;
+		Ref = HeroShown[i].Ref; Name = HeroShown[i].Name;
+	}
+	else if (S.StartsWith(TEXT("Seat")))
+	{
+		const int32 k = FCString::Atoi(*S.RightChop(4));
+		if (!SeatSlots.IsValidIndex(k) || !SeatSlots[k].bUsed) return false;
+		Ref = SeatSlots[k].Info.Ref; Name = SeatSlots[k].Info.Name;
+	}
+	else return false;
+	UE_LOG(LogTemp, Display, TEXT("FNPick: demigod %s ref=%s"), *Name, *Ref);
+	PlaySfx(EFNSfx::Chime, 0.5f);
+	CenterMapOn(Ref, Name);
+	if (OnDemigodClicked) OnDemigodClicked(Ref, Name);
+	return true;
+}
+
+void AFNStudio::CenterMapOn(const FString& Ref, const FString& Name)
+{
+	for (const FFNPiece& P : WorldPieces)
+		if (P.Kind != 4 && ((!Ref.IsEmpty() && P.Ref == Ref) || P.Name == Name))
+		{
+			PickLat = FMath::Clamp(P.Lat, -89.9, 89.9);
+			PickLon = P.Lon;
+			PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
+			bUserPicked = true;
+			RebuildIn = 0.f;
+			return;
+		}
+}
+
+bool AFNStudio::MapPointUnderCursor(double& Px, double& Py) const
+{
+	using namespace FNPlanet;
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!PC || TableFace < 0 || TableK <= 0.0) return false;
+	FVector O, D;
+	if (!PC->DeprojectMousePositionToWorld(O, D)) return false;
+	O = GetActorTransform().InverseTransformPosition(O);
+	D = GetActorTransform().InverseTransformVectorNoScale(D);
+	if (D.Z > -1e-3f) return false;
+	// the tiles stand up to 14 cm tall and the camera looks down at a shallow angle, so meet the ray with the actual
+	// top of the hex it crosses (a flat plane put the click up to a quarter of the map off): settle in a few steps
+	float Top = 0.f;
+	FVector Hit;
+	for (int32 It = 0; It < 6; ++It)
+	{
+		Hit = O + D * ((ActionC.Z + Top - O.Z) / D.Z) - ActionC;
+		Px = TableCx + Hit.X / TableK;
+		Py = TableCy - Hit.Y / TableK;
+		int32 Q, Rr; PlaneToHex(Px, Py, TableS, Q, Rr);
+		const FVector2D C = HexToPlane(Q, Rr, TableS);
+		const FVector3d V = PlaneToVec(TableFace, C.X, C.Y);
+		double La, Lo; VecToLatLon(V, La, Lo);
+		Top = 0.4f + Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, La, Lo)) - TableLo) / TableRange);
+	}
+	return Hit.X * Hit.X + Hit.Y * Hit.Y <= ActionR * ActionR;
+}
+
+void AFNStudio::ZoomMapAt(double Px, double Py, int32 Step)
+{
+	// one level per click (-1 = closer). The planet point under the cursor stays under the cursor, everything else
+	// scales around it: click the same hexagon again and again and you dive straight down into it.
+	const int32 NewLevel = FMath::Clamp(MapLevel + Step, 0, NumLevels - 1);
+	if (NewLevel == MapLevel) return;
+	const double NewR = LevelR(NewLevel);
+	const double F = NewR / PickRadiusM;
+	MapLevel = NewLevel;
+	const double Cx = Px + (TableCx - Px) * F, Cy = Py + (TableCy - Py) * F;
+	double La, Lo;
+	FNPlanet::VecToLatLon(FNPlanet::PlaneToVec(TableFace, Cx, Cy), La, Lo);
+	PickLat = FMath::Clamp(La, -89.9, 89.9);
+	PickLon = Lo;
+	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
+	PickRadiusM = NewR;
+	bUserPicked = true;
+	BuildTable();   // now, not next frame: a fast second click must land on the new scene
+	RebuildIn = -1.f;
+}
+
+bool AFNStudio::MapClick(bool bZoomIn)
+{
+	if (!bHasFocus) return false;   // only during a match
+	double Px, Py;
+	if (!MapPointUnderCursor(Px, Py)) return false;
+	double La, Lo;
+	FNPlanet::VecToLatLon(FNPlanet::PlaneToVec(TableFace, Px, Py), La, Lo);
+	UE_LOG(LogTemp, Display, TEXT("FNZoom: %s at %.6f, %.6f (map was %.0f m across)"), bZoomIn ? TEXT("in") : TEXT("out"), La, Lo, PickRadiusM * 2);
+	ZoomMapAt(Px, Py, bZoomIn ? -1 : 1);
+	PlaySfx(EFNSfx::Whoosh, 0.35f);
+	return true;
+}
+
+void AFNStudio::MapHome()
+{
+	if (!bHasFocus) return;
+	bUserPicked = false;
+	PickSpot(FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(FocusDir.Z, -1.0, 1.0))), FMath::RadiansToDegrees(FMath::Atan2(-FocusDir.Y, FocusDir.X)), false);
 }
 
 void AFNStudio::UpdateTable(float Dt)
@@ -205,21 +478,24 @@ void AFNStudio::UpdateTable(float Dt)
 		Projector->SetLightColor(FLinearColor(0.75f, 0.92f, 1.f));
 		Projector->SetAttenuationRadius(600.f);
 		Projector->RegisterComponent();
-		TableInfo = Text(TEXT("TableInfo"), FVector(-105.f, 175.f, 84.f), FRotator(50.f, 63.f, 0.f), 3.6f, FColor(170, 230, 255), FString());
+		// floats over the left of the table, facing the chair (it used to lie on the table, under the HUD's bottom-left box)
+		TableInfo = Text(TEXT("TableInfo"), FVector(-105.f, 60.f, 140.f), FRotator(0.f, 62.f, 0.f), 3.8f, FColor(170, 230, 255), FString());
 		RebuildIn = 0.f;
 	}
 
 	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	if (PC)
 	{
-		// zoom: mouse wheel or + / -
-		double Zoom = 1.0;
-		if (PC->WasInputKeyJustPressed(EKeys::MouseScrollUp) || PC->WasInputKeyJustPressed(EKeys::Add) || PC->WasInputKeyJustPressed(EKeys::Equals)) Zoom = 1.0 / 1.6;
-		if (PC->WasInputKeyJustPressed(EKeys::MouseScrollDown) || PC->WasInputKeyJustPressed(EKeys::Subtract) || PC->WasInputKeyJustPressed(EKeys::Hyphen)) Zoom = 1.6;
-		if (Zoom != 1.0)
+		// zoom: mouse wheel or + / -, one level per notch, around the cursor when it's over the map (else the map centre)
+		int32 Step = 0;
+		if (PC->WasInputKeyJustPressed(EKeys::MouseScrollUp) || PC->WasInputKeyJustPressed(EKeys::Add) || PC->WasInputKeyJustPressed(EKeys::Equals)) Step = -1;
+		if (PC->WasInputKeyJustPressed(EKeys::MouseScrollDown) || PC->WasInputKeyJustPressed(EKeys::Subtract) || PC->WasInputKeyJustPressed(EKeys::Hyphen)) Step = 1;
+		double Px, Py;
+		if (Step != 0 && TableFace >= 0)
 		{
-			const double NewR = FMath::Clamp(PickRadiusM * Zoom, MinR, MaxR);
-			if (NewR != PickRadiusM) { PickRadiusM = NewR; RebuildIn = 0.15f; PlaySfx(EFNSfx::Click, 0.35f); }
+			if (!MapPointUnderCursor(Px, Py)) { Px = TableCx; Py = TableCy; }
+			ZoomMapAt(Px, Py, Step);
+			PlaySfx(EFNSfx::Click, 0.35f);
 		}
 		// the Globe: press on it and drag to spin it; a press-and-release without dragging picks that spot
 		float MX = 0.f, MY = 0.f;
@@ -261,6 +537,7 @@ void AFNStudio::UpdateTable(float Dt)
 			if (DragMoved <= 6.f && GlobeHit(Local))
 			{
 				ManualUntil = Time + 12.f;   // don't swing the Globe away from what you just picked
+				MapLevel = NumLevels - 1;    // click 1 of the dive: the region around that spot
 				PickSpot(FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(Local.Z, -1.0, 1.0))), FMath::RadiansToDegrees(FMath::Atan2(-Local.Y, Local.X)), true);
 			}
 		}
