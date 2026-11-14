@@ -90,6 +90,12 @@ private:
 	double GlobeHoldLat = 0.0, GlobeHoldLon = 0.0, GlobeHoldUntil = 0.0;   // a double-click's centring holds the globe a while
 	TSet<FString> WarpRolled;            // warp-ins whose d20 and -N already showed at the accept
 	FString PendingChallengeRef;         // a challenge sent, waiting for the server
+	// Duels under way (0.8.1): a player's lock (phase.event) or the built-in AI's (round.started.public.challenges[]),
+	// by duel_id, until its challenge.end. bMine: one of your demigods fights in it.
+	struct FDuelInfo { FString A, B, AName, BName; bool bMine = false; float HpA = 0.f, HpB = 0.f; int32 Blows = 0; };
+	TMap<FString, FDuelInfo> Duels;
+	void HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock);
+	void HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub);
 	// The challenge confirm box (asks the player to confirm the challenge, showing {expected life loss from teleporting}).
 	bool bConfirmOpen = false, bConfirmTeleport = false;
 	FString ConfirmMine, ConfirmTarget, ConfirmLevel;
