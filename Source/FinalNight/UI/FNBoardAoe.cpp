@@ -253,3 +253,19 @@ void AFNStudio::HideWillBlock()
 		}
 	if (WillLabel) WillLabel->SetVisibility(false);
 }
+
+void AFNStudio::FocusBoard(double Lat, double Lon, int32 Level)
+{
+	// The table's zoom levels as FNTableScene defines them in FNStudioTable.cpp (hex size in m, 22 hexes to the edge).
+	static const double LevelHexM[4] = { 3.0, 30.0, 3000.0, 120000.0 };
+	static constexpr double HexesToEdge = 22.0;
+	if (!bHasFocus) return;   // only during a match
+	MapLevel = FMath::Clamp(Level, 0, 3);
+	PickRadiusM = LevelHexM[MapLevel] * HexesToEdge;
+	PickLat = FMath::Clamp(Lat, -89.9, 89.9);
+	PickLon = Lon;
+	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
+	bUserPicked = true;
+	BuildTable();
+	RebuildIn = -1.f;
+}

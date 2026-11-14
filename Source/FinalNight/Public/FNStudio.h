@@ -100,6 +100,8 @@ public:
 	void HideClassicSeats();
 	/** The kit's WILL scroll replaces the table's 3D WILL bar: hide it (and keep it from catching clicks). */
 	void HideWillBlock();
+	/** Point the table board at a lat/lon at a zoom level (0 people, 1 houses, 2 villages, 3 regions): a cast zooms there. */
+	void FocusBoard(double Lat, double Lon, int32 Level);
 	/** The point on the floating GLOBE under a viewport pixel (lat/lon on the globe, and the world point), or false;
 	 *  and a ring on the globe around a lat/lon at a radius in km (a MEGA power's area while it hovers over the globe). */
 	bool GlobePointAtScreen(const FVector2D& ViewportPixel, double& OutLat, double& OutLon, FVector& OutWorld) const;

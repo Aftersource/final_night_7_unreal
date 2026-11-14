@@ -1195,6 +1195,7 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 				const bool bMega = Where == 2;
 				RN->CastAt(Round, Power, Lo, La, bMega ? TEXT("mega") : TEXT("mini"));
 				RSt->FlashAt(Lo, La);
+				RSt->FocusBoard(La, Lo, bMega ? 3 : 2);   // the board zooms to where it struck: regions for a mega, villages for a mini
 				SetArmed(FString());
 				AddNews(bMega ? LOCTEXT("Mega", "MEGA") : LOCTEXT("Mini", "MINI"),
 					FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
