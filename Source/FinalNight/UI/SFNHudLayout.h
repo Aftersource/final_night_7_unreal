@@ -97,6 +97,9 @@ private:
 	bool bTypingSignalled = false;
 
 	TSharedPtr<SBox> HeaderHolder, NewsHolder, SeatsHolder, YouHolder, PowersHolder;
+	FString SeatsSignature, PowersSignature;   // rebuild those sections only when their content changes
+	FString MakeSeatsSignature() const;
+	FString MakePowersSignature() const;
 	TSharedPtr<SFNTextBox> Compose;
 	TArray<TSharedPtr<SFNPortraitCard>> Cards;
 

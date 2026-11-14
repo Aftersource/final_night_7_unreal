@@ -235,9 +235,10 @@ void SFNPowerTile::Construct(const FArguments& InArgs)
 				.BorderBackgroundColor_Lambda([this]()
 				{
 					if (!bEnabled.Get()) return FSlateColor(FLinearColor(0.42f, 0.42f, 0.44f));
-					return FSlateColor(IsHovered() ? FLinearColor(1.08f, 1.06f, 1.02f) : FLinearColor::White);
+					return FSlateColor(FMath::Lerp(FLinearColor::White, FLinearColor(1.07f, 1.05f, 1.02f), HoverAlpha));
 				})
-				.RenderTransform_Lambda([this]() { return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FVector2f(0.f, IsHovered() && bEnabled.Get() ? -2.f : 0.f))); })
+				.RenderTransform_Lambda([this]() { return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FVector2f(0.f, -2.f * HoverAlpha))); })
+				.ColorAndOpacity_Lambda([this]() { return FLinearColor(1.f, 1.f, 1.f, IsBeingDragged() ? 0.4f : 1.f); })
 				.Padding(FMargin(6.f, 9.f, 6.f, 8.f))
 				[
 					SNew(SVerticalBox)
@@ -261,8 +262,8 @@ void SFNPowerTile::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.BorderImage(FN7Style::Brush::AccentRing())
-				.Visibility_Lambda([this]() { return bArmed.Get() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
-				.ColorAndOpacity(FLinearColor::White)
+				.Visibility_Lambda([this]() { return ArmedAlpha > 0.01f ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+				.BorderBackgroundColor_Lambda([this]() { return FSlateColor(FLinearColor(1.f, 1.f, 1.f, ArmedAlpha)); })
 			]
 		]
 	];
@@ -288,11 +289,11 @@ FReply SFNPowerTile::OnMouseButtonUp(const FGeometry&, const FPointerEvent& Mous
 	return FReply::Handled();
 }
 
-FReply SFNPowerTile::OnDragDetected(const FGeometry&, const FPointerEvent&)
+FReply SFNPowerTile::OnDragDetected(const FGeometry&, const FPointerEvent& MouseEvent)
 {
 	bPressed = false;
 	if (!bEnabled.Get()) return FReply::Handled();
-	return FReply::Handled().BeginDragDrop(FFNPowerDragDrop::New(Slug, MakeDecorator()));
+	return FReply::Handled().BeginDragDrop(FFNPowerDragDrop::New(Slug, MouseEvent.GetScreenSpacePosition()));
 }
 
 FCursorReply SFNPowerTile::OnCursorQuery(const FGeometry&, const FPointerEvent&) const
@@ -300,19 +301,16 @@ FCursorReply SFNPowerTile::OnCursorQuery(const FGeometry&, const FPointerEvent&)
 	return FCursorReply::Cursor(bEnabled.Get() ? EMouseCursor::GrabHand : EMouseCursor::SlashedCircle);
 }
 
-TSharedRef<SWidget> SFNPowerTile::MakeDecorator() const
+void SFNPowerTile::Tick(const FGeometry& G, const double Now, const float Dt)
 {
-	return SNew(SBox)
-		.WidthOverride(64.f)
-		.HeightOverride(64.f)
-		[
-			SNew(SBorder)
-			.BorderImage(FN7Wood::TileBrush())
-			.Padding(12.f)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SFNPowerIcon).Slug(Slug).Size(36.f).Color(FN7Wood::Ink())
-			]
-		];
+	SCompoundWidget::Tick(G, Now, Dt);
+	const float K = 1.f - FMath::Exp(-12.f * Dt);
+	HoverAlpha = FMath::Lerp(HoverAlpha, (IsHovered() && bEnabled.Get() && !IsBeingDragged()) ? 1.f : 0.f, K);
+	ArmedAlpha = FMath::Lerp(ArmedAlpha, bArmed.Get() ? 1.f : 0.f, 1.f - FMath::Exp(-9.f * Dt));
+}
+
+bool SFNPowerTile::IsBeingDragged() const
+{
+	const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();
+	return Op.IsValid() && Op->Power == Slug;
 }

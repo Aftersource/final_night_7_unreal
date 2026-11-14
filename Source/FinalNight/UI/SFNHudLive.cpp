@@ -25,6 +25,7 @@
 #include "Widgets/SOverlay.h"
 #include "SFNStartPanel.h"
 #include "FNPowerDrag.h"
+#include "SFNDragToken.h"
 
 #define LOCTEXT_NAMESPACE "SFNHudLive"
 
@@ -84,6 +85,11 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			SAssignNew(StartPanel, SFNStartPanel)
 			.Net(Net.Get())
 			.Visibility_Lambda([this]() { return bInRoom ? EVisibility::Collapsed : EVisibility::Visible; })
+		]
+		// The power being dragged, floating over everything (never takes input).
+		+ SOverlay::Slot()
+		[
+			SNew(SFNDragToken)
 		]
 	];
 

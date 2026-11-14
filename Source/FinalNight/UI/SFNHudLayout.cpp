@@ -121,10 +121,27 @@ void SFNHudLayout::RefreshSections()
 	using namespace FN7HudParts;
 	HeaderHolder->SetContent(MakeHeader());
 	NewsHolder->SetContent(MakeNews());
-	SeatsHolder->SetContent(MakeSeats());
+	const FString SeatsSig = MakeSeatsSignature();
+	if (SeatsSig != SeatsSignature) { SeatsSignature = SeatsSig; SeatsHolder->SetContent(MakeSeats()); }
 	YouHolder->SetContent(MakeYou());
-	PowersHolder->SetContent(MakePowers());
+	const FString PowersSig = MakePowersSignature();
+	if (PowersSig != PowersSignature) { PowersSignature = PowersSig; PowersHolder->SetContent(MakePowers()); }
 	NewsHolder->SetVisibility(Model.News.Num() > 0 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
+}
+
+FString SFNHudLayout::MakeSeatsSignature() const
+{
+	FString S;
+	for (const FFNHudSeat& Seat : Model.Seats)
+		S += FString::Printf(TEXT("%s|%d|%d|%d|%p|%d;"), *Seat.Name.ToString(), (int32)Seat.Role, Seat.bIsYou ? 1 : 0, Seat.bHoldsTime ? 1 : 0, Seat.PortraitTexture, Seat.PortraitPng.Num());
+	return S;
+}
+
+FString SFNHudLayout::MakePowersSignature() const
+{
+	FString S;
+	for (const FFNHudPower& P : Model.Powers) S += FString::Printf(TEXT("%s|%d;"), *P.Slug, P.Cost);
+	return S;
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeHeader()
@@ -305,16 +322,15 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 	for (const FFNHudPower& P : Model.Powers)
 	{
 		const FString Slug = P.Slug;
-		const bool bArmedNow = P.bArmed;
-		const bool bAfford = Model.Bolts >= P.Cost;
+		const int32 Cost = P.Cost;
 		Powers->AddSlot()
 		[
 			SNew(SFNPowerTile)
 			.Slug(Slug)
 			.Name(P.Name)
 			.Cost(P.Cost)
-			.bArmed(bArmedNow)
-			.bEnabled(bAfford)
+			.bArmed_Lambda([this, Slug]() { for (const FFNHudPower& Q : Model.Powers) if (Q.Slug == Slug) return Q.bArmed; return false; })
+			.bEnabled_Lambda([this, Cost]() { return Model.Bolts >= Cost; })
 			.TileSize(96.f)
 			.OnClicked_Lambda([this, Slug]() { OnPower.ExecuteIfBound(Slug); })
 		];

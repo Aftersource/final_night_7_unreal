@@ -84,6 +84,7 @@ public:
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 	FString Slug;
@@ -92,7 +93,9 @@ private:
 	TAttribute<bool> bEnabled;
 	FSimpleDelegate OnClicked;
 	bool bPressed = false;
+	float HoverAlpha = 0.f;   // eased, so nothing pops
+	float ArmedAlpha = 0.f;
 
 	FLinearColor InkColor() const;
-	TSharedRef<SWidget> MakeDecorator() const;
+	bool IsBeingDragged() const;
 };
