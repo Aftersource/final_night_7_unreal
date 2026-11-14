@@ -11,6 +11,7 @@
 #include "GameFramework/Pawn.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Texture2D.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
 #include "FNNetClient.h"
 #include "FNPlayerController.h"
 #include "FNStudio.h"
@@ -958,12 +959,11 @@ void SFNHudLive::Publish()
 	{
 		FString PH = MinePortraitHash.IsValidIndex(i) ? MinePortraitHash[i] : FString();
 		FString DH = MineDioramaHash.IsValidIndex(i) ? MineDioramaHash[i] : FString();
-		for (const FSeatInfo& S : Seats)
-			if (S.Ref == Model.Mine[i].Ref)
-			{
-				if (!S.DioramaHash.IsEmpty() && Portraits.Contains(S.DioramaHash)) DH = S.DioramaHash;
-				if (!S.PortraitHash.IsEmpty() && Portraits.Contains(S.PortraitHash)) PH = S.PortraitHash;
-			}
+		{
+			const FString LD = LoadedArt(Model.Mine[i].Ref, true), LP = LoadedArt(Model.Mine[i].Ref, false);
+			if (!LD.IsEmpty() && Portraits.Contains(LD)) DH = LD;
+			if (!LP.IsEmpty() && Portraits.Contains(LP)) PH = LP;
+		}
 		UTexture2D* Portrait = MediaTexture(PH);
 		UTexture2D* Dio = MediaTexture(DH, !Model.Mine[i].bAlive);
 		Model.Mine[i].PortraitTexture = Dio ? Dio : Portrait;
@@ -1099,8 +1099,9 @@ void SFNHudLive::UpdateTable()
 		D.bHasPos = S.bHasPos;
 		D.Lat = S.Lat;
 		D.Lon = S.Lon;
-		D.Diorama = MediaTexture(S.DioramaHash);
-		D.DioramaGrey = S.bAlive ? nullptr : MediaTexture(S.DioramaHash, true);
+		const FString DioArt = LoadedArt(S.Ref, true);
+		D.Diorama = MediaTexture(DioArt);
+		D.DioramaGrey = S.bAlive ? nullptr : MediaTexture(DioArt, true);
 		if (D.Side == TEXT("right") && G.Demigods.Num() == 1 && G.Demigods[0].Side != TEXT("right")) G.Demigods.Add(D);
 		else if (D.Side != TEXT("right")) G.Demigods.Insert(D, 0);
 		else G.Demigods.Add(D);
@@ -1382,6 +1383,78 @@ void SFNHudLive::HandleSummoned(const TSharedPtr<FJsonObject>& E, const TArray<T
 	AddNews(LOCTEXT("SummonedTag", "SUMMON"), Deed.IsEmpty() ? FString::Printf(TEXT("%s is summoned."), *Name) : Deed);
 }
 
+/** "Chris's Left Hand (2)" -> "Chris's Left Hand" (the server's de-dup suffix). */
+static FString FN7BaseName(const FString& N)
+{
+	int32 Open = INDEX_NONE;
+	if (!N.EndsWith(TEXT(")")) || !N.FindLastChar(TEXT('('), Open) || Open < 1 || N[Open - 1] != TEXT(' ')) return N;
+	const FString Inner = N.Mid(Open + 1, N.Len() - Open - 2);
+	return Inner.IsNumeric() ? N.Left(Open - 1) : N;
+}
+
+FString SFNHudLive::LoadedArt(const FString& Ref, bool bDiorama)
+{
+	const FSeatInfo* S = Seats.FindByPredicate([&Ref](const FSeatInfo& X) { return X.Ref == Ref; });
+	if (!S) return FString();
+	const FString& Own = bDiorama ? S->DioramaHash : S->PortraitHash;
+	if (!Own.IsEmpty() && Portraits.Contains(Own)) return Own;
+	const FString Base = FN7BaseName(S->Name);
+	for (const FSeatInfo& O : Seats)
+		if (O.Ref != Ref && FN7BaseName(O.Name) == Base)
+		{
+			const FString& H = bDiorama ? O.DioramaHash : O.PortraitHash;
+			if (!H.IsEmpty() && Portraits.Contains(H)) return H;
+		}
+	const FString Player = FN7BaseName(S->Player);
+	if (!Player.IsEmpty() && !S->Side.IsEmpty() && (S->Controller == TEXT("human") || IsMyDemigod(Ref)))
+	{
+		const FString Key = Player.ToLower() + TEXT("|") + S->Side + (bDiorama ? TEXT("|dio") : TEXT("|por"));
+		if (const FString* H = ProfileArt.Find(Key)) { if (Portraits.Contains(*H)) return *H; }
+		else FetchProfileArt(Player);
+	}
+	return Own;
+}
+
+void SFNHudLive::FetchProfileArt(const FString& Player)
+{
+	UFNNetClient* N = Net.Get();
+	const FString Lower = Player.ToLower();
+	if (!N || ProfileAsked.Contains(Lower)) return;
+	ProfileAsked.Add(Lower);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(N->MediaUrl(FString::Printf(TEXT("/api/profiles/%s"), *FGenericPlatformHttp::UrlEncode(Player))));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetTimeout(15.f);
+	TWeakPtr<SFNHudLive> Weak = StaticCastSharedRef<SFNHudLive>(AsShared());
+	Req->OnProcessRequestComplete().BindLambda([Weak, Lower](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		TSharedPtr<SFNHudLive> Self = Weak.Pin();
+		if (!Self.IsValid() || !bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) return;
+		TSharedPtr<FJsonObject> P;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+		if (!FJsonSerializer::Deserialize(Reader, P) || !P.IsValid()) return;
+		int32 Found = 0;
+		if (const TArray<TSharedPtr<FJsonValue>>* Gs = FN7HudJson::Arr(P, TEXT("demigods")))
+			for (const TSharedPtr<FJsonValue>& V : *Gs)
+			{
+				const TSharedPtr<FJsonObject> G = V.IsValid() ? V->AsObject() : nullptr;
+				const FString Hand = FN7HudJson::Str(G, TEXT("hand"));
+				if (Hand.IsEmpty()) continue;
+				for (const TCHAR* Kind : { TEXT("dio"), TEXT("por") })
+				{
+					const FString Hash = FN7HudJson::Str(G, FCString::Strcmp(Kind, TEXT("dio")) == 0 ? TEXT("diorama_hash") : TEXT("portrait_hash"));
+					if (Hash.IsEmpty()) continue;
+					Self->ProfileArt.Add(Lower + TEXT("|") + Hand + TEXT("|") + Kind, Hash);
+					Self->RequestPortrait(Hash, FString::Printf(TEXT("/media/%s.png"), *Hash));
+					++Found;
+				}
+			}
+		UE_LOG(LogTemp, Display, TEXT("FN7 media: profile art for \"%s\": %d images"), *Lower, Found);
+		Self->Publish();
+	});
+	Req->ProcessRequest();
+}
+
 void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 {
 	// Chris asked that a double click on a demigod without dragging should zoom to it. One level closer each time.
@@ -1393,6 +1466,12 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 	const bool bMine = IsMyDemigod(Ref);
 	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: %s %s %s"), *Ref, bMine ? TEXT("(yours)") : TEXT("(rival)"), bPos ? TEXT("-> zoom") : TEXT("(not on the map)"));
 	if (!St || !bPos) { Toast(TEXT("That demigod isn't on the map.")); return; }
+	if (!bMine)
+	{
+		// A rival: the challenge (Archon-style duel) comes with the server's challenge mode; never moves your view.
+		Toast(TEXT("Challenges arrive with the next server update: double-click a rival in your hex to duel."));
+		return;
+	}
 	St->FocusBoard(La, Lo, -1);
 	if (T && bMine)
 	{
