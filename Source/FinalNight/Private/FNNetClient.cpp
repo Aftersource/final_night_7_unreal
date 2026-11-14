@@ -297,6 +297,7 @@ FString UFNNetClient::MediaUrl(const FString& Path) const
 }
 
 void UFNNetClient::TakeSeat() { Send(TEXT("room.take_seat"), Obj()); }
+void UFNNetClient::LeaveRoom() { Send(TEXT("room.leave"), Obj()); bViewer = false; bSeatAsked = false; }
 
 void UFNNetClient::JoinHouse(bool bAsViewer)
 {
