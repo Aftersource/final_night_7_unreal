@@ -178,7 +178,7 @@ private:
 	void ReadDemigods(const TSharedPtr<FJsonObject>& PublicView);
 	void ReadEntropy(const TSharedPtr<FJsonObject>& Entropy);
 	void ReadPowers(const TArray<TSharedPtr<class FJsonValue>>& Powers);
-	void AddNews(const FText& Tag, const FString& Text);
+	void AddNews(const FText& NewsTag, const FString& Text);
 	void RequestPortrait(const FString& Hash, const FString& Url);
 	void FetchGlobe();
 	/** The power palette from GET /api/rooms/{code}/query/powers (when no brief has brought it yet). */

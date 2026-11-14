@@ -735,7 +735,8 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	if (E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
 	FVector2D Px;
 	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
-	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
+	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px,
+		[this](const FString& R) { return !(IsMine && IsMine(R)); });   // overlapping: the enemy first (the challenge)
 	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s"), Ref.IsEmpty() ? TEXT("none") : *Ref);
 	if (Ref.IsEmpty())
 	{
@@ -756,8 +757,11 @@ FReply SFNPowerRingInput::OnMouseWheel(const FGeometry& G, const FPointerEvent& 
 	// Zooming in near any demigod's portrait should zoom to that demigod's exact position.
 	FVector2D Px;
 	if (!OnFigureWheel || !ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
-	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
-	if (Ref.IsEmpty()) return FReply::Unhandled();   // not near a demigod: the studio's wheel zoom
+	// "Near" = the nearest demigod within ~160 px of the cursor (on a card was too tight: most notches missed).
+	const FString Ref = AFNTableGods::FigureNear(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px, 160.0,
+		[this](const FString& R) { return !(IsMine && IsMine(R)); });   // overlapping: the enemy first, to scroll in on a fight
+	UE_LOG(LogTemp, Display, TEXT("FN7 wheel at %.0f,%.0f: nearest demigod %s"), Px.X, Px.Y, Ref.IsEmpty() ? TEXT("none (studio zoom)") : *Ref);
+	if (Ref.IsEmpty()) return FReply::Unhandled();   // no demigod near: the studio's wheel zoom
 	return OnFigureWheel(Ref, E.GetWheelDelta()) ? FReply::Handled() : FReply::Unhandled();
 }
 

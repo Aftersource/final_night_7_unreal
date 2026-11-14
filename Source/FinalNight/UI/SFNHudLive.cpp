@@ -510,7 +510,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
 		ReadEntropy(FN7HudJson::Obj(Pub, TEXT("entropy")));
-		const FText Tag = FText::Format(LOCTEXT("BeatTag", "BEAT {0}"), (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round));
+		const FText BeatTag = FText::Format(LOCTEXT("BeatTag", "BEAT {0}"), (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round));
 		if (const TArray<TSharedPtr<FJsonValue>>* Events = FN7HudJson::Arr(Pub, TEXT("events")))
 		{
 			int32 Added = 0;
@@ -519,7 +519,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 				const TSharedPtr<FJsonObject> E = (*Events)[i]->AsObject();
 				const FString Text = FN7HudJson::Str(E, TEXT("text"));
 				if (FN7HudJson::Num(E, TEXT("magnitude"), 0.0) < 4.0 || Text.IsEmpty()) continue;
-				AddNews(Tag, Text);
+				AddNews(BeatTag, Text);
 				++Added;
 			}
 		}
@@ -905,11 +905,11 @@ void SFNHudLive::ReadPowers(const TArray<TSharedPtr<FJsonValue>>& Powers)
 	}
 }
 
-void SFNHudLive::AddNews(const FText& Tag, const FString& Text)
+void SFNHudLive::AddNews(const FText& NewsTag, const FString& Text)
 {
 	if (Text.IsEmpty()) return;
 	FFNHudNews N;
-	N.Tag = Tag;
+	N.Tag = NewsTag;
 	N.Text = FText::FromString(Text.Len() > 220 ? Text.Left(217) + TEXT("...") : Text);
 	Model.News.Insert(N, 0);
 	if (Model.News.Num() > 6) Model.News.SetNum(6);
@@ -1621,13 +1621,16 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		for (const FSeatInfo& S : Seats)
 		{
 			if (!MineRefs.Contains(S.Ref) || !S.bAlive || !S.bHasPos) continue;
-			const double D = Km(S.Lat, S.Lon, La, Lo) - (S.Ref == SelectedRef ? 1e6 : 0.0);
-			if (Km(S.Lat, S.Lon, La, Lo) <= HexKm[Lv] && D < Best) { Best = D; Mine = S.Ref; }
+			// Contact = the two pieces touching on the table at this zoom (what he sees), or within 120 km.
+			const bool bTouch = T && T->PiecesTouch(S.Ref, Ref);
+			const double K = Km(S.Lat, S.Lon, La, Lo);
+			const double D = K - (S.Ref == SelectedRef ? 1e6 : 0.0);
+			if ((bTouch || K <= HexKm[Lv]) && D < Best) { Best = D; Mine = S.Ref; }
 		}
 		if (Mine.IsEmpty())
 		{
 			UE_LOG(LogTemp, Display, TEXT("FN7 challenge: %s too far at %s (%.3f km hex)"), *Ref, LevelName[Lv], HexKm[Lv]);
-			Toast(FString::Printf(TEXT("Too far to challenge %s: bring one of yours within 120 km of it."), *NameOf(Ref)));
+			Toast(FString::Printf(TEXT("Too far to challenge %s: move one of yours onto it (touching on the table) first."), *NameOf(Ref)));
 			return;
 		}
 		if (UFNNetClient* N = Net.Get()) N->Challenge(Round, Mine, Ref, LevelName[Lv]);

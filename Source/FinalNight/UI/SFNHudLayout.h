@@ -164,6 +164,12 @@ private:
 	FString YouSignature, PowersSignature;   // rebuild those sections only when their content changes
 	FString MakeYouSignature() const;
 	bool bNewsCollapsed = false;
+	// The header and world scrolls are built once; their inscription is swapped only when it changes (make it
+	// unroll and roll up properly when and only when it needs to change").
+	TSharedPtr<SBox> HeaderBody, NewsBody;
+	FString HeaderSignature, NewsSignature;
+	bool bNewsOpen = false, bNewsBuilt = false, bNewsSwapPending = false;
+	EActiveTimerReturnType SwapNews(double, float);
 	bool bWillOpen = false;       // the WILL scroll: a slim rolled strip until clicked (or Enter), rolled up after SEND
 	TSharedPtr<FSlateBrush> AuraFrameBrush;
 	FLinearColor AuraFrameColor = FLinearColor::Transparent;

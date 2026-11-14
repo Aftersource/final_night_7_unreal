@@ -878,14 +878,14 @@ AFNTableGods* AFNTableGods::GetAny(UWorld* World)
 	return It ? *It : nullptr;
 }
 
-FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPixel)
+FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPixel, TFunction<bool(const FString&)> Prefer)
 {
 	AFNTableGods* T = GetAny(World);
 	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
 	if (!T || !PC || !PC->PlayerCameraManager || !T->bShown) return FString();
 	const FVector Right = FRotationMatrix(PC->PlayerCameraManager->GetCameraRotation()).GetScaledAxis(EAxis::Y);
-	FString Best;
-	double BestD = TNumericLimits<double>::Max();
+	FString Best, BestPref;
+	double BestD = TNumericLimits<double>::Max(), BestPrefD = TNumericLimits<double>::Max();
 	auto Test = [&](const TMap<FString, TObjectPtr<AFNDemigodFigure>>& Map)
 	{
 		for (const auto& KV : Map)
@@ -900,12 +900,14 @@ FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPix
 			const double R = FMath::Max(FVector2D::Distance(P0, P1) * 1.7, 22.0);
 			double D = FVector2D::Distance(P0, ViewportPixel);
 			if (PC->ProjectWorldLocationToScreen(F->GetActorLocation(), PF)) D = FMath::Min(D, FVector2D::Distance(PF, ViewportPixel) * 1.4);
-			if (D < R && D < BestD) { BestD = D; Best = F->GetRef().IsEmpty() ? KV.Key : F->GetRef(); }
+			const FString R0 = F->GetRef().IsEmpty() ? KV.Key : F->GetRef();
+			if (D < R && D < BestD) { BestD = D; Best = R0; }
+			if (D < R && Prefer && Prefer(R0) && D < BestPrefD) { BestPrefD = D; BestPref = R0; }
 		}
 	};
 	Test(T->OnBoard);
 	Test(T->Figures);
-	return Best;
+	return BestPref.IsEmpty() ? Best : BestPref;
 }
 
 void AFNTableGods::SetFigureHeld(const FString& Ref, bool bHeld)
@@ -939,6 +941,47 @@ void AFNTableGods::SetLocalPos(const FString& Ref, double Lat, double Lon)
 		Fig = GetWorld()->SpawnActor<AFNDemigodFigure>(GetActorLocation(), FRotator::ZeroRotator, P);
 		if (Fig) { Fig->SetDemigod(*D, BoardAura.FindRef(Ref), true); Fig->SetOnBoard(true); }
 	}
+}
+
+FString AFNTableGods::FigureNear(UWorld* World, const FVector2D& ViewportPixel, double MaxPx, TFunction<bool(const FString&)> Prefer)
+{
+	AFNTableGods* T = GetAny(World);
+	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	if (!T || !PC || !T->bShown) return FString();
+	FString Best, BestPref;
+	double BestD = MaxPx, BestPrefD = MaxPx;
+	auto Test = [&](const TMap<FString, TObjectPtr<AFNDemigodFigure>>& Map)
+	{
+		for (const auto& KV : Map)
+		{
+			const AFNDemigodFigure* F = KV.Value.Get();
+			FVector C;
+			float Half;
+			if (!F || !F->CardBounds(C, Half)) continue;
+			FVector2D P0, PF;
+			double D = TNumericLimits<double>::Max();
+			if (PC->ProjectWorldLocationToScreen(C, P0)) D = FVector2D::Distance(P0, ViewportPixel);
+			if (PC->ProjectWorldLocationToScreen(F->GetActorLocation(), PF)) D = FMath::Min(D, FVector2D::Distance(PF, ViewportPixel));
+			const FString R0 = F->GetRef().IsEmpty() ? KV.Key : F->GetRef();
+			if (D < BestD) { BestD = D; Best = R0; }
+			if (Prefer && Prefer(R0) && D < BestPrefD) { BestPrefD = D; BestPref = R0; }
+		}
+	};
+	Test(T->OnBoard);
+	Test(T->Figures);
+	return BestPref.IsEmpty() ? Best : BestPref;
+}
+
+bool AFNTableGods::PiecesTouch(const FString& A, const FString& B) const
+{
+	const TObjectPtr<AFNDemigodFigure>* FA = OnBoard.Find(A);
+	const TObjectPtr<AFNDemigodFigure>* FB = OnBoard.Find(B);
+	if (!FA || !FB || !FA->Get() || !FB->Get() || (*FA)->IsHidden() || (*FB)->IsHidden()) return false;
+	FVector CA, CB;
+	float HA, HB;
+	if (!(*FA)->CardBounds(CA, HA) || !(*FB)->CardBounds(CB, HB)) return false;
+	// Cards touching: their centres closer than the two half-widths (plus a little grace).
+	return FVector::Dist2D(CA, CB) <= (HA + HB) * 1.25f;
 }
 
 AFNDemigodFigure* AFNTableGods::FindFigure(const FString& Ref) const

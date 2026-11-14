@@ -142,7 +142,12 @@ public:
 
 	/** For the summon feature: the demigod ref whose diorama box (by its pedestal) or board piece is under a VIEWPORT
 	 *  pixel (as APlayerController::GetMousePosition gives), else empty. The nearest card wins. */
-	static FString FigureAtScreen(UWorld* World, const FVector2D& ViewportPixel);
+	static FString FigureAtScreen(UWorld* World, const FVector2D& ViewportPixel, TFunction<bool(const FString&)> Prefer = nullptr);
+	/** The demigod whose card (board piece or box) is NEAREST to a viewport pixel within MaxPx (the wheel's "near").
+	 *  Prefer: among the ones in range, those it says yes to win (overlapping cards: the enemy first). */
+	static FString FigureNear(UWorld* World, const FVector2D& ViewportPixel, double MaxPx, TFunction<bool(const FString&)> Prefer = nullptr);
+	/** Two demigods' board pieces touching or overlapping on the table right now (contact for a challenge). */
+	bool PiecesTouch(const FString& A, const FString& B) const;
 	/** Lift and glow (or settle) every figure of that demigod (its diorama box and its board piece) while it is held. */
 	void SetFigureHeld(const FString& Ref, bool bHeld);
 	/** The table's gods in this world, if any. */
