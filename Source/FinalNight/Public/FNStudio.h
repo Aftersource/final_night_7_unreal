@@ -88,6 +88,10 @@ public:
 	void ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm);
 	/** A lightning bolt strikes the Globe at this point (about half a second). */
 	void FlashAt(double Lon, double Lat);
+	/** Style-kit hooks (implemented in UI/FNBoardAoe.cpp; the only lines the style kit adds to this file): the board hex
+	 *  under a viewport pixel, and an area-of-effect overlay of lit hexes around it, for dragging an Entropy power. */
+	bool HexAtScreen(const FVector2D& ViewportPixel, double& OutLat, double& OutLon, FVector& OutWorldCenter, double& OutHexM) const;
+	void ShowAreaOfEffect(bool bShow, const FVector2D& ViewportPixel, double RadiusKm);
 	/** Called when YOU click a spot on the Globe (Lon, Lat); the widget casts an armed Entropy power there. */
 	TFunction<void(double /*Lon*/, double /*Lat*/)> OnUserPickedSpot;
 	void ShowDropSpots(const TArray<FFNPiece>& Spots);
