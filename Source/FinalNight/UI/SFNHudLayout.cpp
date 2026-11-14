@@ -133,6 +133,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 					SNew(SFNScroll)
 					.bUnrolled_Lambda([this]() { return bNewsOpen; })
 					.Duration(0.9f)
+					.bSmoothHeight(true)
 					.RodHeight(24.f)
 					.ContentPadding(FMargin(22.f, 12.f, 22.f, 10.f))
 					[
@@ -250,14 +251,10 @@ void SFNHudLayout::RefreshSections()
 		if (Sig != NewsSignature)
 		{
 			NewsSignature = Sig;
-			if (!bNewsBuilt) { bNewsBuilt = true; NewsBody->SetContent(MakeNews()); bNewsOpen = true; }
-			else if (!bNewsSwapPending)
-			{
-				// Roll up, swap the inscription, unroll: at most once every 8 s, batching whatever arrived meanwhile.
-				bNewsSwapPending = true;
-				const double Wait = FMath::Max(0.0, NextNewsRollAt - FPlatformTime::Seconds());
-				RegisterActiveTimer((float)FMath::Max(Wait, 0.01), FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLayout::StartNewsRoll));
-			}
+			// The first time it unrolls; after that the new inscription goes straight on and the open cloth just eases to
+			// its new height (it should just expand and scroll normally, without folding and unfolding).
+			NewsBody->SetContent(MakeNews());
+			if (!bNewsBuilt) { bNewsBuilt = true; bNewsOpen = true; }
 		}
 	}
 	const FString YouSig = MakeYouSignature();
