@@ -89,8 +89,14 @@ public:
 	void SetDemigod(const FFNTableDemigod& D, const FLinearColor& Aura, bool bOwnerAlive);
 	const FString& GetRef() const { return Ref; }
 	virtual void ApplyStory(const TSharedPtr<FJsonObject>& Story) override;
+	/** Held (summon drag): lifted, a little bigger, its frame glowing. */
+	void SetHeld(bool bInHeld) { bHeld = bInHeld; }
+	/** The card's centre and half-size in world units, for hit tests. */
+	bool CardBounds(FVector& OutCenter, float& OutHalf) const;
 
 private:
+	bool bHeld = false;
+	float HeldT = 0.f;
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Parts;
 	UPROPERTY() TObjectPtr<UMaterialInterface> BaseMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> ImageMat;
@@ -130,6 +136,14 @@ public:
 	void SetShown(bool bShow);
 	/** The figure for a demigod ref (the one by its god's pedestal), for the piece-story feature. */
 	AFNDemigodFigure* FindFigure(const FString& Ref) const;
+
+	/** For the summon feature: the demigod ref whose diorama box (by its pedestal) or board piece is under a VIEWPORT
+	 *  pixel (as APlayerController::GetMousePosition gives), else empty. The nearest card wins. */
+	static FString FigureAtScreen(UWorld* World, const FVector2D& ViewportPixel);
+	/** Lift and glow (or settle) every figure of that demigod (its diorama box and its board piece) while it is held. */
+	void SetFigureHeld(const FString& Ref, bool bHeld);
+	/** The table's gods in this world, if any. */
+	static AFNTableGods* GetAny(UWorld* World);
 
 private:
 	TWeakObjectPtr<AFNStudio> Studio;

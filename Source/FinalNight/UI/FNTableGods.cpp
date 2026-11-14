@@ -393,8 +393,19 @@ void AFNDemigodFigure::Tick(float Dt)
 	const FQuat Upright = FRotationMatrix::MakeFromZY((To + ToH).GetSafeNormal(), -FVector::UpVector).ToQuat();
 	const FQuat Flat = FRotationMatrix::MakeFromZY(FVector::UpVector, ToH).ToQuat();
 	Card->SetWorldRotation(FQuat::Slerp(Upright, Flat, Tip));
-	Card->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(4.2f + 17.f, 4.2f + 0.8f, Tip)));
+	HeldT = FMath::FInterpTo(HeldT, bHeld ? 1.f : 0.f, Dt, 10.f);
+	Card->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(4.2f + 17.f, 4.2f + 0.8f, Tip) + 9.f * HeldT + 1.2f * HeldT * FMath::Sin(Time * 6.f)));
+	Card->SetRelativeScale3D(FVector(1.f + 0.18f * HeldT));
+	if (Matte && HeldT > 0.001f) GodSetColor(Matte, (bAlive ? Aura : GodGrey) * (1.f + 1.5f * HeldT));
 	GodFaceCamera(NotchText, Cam);
+}
+
+bool AFNDemigodFigure::CardBounds(FVector& OutCenter, float& OutHalf) const
+{
+	if (!Card || IsHidden()) return false;
+	OutCenter = Card->GetComponentLocation();
+	OutHalf = 17.f * (float)Card->GetComponentScale().X;
+	return true;
 }
 
 // --- the manager -------------------------------------------------------------------
@@ -432,6 +443,47 @@ FVector AFNTableGods::Local(float Deg, float Radius, float Z) const
 	const float A = FMath::DegreesToRadians(Deg);
 	const FVector L(FMath::Cos(A) * Radius, FMath::Sin(A) * Radius, Z);
 	return St ? St->GetActorTransform().TransformPosition(L) : L;
+}
+
+AFNTableGods* AFNTableGods::GetAny(UWorld* World)
+{
+	if (!World) return nullptr;
+	TActorIterator<AFNTableGods> It(World);
+	return It ? *It : nullptr;
+}
+
+FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPixel)
+{
+	AFNTableGods* T = GetAny(World);
+	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	if (!T || !PC || !PC->PlayerCameraManager || !T->bShown) return FString();
+	const FVector Right = FRotationMatrix(PC->PlayerCameraManager->GetCameraRotation()).GetScaledAxis(EAxis::Y);
+	FString Best;
+	double BestD = TNumericLimits<double>::Max();
+	auto Test = [&](const TMap<FString, TObjectPtr<AFNDemigodFigure>>& Map)
+	{
+		for (const auto& KV : Map)
+		{
+			const AFNDemigodFigure* F = KV.Value.Get();
+			FVector C;
+			float Half;
+			if (!F || !F->CardBounds(C, Half)) continue;
+			FVector2D P0, P1;
+			if (!PC->ProjectWorldLocationToScreen(C, P0) || !PC->ProjectWorldLocationToScreen(C + Right * Half, P1)) continue;
+			const double R = FVector2D::Distance(P0, P1) * 1.15;
+			const double D = FVector2D::Distance(P0, ViewportPixel);
+			if (D < R && D < BestD) { BestD = D; Best = F->GetRef().IsEmpty() ? KV.Key : F->GetRef(); }
+		}
+	};
+	Test(T->OnBoard);
+	Test(T->Figures);
+	return Best;
+}
+
+void AFNTableGods::SetFigureHeld(const FString& Ref, bool bHeld)
+{
+	if (const TObjectPtr<AFNDemigodFigure>* F = Figures.Find(Ref)) if (F->Get()) (*F)->SetHeld(bHeld);
+	if (const TObjectPtr<AFNDemigodFigure>* F = OnBoard.Find(Ref)) if (F->Get()) (*F)->SetHeld(bHeld);
 }
 
 AFNDemigodFigure* AFNTableGods::FindFigure(const FString& Ref) const
