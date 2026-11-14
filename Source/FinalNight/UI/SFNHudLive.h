@@ -106,6 +106,15 @@ private:
 	double SavedLat = 0.0, SavedLon = 0.0, FightLat = 0.0, FightLon = 0.0, RestoreAt = 0.0;
 	FString ViewDuel;
 	bool IsBusyForGlide() const;
+	// The end of a match (there should be some victory presentation): from match.ended until the next
+	// match.started, then faded out.
+	bool bVictory = false, bVictoryMine = false, bVictoryPortrait = false;
+	double VictoryShownAt = 0.0, VictoryFadeAt = 0.0, NextMatchAt = 0.0;
+	FText VictoryTitle, VictorySub, VictoryCaption, VictoryStandings;
+	FSlateBrush VictoryPortrait;
+	void ShowVictory(const TSharedPtr<FJsonObject>& Summary);
+	void FetchNextMatch();
+	float VictoryAlpha() const;
 	void TickDuelView();
 	// The challenge confirm box (asks the player to confirm the challenge, showing {expected life loss from teleporting}).
 	bool bConfirmOpen = false, bConfirmTeleport = false;

@@ -167,6 +167,72 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		[
 			MakeOutCard()
 		]
+		// The victory screen: a veil, then an onyx tablet with the champion (never takes input: the next match is coming).
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage(FN7Style::Brush::Segment(FLinearColor::Black))
+			.BorderBackgroundColor_Lambda([this]() { return FLinearColor(0.f, 0.f, 0.02f, 0.6f * VictoryAlpha()); })
+			.ColorAndOpacity_Lambda([this]() { return FLinearColor(1.f, 1.f, 1.f, VictoryAlpha()); })
+			.Visibility_Lambda([this]() { return bVictory ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.HAlign(HAlign_Center).VAlign(VAlign_Center)
+			[
+				SNew(SBox).WidthOverride(780.f)
+				[
+					SNew(SBorder)
+					.BorderImage(FN7Wood::MarbleBrush())
+					.Padding(FMargin(40.f, 30.f))
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+						[
+							SNew(STextBlock).Font(FN7Style::Type::Font(46, TEXT("Bold"))).Justification(ETextJustify::Center)
+							.ColorAndOpacity_Lambda([this]() { return bVictoryMine ? FLinearColor(1.f, 0.82f, 0.3f) : FLinearColor(1.f, 0.55f, 0.3f); })
+							.Text_Lambda([this]() { return VictoryTitle; })
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 4.f, 0.f, 14.f)
+						[
+							SNew(STextBlock).Font(FN7Style::Type::Font(17, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.86f, 0.82f, 0.74f))
+							.WrapTextAt(680.f).Justification(ETextJustify::Center)
+							.Text_Lambda([this]() { return VictorySub; })
+							.Visibility_Lambda([this]() { return VictorySub.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 14.f)
+						[
+							SNew(SBox).WidthOverride(220.f).HeightOverride(220.f)
+							.Visibility_Lambda([this]() { return bVictoryPortrait ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+							[
+								SNew(SImage).Image(&VictoryPortrait)
+							]
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 12.f)
+						[
+							SNew(STextBlock).TextStyle(&FN7Style::Type::Body()).ColorAndOpacity(FLinearColor(0.92f, 0.9f, 0.86f))
+							.WrapTextAt(680.f).Justification(ETextJustify::Center)
+							.Text_Lambda([this]() { return VictoryCaption; })
+							.Visibility_Lambda([this]() { return VictoryCaption.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 12.f)
+						[
+							SNew(STextBlock).Font(FN7Style::Type::Font(14, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.78f, 0.76f, 0.72f))
+							.Justification(ETextJustify::Center)
+							.Text_Lambda([this]() { return VictoryStandings; })
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+						[
+							SNew(STextBlock).Font(FN7Style::Type::Font(15, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.95f, 0.78f, 0.4f))
+							.Text_Lambda([this]()
+							{
+								if (VictoryFadeAt > 0.0) return LOCTEXT("VicGo", "THE NEXT MATCH BEGINS");
+								if (NextMatchAt <= 0.0) return LOCTEXT("VicSoon", "NEXT MATCH SOON");
+								const int32 Left = FMath::Max(0, FMath::CeilToInt(NextMatchAt - FPlatformTime::Seconds()));
+								return FText::Format(LOCTEXT("VicIn", "NEXT MATCH IN {0} s"), FText::AsNumber(Left));
+							})
+						]
+					]
+				]
+			]
+		]
 		// A challenge's triple flash (0.75 s), over the board and HUD, never taking input.
 		+ SOverlay::Slot()
 		[
@@ -547,6 +613,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("match.started"))
 	{
+		if (bVictory && VictoryFadeAt <= 0.0) VictoryFadeAt = FPlatformTime::Seconds();   // the next one: fade it out
 		bInRoom = true;
 		NewMatch(FN7HudJson::Has(D, TEXT("match_id")) ? FN7HudJson::Str(D, TEXT("match_id")) : FString::Printf(TEXT("m%.0f"), FPlatformTime::Seconds()));
 		bOut = false;
@@ -820,6 +887,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		Model.Status = FText::Format(LOCTEXT("Over", "MATCH OVER  -  champion: {0}"), FText::FromString(Champ));
 		DeadlineMs = 0.0;
 		WindowSeat = -1;
+		ShowVictory(Summary);
 	}
 	else
 	{
@@ -1614,6 +1682,110 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock)
 	Publish();
 }
 
+float SFNHudLive::VictoryAlpha() const
+{
+	if (!bVictory) return 0.f;
+	const double Now = FPlatformTime::Seconds();
+	const float In = (float)FMath::Clamp((Now - VictoryShownAt) / 0.5, 0.0, 1.0);
+	const float Out = VictoryFadeAt > 0.0 ? (float)FMath::Clamp(1.0 - (Now - VictoryFadeAt) / 1.2, 0.0, 1.0) : 1.f;
+	return In * Out;
+}
+
+void SFNHudLive::ShowVictory(const TSharedPtr<FJsonObject>& Summary)
+{
+	if (!Summary.IsValid()) return;
+	// The champion: their seat (null for the built-in AI) and player name; the first champion demigod for the portrait.
+	const bool bSeat = FN7HudJson::Has(Summary, TEXT("champion_seat"));
+	const int32 ChampSeat = bSeat ? (int32)FN7HudJson::Num(Summary, TEXT("champion_seat"), -2.0) : -2;
+	FString ChampPlayer = FN7HudJson::Str(Summary, TEXT("champion_player"));
+	FString ChampRef;
+	if (const TArray<TSharedPtr<FJsonValue>>* C = FN7HudJson::Arr(Summary, TEXT("champions")))
+		if (C->Num() > 0 && (*C)[0].IsValid())
+		{
+			const TSharedPtr<FJsonObject> First = (*C)[0]->AsObject();
+			ChampRef = FN7HudJson::Str(First, TEXT("demigod"));
+			if (ChampPlayer.IsEmpty()) ChampPlayer = FN7HudJson::Str(First, TEXT("name"));
+		}
+	bVictoryMine = (MySeat >= 0 && ChampSeat == MySeat) || (!ChampRef.IsEmpty() && MineRefs.Contains(ChampRef));
+	VictoryTitle = bVictoryMine ? LOCTEXT("VicMine", "VICTORY!")
+		: FText::Format(LOCTEXT("VicChamp", "CHAMPION: {0}"), FText::FromString(ChampPlayer.IsEmpty() ? TEXT("?") : ChampPlayer.ToUpper()));
+	VictorySub = FText::FromString(FN7HudJson::Str(FN7HudJson::Obj(Summary, TEXT("final_cut")), TEXT("title")));
+	VictoryCaption = FText::FromString(FN7HudJson::Str(FN7HudJson::Obj(Summary, TEXT("last_caption")), TEXT("caption")));
+	// The top of the standings: each player with their two demigods.
+	FString Lines;
+	if (const TArray<TSharedPtr<FJsonValue>>* St = FN7HudJson::Arr(Summary, TEXT("standings")))
+		for (int32 i = 0; i < St->Num() && i < 4; ++i)
+		{
+			const TSharedPtr<FJsonObject> Row = (*St)[i].IsValid() ? (*St)[i]->AsObject() : nullptr;
+			if (!Row.IsValid()) continue;
+			FString Who = FN7HudJson::Str(Row, TEXT("player"));
+			if (Who.IsEmpty()) Who = FN7HudJson::Str(Row, TEXT("name"));
+			FString Pieces;
+			if (const TArray<TSharedPtr<FJsonValue>>* Dg = FN7HudJson::Arr(Row, TEXT("demigods")))
+				for (const TSharedPtr<FJsonValue>& V : *Dg)
+				{
+					const TSharedPtr<FJsonObject> D = V.IsValid() ? V->AsObject() : nullptr;
+					if (!D.IsValid()) continue;
+					const FString Nm = FN7HudJson::Str(D, TEXT("name"));
+					const bool bUp = FN7HudJson::Flag(D, TEXT("alive"));
+					Pieces += FString::Printf(TEXT("%s%s %s"), Pieces.IsEmpty() ? TEXT("") : TEXT(",  "), *Nm, bUp ? TEXT("(standing)") : TEXT("(fell)"));
+				}
+			const int32 Rank = (int32)FN7HudJson::Num(Row, TEXT("rank"), (double)(i + 1));
+			Lines += FString::Printf(TEXT("%s%d.  %s%s%s"), Lines.IsEmpty() ? TEXT("") : TEXT("\n"), Rank, *Who, Pieces.IsEmpty() ? TEXT("") : TEXT(":  "), *Pieces);
+		}
+	VictoryStandings = FText::FromString(Lines);
+	// The champion's portrait, when its art is here.
+	bVictoryPortrait = false;
+	if (UTexture2D* Tex = ChampRef.IsEmpty() ? nullptr : MediaTexture(LoadedArt(ChampRef, false), false))
+	{
+		VictoryPortrait = FSlateBrush();
+		VictoryPortrait.SetResourceObject(Tex);
+		VictoryPortrait.ImageSize = FVector2D(220.f, 220.f);
+		VictoryPortrait.DrawAs = ESlateBrushDrawType::Image;
+		bVictoryPortrait = true;
+	}
+	bVictory = true;
+	VictoryShownAt = FPlatformTime::Seconds();
+	VictoryFadeAt = 0.0;
+	NextMatchAt = 0.0;
+	FlashStart = VictoryShownAt;
+	UE_LOG(LogTemp, Display, TEXT("FN7 victory: %s (champion %s, seat %d, mine %d)"), *VictoryTitle.ToString(), *ChampPlayer, ChampSeat, bVictoryMine ? 1 : 0);
+	UE_LOG(LogTemp, Display, TEXT("FN7_Victory_Sting"));   // audio hook: the victory sting plays here once there's an audio path
+	FetchNextMatch();
+}
+
+void SFNHudLive::FetchNextMatch()
+{
+	UFNNetClient* N = Net.Get();
+	if (!N) return;
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(N->MediaUrl(TEXT("/api/house")));
+	Req->SetVerb(TEXT("GET"));
+	TWeakPtr<SFNHudLive> Weak = SharedThis(this);
+	Req->OnProcessRequestComplete().BindLambda([Weak](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		const TSharedPtr<SFNHudLive> Self = Weak.Pin();
+		if (!Self.IsValid() || !bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) return;
+		TSharedPtr<FJsonObject> O;
+		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Resp->GetContentAsString()), O) || !O.IsValid()) return;
+		// Seconds to the next match, wherever the house says it (as the lobby reads it).
+		const double NowMs = (double)(FDateTime::UtcNow() - FDateTime(1970, 1, 1)).GetTotalMilliseconds();
+		double Secs = -1.0;
+		for (const TSharedPtr<FJsonObject>& Where : { O, FN7HudJson::Obj(O, TEXT("last_ended")), FN7HudJson::Obj(O, TEXT("next")) })
+		{
+			if (!Where.IsValid() || Secs >= 0.0) continue;
+			double V = 0.0;
+			for (const TCHAR* K : { TEXT("next_match_in_s"), TEXT("next_match_in"), TEXT("starts_in_s") })
+				if (Secs < 0.0 && Where->TryGetNumberField(K, V)) Secs = FMath::Max(0.0, V);
+			for (const TCHAR* K : { TEXT("next_match_at"), TEXT("next_match_at_ms"), TEXT("next_start_ms") })
+				if (Secs < 0.0 && Where->TryGetNumberField(K, V) && V > 1.0e12) Secs = FMath::Max(0.0, (V - NowMs) / 1000.0);
+		}
+		if (Secs >= 0.0 && Self->bVictory && Self->VictoryFadeAt <= 0.0) Self->NextMatchAt = FPlatformTime::Seconds() + Secs;
+		UE_LOG(LogTemp, Display, TEXT("FN7 victory: next match in %.0f s"), Secs);
+	});
+	Req->ProcessRequest();
+}
+
 bool SFNHudLive::IsBusyForGlide() const
 {
 	if (Layout.IsValid() && Layout->IsWillOpen()) return true;   // writing the WILL
@@ -2207,6 +2379,7 @@ FText SFNHudLive::GetTimer() const
 EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 {
 	TickDuelView();   // a challenge's queued glide (once you stop typing / dragging) and the glide back after it
+	if (bVictory && VictoryFadeAt > 0.0 && FPlatformTime::Seconds() - VictoryFadeAt > 1.25) { bVictory = false; VictoryFadeAt = 0.0; }
 	// Every 10 s, the real frame rate into the log ("FN7 fps"), so a PIE session's speed can be read afterwards.
 	{
 		static uint64 FpsFrame = 0;
