@@ -22,4 +22,20 @@ namespace FN7Wood
 
 	/** Dark ink for text and icons carved into the wood. */
 	FINALNIGHT_API const FLinearColor& Ink();
+
+	/** Old woven linen for the scroll: warp and weft threads with slubs, age stains, and crisp torn, scorched edges
+	 *  on the left and right (transparent beyond the tear). */
+	FINALNIGHT_API const FSlateBrush* FabricBrush();
+
+	/** A turned wooden scroll rod with knobs on both ends (9-slice: the knobs keep their shape at any width). */
+	FINALNIGHT_API const FSlateBrush* RodBrush();
+
+	/** A soft shadow strip: dark at the top fading down (bUp = false) or dark at the bottom fading up (bUp = true). */
+	FINALNIGHT_API const FSlateBrush* ShadeBrush(bool bUp);
+
+	/** Writing straight onto the cloth: no box, ink-brown italic text, a faded ink hint. */
+	FINALNIGHT_API const FEditableTextBoxStyle& InkTextBox();
+
+	/** Red-brown ink for headings inscribed on the scroll. */
+	FINALNIGHT_API const FLinearColor& RedInk();
 }

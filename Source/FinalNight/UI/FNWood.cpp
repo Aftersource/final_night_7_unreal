@@ -3,6 +3,8 @@
 #include "Engine/Texture2D.h"
 #include "FNStyle.h"
 #include "TextureResource.h"
+#include "Brushes/SlateNoResource.h"
+#include "Templates/Function.h"
 
 namespace FN7WoodGen
 {
@@ -181,6 +183,181 @@ const FEditableTextBoxStyle& FN7Wood::WillTextBox()
 		T.SetForegroundColor(FSlateColor(Ink()));
 		T.SetFocusedForegroundColor(FSlateColor(Ink()));
 		T.SetPadding(FMargin(30.f, 22.f, 30.f, 22.f));
+		return T;
+	}();
+	return S;
+}
+
+// --- the scroll ----------------------------------------------------------------
+
+namespace FN7ClothGen
+{
+	using FN7WoodGen::Noise;
+
+	UTexture2D* MakeRGBA(int32 W, int32 H, TFunctionRef<FLinearColor(int32, int32)> Px)
+	{
+		UTexture2D* Tex = UTexture2D::CreateTransient(W, H, PF_B8G8R8A8);
+		if (!Tex) return nullptr;
+		Tex->SRGB = true;
+		Tex->Filter = TF_Bilinear;
+		Tex->AddToRoot();
+		TArray<FColor> Pixels;
+		Pixels.SetNumUninitialized(W * H);
+		for (int32 Y = 0; Y < H; ++Y)
+			for (int32 X = 0; X < W; ++X)
+				Pixels[Y * W + X] = Px(X, Y).ToFColor(true);
+		FTexture2DMipMap& Mip = Tex->GetPlatformData()->Mips[0];
+		void* Dst = Mip.BulkData.Lock(LOCK_READ_WRITE);
+		FMemory::Memcpy(Dst, Pixels.GetData(), Pixels.Num() * sizeof(FColor));
+		Mip.BulkData.Unlock();
+		Tex->UpdateResource();
+		return Tex;
+	}
+
+	FLinearColor Fabric(int32 X, int32 Y, int32 W, int32 H)
+	{
+		using FN7WoodGen::Hex;
+		static const FLinearColor Cream = Hex(TEXT("EFE5CB"));
+		static const FLinearColor Aged = Hex(TEXT("C7AA78"));
+		static const FLinearColor Burnt = Hex(TEXT("3A2312"));
+		const float Fx = (float)X, Fy = (float)Y;
+
+		// The weave: 5 px threads, over-under. Each cell shows either a weft (horizontal) or a warp (vertical) thread.
+		const float P = 5.f;
+		const int32 Cx = FMath::FloorToInt(Fx / P), Cy = FMath::FloorToInt(Fy / P);
+		const float Ux = (Fx - Cx * P) / P, Uy = (Fy - Cy * P) / P;
+		const bool bWeft = ((Cx + Cy) & 1) == 0;
+		const float Profile = bWeft ? FMath::Sin(PI * Uy) : FMath::Sin(PI * Ux);
+		// Slubs: each thread thickens and pales along its run.
+		const float Slub = bWeft ? Noise(Fx / 37.f, Cy * 0.71f) : Noise(Cx * 0.71f, Fy / 37.f);
+		float Bright = 0.80f + 0.17f * Profile + 0.06f * Slub;
+
+		// Age: broad stains, foxing spots, a warmer tint toward the edges.
+		const float Stain = FMath::Clamp(0.5f + 0.5f * Noise(Fx / 210.f + 3.f, Fy / 170.f), 0.f, 1.f);
+		const float Fox = FMath::Clamp(Noise(Fx / 23.f + 9.f, Fy / 23.f) - 0.55f, 0.f, 1.f) * 1.6f;
+		FLinearColor C = FMath::Lerp(Cream, Aged, 0.18f + 0.45f * FMath::Pow(Stain, 2.f) + 0.5f * Fox);
+
+		// Crisp torn edges on the left and right: transparent past an irregular tear, scorched just inside it.
+		const float Tear = 9.f + 7.f * (0.5f + 0.5f * Noise(Fy / 31.f, 1.7f)) + 3.f * Noise(Fy / 6.f, 5.3f);
+		const float Edge = (float)FMath::Min(X, W - 1 - X);
+		if (Edge < Tear - 0.5f) return FLinearColor(0.f, 0.f, 0.f, 0.f);
+		const float Inside = Edge - Tear;
+		const float Alpha = FMath::Clamp(Inside + 0.5f, 0.f, 1.f);   // a one-pixel, crisp edge
+		if (Inside < 7.f)
+		{
+			const float K = 1.f - Inside / 7.f;
+			C = FMath::Lerp(C, Burnt, FMath::Pow(K, 1.6f) * 0.85f);
+			Bright *= 1.f - 0.15f * K;
+		}
+		// The cloth near the rods (top and bottom) sits in their shade.
+		const float V = (float)Y / H;
+		Bright *= 1.f - 0.10f * FMath::Pow(FMath::Abs(V - 0.5f) * 2.f, 3.f);
+		C *= Bright;
+		C.A = Alpha;
+		return C;
+	}
+
+	FLinearColor Rod(int32 X, int32 Y, int32 W, int32 H)
+	{
+		using FN7WoodGen::Hex;
+		static const FLinearColor Wood = Hex(TEXT("7A4A28"));
+		static const FLinearColor Knob = Hex(TEXT("5A3219"));
+		const float N = ((float)Y + 0.5f) / H * 2.f - 1.f;   // -1 top .. 1 bottom
+		const int32 KnobW = 40;
+		const bool bKnob = X < KnobW || X >= W - KnobW;
+		float Radius = 0.62f;                                 // the shaft is thinner than the knobs
+		if (bKnob)
+		{
+			const float Kx = (float)(X < KnobW ? X : W - 1 - X) / KnobW;   // 0 at the tip .. 1 at the shaft
+			Radius = 0.62f + 0.38f * FMath::Sin(FMath::Clamp(Kx, 0.f, 1.f) * PI * 0.9f + 0.15f);
+		}
+		if (FMath::Abs(N) > Radius) return FLinearColor(0.f, 0.f, 0.f, 0.f);
+		const float Nn = N / Radius;
+		const float Cyl = FMath::Sqrt(FMath::Max(0.f, 1.f - Nn * Nn));
+		const float Spec = FMath::Pow(FMath::Max(0.f, 1.f - FMath::Abs(Nn + 0.45f) * 3.2f), 3.f);
+		const float Grain = 0.5f + 0.5f * FMath::Sin(((float)X / 9.f + Noise((float)X / 60.f, Nn * 2.f) * 3.f) * 2.f * PI);
+		FLinearColor C = bKnob ? Knob : Wood;
+		C *= 0.45f + 0.65f * Cyl;
+		C = FMath::Lerp(C, C * 0.82f, Grain * 0.35f);
+		C += FLinearColor(1.f, 0.9f, 0.7f, 0.f) * Spec * 0.35f;
+		const float Alpha = FMath::Clamp((Radius - FMath::Abs(N)) * H * 0.5f, 0.f, 1.f);
+		C.A = Alpha;
+		return C;
+	}
+
+	FSlateBrush ImageBrush(UTexture2D* Tex, int32 W, int32 H, ESlateBrushDrawType::Type Draw, const FMargin& Margin = FMargin(0.f))
+	{
+		FSlateBrush B;
+		B.SetResourceObject(Tex);
+		B.ImageSize = FVector2D(W, H);
+		B.DrawAs = Draw;
+		B.Margin = Margin;
+		return B;
+	}
+}
+
+const FSlateBrush* FN7Wood::FabricBrush()
+{
+	static const FSlateBrush B = []()
+	{
+		const int32 W = 1024, H = 640;
+		return FN7ClothGen::ImageBrush(FN7ClothGen::MakeRGBA(W, H, [W, H](int32 X, int32 Y) { return FN7ClothGen::Fabric(X, Y, W, H); }), W, H, ESlateBrushDrawType::Image);
+	}();
+	return &B;
+}
+
+const FSlateBrush* FN7Wood::RodBrush()
+{
+	static const FSlateBrush B = []()
+	{
+		const int32 W = 512, H = 40;
+		return FN7ClothGen::ImageBrush(FN7ClothGen::MakeRGBA(W, H, [W, H](int32 X, int32 Y) { return FN7ClothGen::Rod(X, Y, W, H); }), W, H,
+			ESlateBrushDrawType::Box, FMargin(44.f / W, 0.f, 44.f / W, 0.f));
+	}();
+	return &B;
+}
+
+const FSlateBrush* FN7Wood::ShadeBrush(bool bUp)
+{
+	auto Make = [](bool bFadeUp)
+	{
+		const int32 W = 4, H = 64;
+		return FN7ClothGen::ImageBrush(FN7ClothGen::MakeRGBA(W, H, [H, bFadeUp](int32, int32 Y)
+		{
+			const float T = (float)Y / (H - 1);
+			const float A = FMath::Pow(bFadeUp ? T : 1.f - T, 1.8f) * 0.55f;
+			return FLinearColor(0.12f, 0.07f, 0.03f, A);
+		}), W, H, ESlateBrushDrawType::Image);
+	};
+	static const FSlateBrush Down = Make(false);
+	static const FSlateBrush Up = Make(true);
+	return bUp ? &Up : &Down;
+}
+
+const FLinearColor& FN7Wood::RedInk()
+{
+	static const FLinearColor C = FN7WoodGen::Hex(TEXT("7A2312"));
+	return C;
+}
+
+const FEditableTextBoxStyle& FN7Wood::InkTextBox()
+{
+	static const FEditableTextBoxStyle S = []()
+	{
+		FEditableTextBoxStyle T = FN7Style::TextBox();
+		const FSlateNoResource None;
+		T.SetBackgroundImageNormal(None);
+		T.SetBackgroundImageHovered(None);
+		T.SetBackgroundImageFocused(None);
+		T.SetBackgroundImageReadOnly(None);
+		FTextBlockStyle Text = FN7Style::Type::Body();
+		Text.SetFont(FN7Style::Type::Font(17, TEXT("Italic")));
+		Text.SetColorAndOpacity(FSlateColor(Ink()));
+		Text.SetShadowOffset(FVector2D(0.f, 0.f));
+		T.SetTextStyle(Text);
+		T.SetForegroundColor(FSlateColor(Ink()));
+		T.SetFocusedForegroundColor(FSlateColor(Ink()));
+		T.SetPadding(FMargin(6.f, 6.f));
 		return T;
 	}();
 	return S;

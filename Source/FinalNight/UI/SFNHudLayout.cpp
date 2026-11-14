@@ -11,6 +11,7 @@
 #include "SFNTextBox.h"
 #include "SFNPowerTile.h"
 #include "FNWood.h"
+#include "SFNScroll.h"
 #include "UnrealClient.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -342,39 +343,57 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 {
 	using namespace FN7Style;
 	using namespace FN7HudParts;
+	const FLinearColor InkDim = FN7Wood::Ink() * FLinearColor(1.f, 1.f, 1.f, 0.72f);
 	return SNew(SBox)
-		.MinDesiredWidth(560.f)
-		.MaxDesiredWidth(860.f)
+		.MinDesiredWidth(600.f)
+		.MaxDesiredWidth(900.f)
 		[
-			SNew(SBorder)
-			.BorderImage(Brush::Panel())
-			.Padding(FMargin(Space::L))
+			// The old scroll: rolled up in the lobby, it unrolls as the match begins.
+			SNew(SFNScroll)
+			.bUnrolled_Lambda([this]() { return Model.BeatsTotal > 0; })
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, Space::S)
 				[
 					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
 					[
-						SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::Accent()).Text(LOCTEXT("Powers", "ENTROPY POWERS"))
+						SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(LOCTEXT("Powers", "ENTROPY POWERS"))
 					]
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 					[
-						SNew(STextBlock).TextStyle(&Type::Small()).Text_Lambda([this]() { return Model.PowersNote; })
+						SNew(STextBlock).TextStyle(&Type::Small()).Font(Type::Font(11, TEXT("Italic"))).ColorAndOpacity(InkDim).AutoWrapText(true)
+						.Text_Lambda([this]() { return Model.PowersNote; })
 					]
 				]
 				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(PowersHolder, SBox)]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+				// An inked rule between the powers and the will.
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, Space::S)
+				[
+					SNew(SBox).HeightOverride(1.5f)
+					[
+						SNew(SImage).Image(Brush::Segment(FN7Wood::Ink() * FLinearColor(1.f, 1.f, 1.f, 0.35f)))
+					]
+				]
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(LOCTEXT("Will", "YOUR WILL"))
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 					[
-						SAssignNew(Compose, SFNTextBox)
-						.bMultiLine(true)
-						.Style(&FN7Wood::WillTextBox())
-						.HintText_Lambda([this]() { return Model.ComposeHint; })
-						.OnTextChanged(this, &SFNHudLayout::HandleTextChanged)
-						.OnTextCommitted(this, &SFNHudLayout::HandleTextCommitted)
+						SNew(SBox)
+						.MinDesiredHeight(64.f)
+						[
+							SAssignNew(Compose, SFNTextBox)
+							.bMultiLine(true)
+							.Style(&FN7Wood::InkTextBox())
+							.HintText_Lambda([this]() { return Model.ComposeHint; })
+							.OnTextChanged(this, &SFNHudLayout::HandleTextChanged)
+							.OnTextCommitted(this, &SFNHudLayout::HandleTextCommitted)
+						]
 					]
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::M, 0.f, 0.f, 0.f)
 					[
@@ -384,11 +403,11 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 							SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
 							[
-								SNew(SFNHourglass).Color(Color::Accent())
+								SNew(SFNHourglass).Color(FN7Wood::RedInk())
 							]
 							+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 							[
-								SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(Color::Accent())
+								SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(FN7Wood::RedInk())
 								.Text_Lambda([this]() { return TimerAttr.IsBound() || TimerAttr.IsSet() ? TimerAttr.Get() : Model.Timer; })
 							]
 						]
