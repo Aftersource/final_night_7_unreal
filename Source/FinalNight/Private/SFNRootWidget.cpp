@@ -1,6 +1,7 @@
 #include "SFNRootWidget.h"
 #include "FNNetClient.h"
 #include "FNStudio.h"
+#include "Features/FNDayNight.h"
 #include "../UI/SFNHudLive.h"   // FN7HudMount::IsMounted(): hide this classic HUD when the style-kit HUD is up
 
 #include "Widgets/SBoxPanel.h"
@@ -1128,6 +1129,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		const TSharedPtr<FJsonObject> Pub = Sub(D, TEXT("public")), Priv = Sub(D, TEXT("private"));
 		Day = (int32)Numb(Pub, TEXT("beat"), Day);
+		if (AFNDayNight* Dn = DayNight()) Dn->Apply(Pub);   // feature 6: the board's light follows time_of_day
 		Days = (int32)Numb(Pub, TEXT("beats_total"), Days);
 		Alive = (int32)Numb(Pub, TEXT("alive"), Alive);
 		WillMax = 4000;   // two hands x 2000 characters
@@ -1153,11 +1155,13 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		LastOutcome = Pub;
 		Alive = (int32)Numb(Pub, TEXT("alive"), Alive);
 		QueueOutcomeDice(Pub);
+		if (AFNDayNight* Dn = DayNight()) Dn->Apply(Pub);
 		if (const TArray<TSharedPtr<FJsonValue>>* Dm = Arr(Pub, TEXT("dm_events")))   // the DM's decisions this beat (rules 0.8.0), one line each
 			for (int32 i = 0, Shown = 0; i < Dm->Num() && Shown < 3; ++i)
 			{
 				const TSharedPtr<FJsonObject> E = (*Dm)[i].IsValid() ? (*Dm)[i]->AsObject() : nullptr;
 				if (!E.IsValid() || Str(E, TEXT("event")) == TEXT("summoned")) continue;   // the kit HUD shows summons
+				if (AFNDayNight* Dn = DayNight()) Dn->ApplyEvent(E);
 				const FString Line = Str(E, TEXT("text"));
 				if (!Line.IsEmpty()) { AddBanner(Line, UiCyan); ++Shown; }
 			}
@@ -1906,4 +1910,18 @@ bool SFNRootWidget::TickDiceQueue(float Dt)
 	ShowDieRoll(Next);
 	DiceWait = 2.6f;
 	return true;
+}
+
+AFNDayNight* SFNRootWidget::DayNight()
+{
+	if (AFNDayNight* Dn = DayNightActor.Get()) return Dn;
+	AFNStudio* St = Studio.Get();
+	UWorld* W = St ? St->GetWorld() : nullptr;
+	if (!W) return nullptr;
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AFNDayNight* Dn = W->SpawnActor<AFNDayNight>(AFNDayNight::StaticClass(), FTransform::Identity, P);
+	if (Dn) Dn->Bind(St);
+	DayNightActor = Dn;
+	return Dn;
 }

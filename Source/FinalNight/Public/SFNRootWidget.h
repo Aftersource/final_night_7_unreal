@@ -55,6 +55,9 @@ private:
 	TArray<TSharedPtr<FJsonObject>> DiceQueue;
 	float DiceWait = 0.f;
 	FTSTicker::FDelegateHandle DiceTicker;
+	// --- Benito's feature actors (Source/FinalNight/Private/Features/), spawned on first use, fed from the FN7 messages ---
+	TWeakObjectPtr<class AFNDayNight> DayNightActor;
+	class AFNDayNight* DayNight();
 	/** A Final Night 7 SeatView: health, position, alive. */
 	void ApplyFn7View(const TSharedPtr<FJsonObject>& View);
 	/** The Final Night 7 demigods from a PublicView, as pieces on the globe. */
