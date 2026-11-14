@@ -1568,7 +1568,7 @@ void SFNHudLive::OnSend(const FString& Text)
 		FString ArmedSlug = ArmedPower, ArmedTier;
 		ArmedPower.Split(TEXT(":"), &ArmedSlug, &ArmedTier);
 		if (ArmedSlug.IsEmpty()) ArmedSlug = ArmedPower;
-		N->CastPower(Round, ArmedSlug, Text, ArmedTier.IsEmpty() ? FString(TEXT("mini")) : ArmedTier);
+		if (!N->CastPower(Round, ArmedSlug, Text, ArmedTier.IsEmpty() ? FString(TEXT("mini")) : ArmedTier)) { Toast(TEXT("The gods need a breath: try again in a moment.")); return; }   // still armed
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %s"), *ArmedPower, *Text));
 		SetArmed(FString());
 		Publish();
@@ -1691,7 +1691,7 @@ void SFNHudLive::OnSummonDropped(const FString& Ref, const FVector2D& ScreenPosi
 	AFNTableGods* T = AFNTableGods::GetAny(St->GetWorld());
 	if (T) T->SetFigureHeld(Ref, false);
 	if (Where == 0) return;   // let go anywhere else: it goes back
-	if (N) N->Summon(Round, Ref, Lo, La);
+	if (N && !N->Summon(Round, Ref, Lo, La)) { Toast(TEXT("The gods need a breath: try again in a moment.")); return; }   // the piece goes back
 	// The piece lifts and dissolves at its origin at once; it lands when the server resolves the summon (`summoned`).
 	if (T)
 	{
@@ -1958,6 +1958,7 @@ EActiveTimerReturnType SFNHudLive::TickDuelFast(double, float)
 			UE_LOG(LogTemp, Display, TEXT("FN7 duel tick: %s panel %d"), *Duel->DuelId, P.Key);
 		}
 		TrySendDuelKeys();   // a keystroke the bucket held back
+		Duel->bSending = N->HeldDuelLines() > 0;
 	}
 	return EActiveTimerReturnType::Continue;
 }
@@ -2493,6 +2494,7 @@ void SFNHudLive::ConfirmChallenge()
 	bConfirmOpen = false;
 	UFNNetClient* N = Net.Get();
 	if (!N || ConfirmMine.IsEmpty() || ConfirmTarget.IsEmpty()) return;
+	if (!N->CanSendInstants(bConfirmTeleport ? 2 : 1)) { bConfirmOpen = true; Toast(TEXT("The gods need a breath: try again in a moment.")); return; }   // the card stays: click again
 	if (bConfirmTeleport)
 	{
 		// Teleport beside the rival (the server nudges it onto a free neighbouring hex), then challenge from there.
@@ -2655,7 +2657,7 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 			if (RN && RSt && Where > 0)
 			{
 				const bool bMega = Where == 2;
-				RN->CastAt(Round, Power, Lo, La, bMega ? TEXT("mega") : TEXT("mini"));
+				if (!RN->CastAt(Round, Power, Lo, La, bMega ? TEXT("mega") : TEXT("mini"))) { Toast(TEXT("The gods need a breath: try again in a moment.")); return; }   // the power stays in the ring
 				RSt->FlashAt(Lo, La);
 				// No view hop (it should be used on the cell on the table, not hop the table view around ... it is a drop).
 				SetArmed(FString());
@@ -2676,7 +2678,7 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 	{
 		const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();   // still set while OnDroppedOnWorld runs
 		const FString Tier = (Op.IsValid() && !Op->Tier.IsEmpty()) ? Op->Tier : FString(TEXT("mini"));
-		N->CastAt(Round, Power, Lo, La, Tier);
+		if (!N->CastAt(Round, Power, Lo, La, Tier)) { Toast(TEXT("The gods need a breath: try again in a moment.")); return; }   // still in hand
 		St->FlashAt(Lo, La);
 		SetArmed(FString());
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));

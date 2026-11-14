@@ -199,6 +199,7 @@ FText SFNDuelTray::SideText(const FString& Side) const
 	using namespace FN7Tray;
 	const TSharedPtr<FFNDuelSession> S = Session.Get();
 	if (!S.IsValid()) return FText::GetEmpty();
+	if (S->MySide == Side && S->bSending) return LOCTEXT("TraySending", "sending...");
 	const FFNDuelSession::FSideLine& L = Side == TEXT("b") ? S->LineB : S->LineA;
 	const double Now = FPlatformTime::Seconds();
 	// A line just sent: its letters flash one after another, then it clears.
