@@ -738,7 +738,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 				SNew(SFNFoil)
 				.Visibility(EVisibility::HitTestInvisible)
 				.bHot_Lambda([this]() { return Model.bHoldingTime; })
-				.Strength_Lambda([this]() { return bWillOpen ? 0.75f : 1.1f; })
+				.Strength_Lambda([this]() { return bWillOpen ? 0.f : 1.1f; })   // the shine invites the click; open, it rests
 				.CornerRadius(6.f)
 			]
 			// Rolled up: the whole strip is the way in.

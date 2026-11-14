@@ -1371,9 +1371,10 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 		const bool bFell = Args.Contains(TEXT("fell"));
 		const bool bWill = Args.Contains(TEXT("will"));
 		const bool bPreview = Args.Contains(TEXT("preview"));
+		const bool bPour = Args.Contains(TEXT("pour"));
 		TWeakObjectPtr<UWorld> WeakWorld(World);
 		// Wait for the player controller and its net client, then mount (and optionally connect / photograph).
-		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview](float)
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview, bPour](float)
 		{
 			UWorld* W = WeakWorld.Get();
 			AFNPlayerController* PC = W ? Cast<AFNPlayerController>(W->GetFirstPlayerController()) : nullptr;
@@ -1381,6 +1382,17 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 			FN7HudMount::Mount(PC->Net);
 			if (bConnect) PC->Net->Start();
 			if (bLobby || bFell || bWill || bPreview) FN7HudMount::Preview(bLobby, bFell, bWill);
+			if (bPour)
+			{
+				// Test: click the pouch just before the second shot (shot 1 closed, 2 mid-burst, 3 landed).
+				TWeakObjectPtr<AFNPlayerController> WeakPC(PC);
+				FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudPour"), 15.55f, [WeakPC](float)
+				{
+					AFNPlayerController* P = WeakPC.Get();
+					if (AFNPowerRing* Ring = P ? AFNPowerRing::Get(P->Studio.Get(), false) : nullptr) Ring->TogglePouch();
+					return false;
+				});
+			}
 			if (bAoe)
 			{
 				// Test: light an Earthquake's area (250 km) around the board hex at 42% / 78% of the viewport, as a drag would.

@@ -1,6 +1,7 @@
 #include "FNPowerRing.h"
 
 #include "Camera/PlayerCameraManager.h"
+#include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/Engine.h"
@@ -48,6 +49,13 @@ namespace FN7Ring
 	static const FLinearColor RingWoodDim(0.16f, 0.15f, 0.14f);
 	static const FLinearColor RingLeather(0.23f, 0.11f, 0.05f);
 	static const FLinearColor RingBrass(0.62f, 0.44f, 0.16f);
+	// The pouch: crimson velvet, gold trim, a gem.
+	static const FLinearColor RingVelvet(0.30f, 0.025f, 0.09f);
+	static const FLinearColor RingVelvetDeep(0.16f, 0.01f, 0.06f);
+	static const FLinearColor RingGoldTrim(0.95f, 0.66f, 0.18f);
+	static const FLinearColor RingGem(0.15f, 0.75f, 1.0f);
+	static constexpr int32 RingNumMotes = 12, RingNumSparks = 22;
+	static constexpr float RingFlyOut = 0.8f, RingFlyIn = 0.45f;   // seconds per hex
 
 	static float RingEaseOutBack(float T)
 	{
@@ -151,7 +159,7 @@ FVector AFNPowerRing::PouchWorld() const
 	if (!Rim(C, R, TableRot)) return GetActorLocation();
 	const AFNStudio* St = Studio.Get();
 	const float S = St ? (float)St->GetActorScale3D().X : 1.f;
-	const double ArcR = R + (RingRimGap + 1.f) * S;
+	const double ArcR = R + (RingRimGap + 8.f) * S;
 	const double StepDeg = FMath::RadiansToDegrees(((RingHexR * 1.7320508f + RingGap) * S) / (R + RingRimGap * S));
 	const double A = FMath::DegreesToRadians(RingArcStart - (RingPerRow - 0.5) * StepDeg - RingPouchBeyond);
 	return C + TableRot.RotateVector(FVector((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), 0.f));
@@ -166,21 +174,90 @@ void AFNPowerRing::BuildPouch()
 	Pouch->SetMobility(EComponentMobility::Movable);
 	Pouch->RegisterComponent();
 	Parts.Add(Pouch);
-	// A small leather pouch: the belly, a gathered neck, a brass tie, a flared mouth.
-	PouchParts.Add(Part(Pouch, RingSph, FVector(0, 0, 6.f), FVector(0.17f, 0.15f, 0.13f), FRotator::ZeroRotator, RingLeather));
-	PouchParts.Add(Part(Pouch, RingCyl, FVector(0, 0, 12.5f), FVector(0.075f, 0.075f, 0.04f), FRotator::ZeroRotator, RingLeather * 0.85f));
-	PouchParts.Add(Part(Pouch, RingCyl, FVector(0, 0, 13.2f), FVector(0.085f, 0.085f, 0.012f), FRotator::ZeroRotator, RingBrass));
-	PouchParts.Add(Part(Pouch, RingCone, FVector(0, 0, 16.5f), FVector(0.11f, 0.11f, 0.05f), FRotator(180.f, 0.f, 0.f), RingLeather * 1.1f));
+	PouchBody = NewObject<USceneComponent>(this);
+	PouchBody->SetupAttachment(Pouch);
+	PouchBody->SetMobility(EComponentMobility::Movable);
+	PouchBody->RegisterComponent();
+	Parts.Add(PouchBody);
+	// A flamboyant pouch, about 34 cm tall: a fat crimson velvet belly with a gold band and gold studs, a gem on the
+	// front with a gold bolt over it, a gathered neck tied with a gold drawstring, a flared ruffled mouth, two tassels.
+	PouchParts.Add(Part(PouchBody, RingSph, FVector(0, 0, 14.f), FVector(0.34f, 0.32f, 0.28f), FRotator::ZeroRotator, RingVelvet));
+	PouchParts.Add(Part(PouchBody, RingCyl, FVector(0, 0, 14.f), FVector(0.345f, 0.325f, 0.035f), FRotator::ZeroRotator, RingGoldTrim));
+	for (int32 i = 0; i < 10; ++i)
+	{
+		const float A = 2.f * PI * i / 10.f;
+		PouchParts.Add(Part(PouchBody, RingSph, FVector(FMath::Cos(A) * 17.2f, FMath::Sin(A) * 16.2f, 14.f), FVector(0.028f), FRotator::ZeroRotator, RingGoldTrim));
+	}
+	PouchParts.Add(Part(PouchBody, RingSph, FVector(16.6f, 0, 18.5f), FVector(0.05f, 0.075f, 0.075f), FRotator::ZeroRotator, RingGem));
+	PouchParts.Add(Part(PouchBody, RingCube, FVector(16.4f, -1.2f, 23.5f), FVector(0.01f, 0.012f, 0.06f), FRotator(0.f, 0.f, -25.f), RingGoldTrim));
+	PouchParts.Add(Part(PouchBody, RingCube, FVector(16.4f, 1.0f, 21.0f), FVector(0.01f, 0.03f, 0.008f), FRotator(0.f, 0.f, 0.f), RingGoldTrim));
+	PouchParts.Add(Part(PouchBody, RingCube, FVector(16.4f, 1.6f, 25.0f), FVector(0.01f, 0.012f, 0.05f), FRotator(0.f, 0.f, -25.f), RingGoldTrim));
+	PouchParts.Add(Part(PouchBody, RingCyl, FVector(0, 0, 27.5f), FVector(0.15f, 0.15f, 0.07f), FRotator::ZeroRotator, RingVelvetDeep));
+	PouchParts.Add(Part(PouchBody, RingCyl, FVector(0, 0, 28.5f), FVector(0.175f, 0.175f, 0.022f), FRotator::ZeroRotator, RingGoldTrim));
+	PouchParts.Add(Part(PouchBody, RingCone, FVector(0, 0, 34.f), FVector(0.24f, 0.24f, 0.10f), FRotator(180.f, 0.f, 0.f), RingVelvet * 1.25f));
+	for (int32 i = 0; i < 8; ++i)
+	{
+		const float A = 2.f * PI * i / 8.f;
+		PouchParts.Add(Part(PouchBody, RingSph, FVector(FMath::Cos(A) * 11.f, FMath::Sin(A) * 11.f, 38.5f), FVector(0.045f, 0.045f, 0.03f), FRotator::ZeroRotator, RingVelvet * 1.4f));
+	}
+	for (int32 t = -1; t <= 1; t += 2)
+	{
+		PouchParts.Add(Part(PouchBody, RingCyl, FVector(8.f, 9.f * t, 22.f), FVector(0.01f, 0.01f, 0.13f), FRotator(0.f, 0.f, 12.f * t), RingGoldTrim));
+		PouchParts.Add(Part(PouchBody, RingCone, FVector(8.f, 10.5f * t, 14.5f), FVector(0.04f, 0.04f, 0.06f), FRotator::ZeroRotator, RingGoldTrim));
+	}
+	// A warm glow, and motes of light circling it.
+	PouchGlow = NewObject<UPointLightComponent>(this);
+	PouchGlow->SetupAttachment(Pouch);
+	PouchGlow->SetMobility(EComponentMobility::Movable);
+	PouchGlow->SetRelativeLocation(FVector(20.f, 0.f, 30.f));
+	PouchGlow->SetIntensityUnits(ELightUnits::Candelas);
+	PouchGlow->SetIntensity(6.f);
+	PouchGlow->SetLightColor(FLinearColor(1.f, 0.7f, 0.3f));
+	PouchGlow->SetAttenuationRadius(110.f);
+	PouchGlow->SetCastShadows(false);
+	PouchGlow->RegisterComponent();
+	Parts.Add(PouchGlow);
+	for (int32 i = 0; i < RingNumMotes; ++i)
+	{
+		UStaticMeshComponent* M = Part(Pouch, RingCube, FVector::ZeroVector, FVector(0.012f), FRotator::ZeroRotator, i % 3 == 0 ? RingGem * 2.f : RingGoldTrim * 1.6f);
+		M->SetCastShadow(false);
+		Motes.Add(M);
+	}
+	for (int32 i = 0; i < RingNumSparks; ++i)
+	{
+		UStaticMeshComponent* M = Part(Pouch, RingCube, FVector::ZeroVector, FVector(0.015f), FRotator::ZeroRotator, i % 4 == 0 ? RingGem * 2.f : RingGoldTrim * 1.8f);
+		M->SetCastShadow(false);
+		M->SetVisibility(false);
+		Spray.Add(M);
+		SprayVel.Add(FVector::ZeroVector);
+	}
 	PouchCount = NewObject<UTextRenderComponent>(this);
 	PouchCount->SetupAttachment(Pouch);
-	PouchCount->SetRelativeLocation(FVector(0, 0, 24.f));
+	PouchCount->SetRelativeLocation(FVector(0, 0, 52.f));
 	PouchCount->SetHorizontalAlignment(EHTA_Center);
 	PouchCount->SetVerticalAlignment(EVRTA_TextCenter);
-	PouchCount->SetWorldSize(4.2f);
+	PouchCount->SetWorldSize(8.f);
 	PouchCount->SetTextRenderColor(FColor(255, 214, 120));
 	PouchCount->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PouchCount->RegisterComponent();
 	Parts.Add(PouchCount);
+}
+
+void AFNPowerRing::TogglePouch()
+{
+	bOpen = !bOpen;
+	BurstT = 0.f;
+	const int32 N = Hexes.Num();
+	for (int32 i = 0; i < N; ++i) Hexes[i].Wait = bOpen ? 0.12f + 0.045f * i : 0.03f * (N - 1 - i);
+	if (bOpen)
+		for (int32 i = 0; i < SprayVel.Num(); ++i)
+		{
+			// A spray from the mouth: up and outward, every direction.
+			const float A = 2.f * PI * i / SprayVel.Num() + FMath::FRandRange(-0.2f, 0.2f);
+			SprayVel[i] = FVector(FMath::Cos(A) * FMath::FRandRange(40.f, 95.f), FMath::Sin(A) * FMath::FRandRange(40.f, 95.f), FMath::FRandRange(90.f, 170.f));
+			Spray[i]->SetRelativeLocation(FVector(0, 0, 38.f));
+			Spray[i]->SetVisibility(true);
+		}
 }
 
 void AFNPowerRing::ClearHexes()
@@ -287,17 +364,56 @@ void AFNPowerRing::Tick(float Dt)
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
 		if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
 
-	// The pouch, its count turned to the camera.
+	// The pouch: breathing, swaying, glowing; a puff on every click; motes circling; the burst's spray falling.
 	const FVector PouchPos = PouchWorld();
 	FVector Ctr;
 	double Rr;
 	FRotator TableRot;
 	Rim(Ctr, Rr, TableRot);
+	const float S = (float)St->GetActorScale3D().X;
+	if (BurstT >= 0.f) BurstT += Dt;
 	if (Pouch)
 	{
-		const float S = (float)St->GetActorScale3D().X;
 		Pouch->SetWorldLocationAndRotation(PouchPos, TableRot);
-		Pouch->SetWorldScale3D(FVector(S * (1.f + 0.04f * FMath::Sin(Time * 2.f) * (bOpen ? 0.f : 1.f))));
+		Pouch->SetWorldScale3D(FVector(S));
+		float Sx = 1.f + 0.035f * FMath::Sin(Time * 2.2f), Sz = 1.f - 0.03f * FMath::Sin(Time * 2.2f);
+		if (bPouchHover) { Sx *= 1.06f; Sz *= 1.06f; }
+		if (BurstT >= 0.f && BurstT < 0.6f)
+		{
+			// Squash down, then pop up tall, then settle.
+			const float B = BurstT / 0.6f;
+			const float Pop = FMath::Sin(B * PI * 2.f) * FMath::Exp(-3.f * B);
+			Sz *= 1.f + 0.28f * Pop;
+			Sx *= 1.f - 0.16f * Pop;
+		}
+		if (PouchBody)
+		{
+			PouchBody->SetRelativeScale3D(FVector(Sx, Sx, Sz));
+			PouchBody->SetRelativeRotation(FRotator(2.5f * FMath::Sin(Time * 1.3f), 0.f, 2.5f * FMath::Sin(Time * 1.7f)));
+		}
+		if (PouchGlow)
+		{
+			const float Flash = (BurstT >= 0.f && BurstT < 0.7f) ? 60.f * FMath::Exp(-6.f * BurstT) : 0.f;
+			PouchGlow->SetIntensity((5.f + 2.5f * FMath::Sin(Time * 3.f) + (bPouchHover ? 4.f : 0.f) + Flash) * (IsEnabled() ? 1.f : 0.4f));
+		}
+		for (int32 i = 0; i < Motes.Num(); ++i)
+		{
+			const float A = 2.f * PI * i / Motes.Num() + Time * (0.6f + 0.05f * (i % 4));
+			const float R = 24.f + 4.f * FMath::Sin(Time * 1.1f + i);
+			Motes[i]->SetRelativeLocation(FVector(FMath::Cos(A) * R, FMath::Sin(A) * R, 20.f + 14.f * FMath::Sin(Time * 0.9f + i * 1.7f)));
+			const float Tw = 0.5f + 0.5f * FMath::Sin(Time * 5.f + i * 2.3f);
+			Motes[i]->SetRelativeScale3D(FVector(0.006f + 0.012f * Tw));
+			Motes[i]->SetRelativeRotation(FRotator(Time * 80.f + i * 30.f, Time * 60.f, 0.f));
+		}
+		for (int32 i = 0; i < Spray.Num(); ++i)
+		{
+			if (!Spray[i]->IsVisible()) continue;
+			if (BurstT < 0.f || BurstT > 1.2f) { Spray[i]->SetVisibility(false); continue; }
+			SprayVel[i] += FVector(0, 0, -260.f) * Dt;
+			Spray[i]->SetRelativeLocation(Spray[i]->GetRelativeLocation() + SprayVel[i] * Dt);
+			Spray[i]->SetRelativeScale3D(FVector(0.02f * FMath::Clamp(1.f - BurstT / 1.2f, 0.f, 1.f)));
+			Spray[i]->SetRelativeRotation(FRotator(BurstT * 600.f + i * 20.f, BurstT * 400.f, 0.f));
+		}
 		if (PouchCount)
 		{
 			FVector To = Cam - PouchCount->GetComponentLocation();
@@ -306,41 +422,48 @@ void AFNPowerRing::Tick(float Dt)
 		}
 	}
 
-	// Out of the pouch (staggered, tumbling along an arc) or back in.
-	OpenT = FMath::FInterpConstantTo(OpenT, bOpen ? 1.f : 0.f, Dt, 1.25f);
+	// The hexes: in the pouch, bursting out (up and over, spinning, landing with a bounce), or flying back in.
+	const FVector Mouth = PouchPos + FVector(0, 0, 38.f * S);
 	const int32 N = Hexes.Num();
-	const float S = (float)St->GetActorScale3D().X;
 	for (int32 i = 0; i < N; ++i)
 	{
 		FHex& H = Hexes[i];
-		const float Delay = N > 1 ? 0.55f * i / (N - 1) : 0.f;
-		const float T = FMath::Clamp((OpenT * 1.55f - Delay) / 1.f, 0.f, 1.f);
-		H.Out = T;
+		if (H.Wait > 0.f) H.Wait -= Dt;
+		else H.Out = FMath::Clamp(H.Out + (bOpen ? Dt / RingFlyOut : -Dt / RingFlyIn), 0.f, 1.f);
+		const float T = H.Out;
 		const bool bVisible = T > 0.001f || i == Lifted;
 		H.Root->SetVisibility(bVisible, true);
-		if (!bVisible) { H.Pos = PouchPos; continue; }
+		if (!bVisible) { H.Pos = Mouth; H.Rot = FQuat::Identity; continue; }
 
 		FQuat SlotRot;
 		const FVector Slot = SlotWorld(i, N, SlotRot);
-		const float E = RingEaseOutBack(T);
-		FVector Target = FMath::Lerp(PouchPos + FVector(0, 0, 10.f * S), Slot, E) + FVector(0, 0, FMath::Sin(PI * FMath::Clamp(T, 0.f, 1.f)) * 16.f * S);
-		const FQuat Tumble(H.SpinAxis, (1.f - FMath::Clamp(T, 0.f, 1.f)) * PI * 3.f);
+		const float E = bOpen ? RingEaseOutBack(T) : T * T * (3.f - 2.f * T);
+		FVector Target = FMath::Lerp(Mouth, Slot, E) + FVector(0, 0, 4.f * T * (1.f - T) * (bOpen ? 46.f : 22.f) * S);
+		const FQuat Tumble(H.SpinAxis, (1.f - T) * PI * 4.f);
 		FQuat TargetRot = Tumble * SlotRot;
 		if (i == Hover && Lifted < 0) Target += FVector(0, 0, 2.5f * S);
-		float Speed = 16.f;
+		bool bDirect = T < 1.f && i != Lifted;   // in flight: follow the arc exactly
 		if (i == Lifted)
 		{
 			// In the hand: up off the table, following the cursor, rocking a little.
 			Target = bLiftHasTarget ? LiftTarget : Slot + FVector(0, 0, 12.f * S);
 			const FVector Vel = (Target - H.Pos) / FMath::Max(Dt, 1e-3f);
 			TargetRot = FQuat(FVector::CrossProduct(FVector::UpVector, Vel.GetSafeNormal()).GetSafeNormal(), FMath::Clamp((float)Vel.Size() * 0.0006f, 0.f, 0.35f)) * SlotRot;
-			Speed = 18.f;
 		}
-		const float K = 1.f - FMath::Exp(-Speed * Dt);
-		H.Pos = FMath::Lerp(H.Pos, Target, K);
-		H.Rot = FQuat::Slerp(H.Rot, TargetRot, K);
+		if (bDirect)
+		{
+			H.Pos = Target;
+			H.Rot = TargetRot;
+		}
+		else
+		{
+			const float K = 1.f - FMath::Exp(-(i == Lifted ? 18.f : 16.f) * Dt);
+			H.Pos = FMath::Lerp(H.Pos, Target, K);
+			H.Rot = FQuat::Slerp(H.Rot, TargetRot, K);
+		}
 		H.Root->SetWorldLocationAndRotation(H.Pos, H.Rot);
 	}
+	St->HideWillBlock();
 }
 
 int32 AFNPowerRing::HexAtPixel(const FVector2D& Pixel) const
@@ -368,10 +491,17 @@ bool AFNPowerRing::PouchAtPixel(const FVector2D& Pixel) const
 	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	if (!PC || !Pouch || !bShown || !PC->PlayerCameraManager) return false;
 	const FVector Right = FRotationMatrix(PC->PlayerCameraManager->GetCameraRotation()).GetScaledAxis(EAxis::Y);
-	const FVector C = Pouch->GetComponentLocation() + FVector(0, 0, 8.f * (float)Pouch->GetComponentScale().X);
+	const float Ps = (float)Pouch->GetComponentScale().X;
+	const FVector C = Pouch->GetComponentLocation() + FVector(0, 0, 20.f * Ps);
 	FVector2D P0, P1;
-	if (!PC->ProjectWorldLocationToScreen(C, P0) || !PC->ProjectWorldLocationToScreen(C + Right * WorldHexR() * 1.2f, P1)) return false;
-	return FVector2D::Distance(P0, Pixel) < FVector2D::Distance(P0, P1) * 1.2;
+	if (!PC->ProjectWorldLocationToScreen(C, P0) || !PC->ProjectWorldLocationToScreen(C + Right * 22.f * Ps, P1)) return false;
+	return FVector2D::Distance(P0, Pixel) < FVector2D::Distance(P0, P1) * 1.1;
+}
+
+bool AFNPowerRing::PouchPixel(FVector2D& OutPixel) const
+{
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	return PC && Pouch && PC->ProjectWorldLocationToScreen(Pouch->GetComponentLocation() + FVector(0, 0, 20.f * (float)Pouch->GetComponentScale().X), OutPixel);
 }
 
 bool AFNPowerRing::HexPixel(int32 Index, FVector2D& OutPixel) const
@@ -496,37 +626,45 @@ FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E
 	AFNPowerRing* R = Ring();
 	FVector2D Px;
 	const int32 Was = HoverHex;
-	HoverHex = (R && R->IsShown() && ToPixel(G, E.GetScreenSpacePosition(), Px) && !FFNPowerDragDrop::GetActive().IsValid()) ? R->HexAtPixel(Px) : -1;
-	if (R) R->SetHover(HoverHex);
-	if (Was != HoverHex) Invalidate(EInvalidateWidgetReason::Paint);
+	const bool bWasPouch = bHoverPouch;
+	const bool bCan = R && R->IsShown() && ToPixel(G, E.GetScreenSpacePosition(), Px) && !FFNPowerDragDrop::GetActive().IsValid();
+	bHoverPouch = bCan && R->PouchAtPixel(Px);
+	HoverHex = (bCan && !bHoverPouch) ? R->HexAtPixel(Px) : -1;
+	if (R) { R->SetHover(HoverHex); R->SetPouchHover(bHoverPouch); }
+	if (Was != HoverHex || bWasPouch != bHoverPouch) Invalidate(EInvalidateWidgetReason::Paint);
 	return FReply::Unhandled();
 }
 
 void SFNPowerRingInput::OnMouseLeave(const FPointerEvent&)
 {
 	HoverHex = -1;
-	if (AFNPowerRing* R = Ring()) R->SetHover(-1);
+	bHoverPouch = false;
+	if (AFNPowerRing* R = Ring()) { R->SetHover(-1); R->SetPouchHover(false); }
 }
 
 FCursorReply SFNPowerRingInput::OnCursorQuery(const FGeometry&, const FPointerEvent&) const
 {
-	return HoverHex >= 0 ? FCursorReply::Cursor(EMouseCursor::GrabHand) : FCursorReply::Unhandled();
+	if (HoverHex >= 0) return FCursorReply::Cursor(EMouseCursor::GrabHand);
+	return bHoverPouch ? FCursorReply::Cursor(EMouseCursor::Hand) : FCursorReply::Unhandled();
 }
 
 int32 SFNPowerRingInput::OnPaint(const FPaintArgs&, const FGeometry& G, const FSlateRect&, FSlateWindowElementList& Out, int32 Layer,
 	const FWidgetStyle&, bool) const
 {
-	// Over a hex: its name and how to cast it, to the left of the hex.
+	// Over a hex: its name and how to cast it, to the left of the hex. Over the pouch: what a click does.
 	AFNPowerRing* R = Ring();
-	if (!R || HoverHex < 0 || FFNPowerDragDrop::GetActive().IsValid()) return Layer;
+	if (!R || (HoverHex < 0 && !bHoverPouch) || FFNPowerDragDrop::GetActive().IsValid()) return Layer;
 	FVector2D Px;
 	UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
-	if (!VC || !VC->Viewport || !R->HexPixel(HoverHex, Px)) return Layer;
+	if (!VC || !VC->Viewport) return Layer;
+	if (bHoverPouch) { if (!R->PouchPixel(Px)) return Layer; }
+	else if (!R->HexPixel(HoverHex, Px)) return Layer;
 	const FVector2D VS = FVector2D(VC->Viewport->GetSizeXY());
 	const FVector2D Local = Px / VS * FVector2D(G.GetLocalSize());
 
-	const FText Name = R->NameOf(HoverHex);
-	const FText How = R->IsEnabled() ? LOCTEXT("How", "over the globe: MEGA, 1 bolt   on the board: MINI, 1 spark")
+	const FText Name = bHoverPouch ? LOCTEXT("PouchName", "ENTROPY POWERS") : R->NameOf(HoverHex);
+	const FText How = bHoverPouch ? (R->IsOpen() ? LOCTEXT("PouchClose", "click to gather them back in") : LOCTEXT("PouchOpen", "click to pour them out"))
+		: R->IsEnabled() ? LOCTEXT("How", "over the globe: MEGA, 1 bolt   on the board: MINI, 1 spark")
 		: LOCTEXT("HowNone", "no bolts or sparks left");
 	const FSlateFontInfo NameFont = FN7Style::Type::Font(14, TEXT("Bold"));
 	const FSlateFontInfo HowFont = FN7Style::Type::Font(10);
