@@ -133,6 +133,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 					SNew(SFNScroll)
 					.bUnrolled_Lambda([this]() { return bNewsOpen; })
 					.Duration(0.9f)
+					.bSmoothHeight(true)
 					.RodHeight(24.f)
 					.ContentPadding(FMargin(22.f, 12.f, 22.f, 10.f))
 					[
@@ -250,14 +251,10 @@ void SFNHudLayout::RefreshSections()
 		if (Sig != NewsSignature)
 		{
 			NewsSignature = Sig;
-			if (!bNewsBuilt) { bNewsBuilt = true; NewsBody->SetContent(MakeNews()); bNewsOpen = true; }
-			else if (!bNewsSwapPending)
-			{
-				// Roll up, swap the inscription, unroll.
-				bNewsSwapPending = true;
-				bNewsOpen = false;
-				RegisterActiveTimer(0.68f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLayout::SwapNews));
-			}
+			// The first time it unrolls; after that the new inscription goes straight on and the open cloth just eases to
+			// its new height (it should just expand and scroll normally, without folding and unfolding).
+			NewsBody->SetContent(MakeNews());
+			if (!bNewsBuilt) { bNewsBuilt = true; bNewsOpen = true; }
 		}
 	}
 	const FString YouSig = MakeYouSignature();
@@ -267,11 +264,20 @@ void SFNHudLayout::RefreshSections()
 	NewsHolder->SetVisibility(Model.News.Num() > 0 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
 }
 
+EActiveTimerReturnType SFNHudLayout::StartNewsRoll(double, float)
+{
+	bNewsOpen = false;
+	UE_LOG(LogTemp, Display, TEXT("FN7 news roll"));
+	RegisterActiveTimer(0.68f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLayout::SwapNews));
+	return EActiveTimerReturnType::Stop;
+}
+
 EActiveTimerReturnType SFNHudLayout::SwapNews(double, float)
 {
 	bNewsSwapPending = false;
-	NewsBody->SetContent(MakeNews());   // the latest news, whatever arrived while it rolled up
+	NewsBody->SetContent(MakeNews());   // the latest news, whatever arrived while it waited and rolled up
 	bNewsOpen = true;
+	NextNewsRollAt = FPlatformTime::Seconds() + 8.0;
 	return EActiveTimerReturnType::Stop;
 }
 

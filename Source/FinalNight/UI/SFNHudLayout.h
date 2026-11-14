@@ -170,6 +170,8 @@ private:
 	FString HeaderSignature, NewsSignature;
 	bool bNewsOpen = false, bNewsBuilt = false, bNewsSwapPending = false;
 	EActiveTimerReturnType SwapNews(double, float);
+	EActiveTimerReturnType StartNewsRoll(double, float);
+	double NextNewsRollAt = 0.0;   // at most one roll cycle every 8 s (news comes in bursts)
 	bool bWillOpen = false;       // the WILL scroll: a slim rolled strip until clicked (or Enter), rolled up after SEND
 	TSharedPtr<FSlateBrush> AuraFrameBrush;
 	FLinearColor AuraFrameColor = FLinearColor::Transparent;

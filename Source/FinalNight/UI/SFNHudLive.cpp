@@ -1201,6 +1201,17 @@ void SFNHudLive::UpdateRing()
 	if (!St) return;
 	if (RingInput.IsValid()) RingInput->SetStudio(St);
 	if (bInRoom && Model.Powers.Num() == 0) FetchPowers();
+	if (!bInRoom)
+	{
+		// The intro: the bag alone on the table (no hexes yet); clicking it joins (OnMouseButtonDown).
+		if (AFNPowerRing* Lobby = AFNPowerRing::Get(St, true))
+		{
+			Lobby->SetPowers(TArray<FString>(), TArray<FText>());
+			Lobby->SetPurse(1, 0);
+			Lobby->SetShown(true);
+		}
+		return;
+	}
 	const bool bShow = bInRoom && Model.Powers.Num() > 0 && !Model.bViewer;
 	{
 		// Why the ring is up or not, once per change (live diagnosis instead of guessing).
@@ -1218,6 +1229,36 @@ void SFNHudLive::UpdateRing()
 	Ring->SetPowers(Slugs, Names);
 	Ring->SetPurse(Model.Bolts, Model.Sparks);
 	Ring->SetShown(bShow);
+	// Joined by clicking the bag: it pours its hexes out once they're here.
+	if (bOpenPouchOnJoin && bShow && Ring->Num() > 0)
+	{
+		bOpenPouchOnJoin = false;
+		if (!Ring->IsOpen()) Ring->TogglePouch();
+	}
+}
+
+FReply SFNHudLive::OnMouseButtonDown(const FGeometry& G, const FPointerEvent& E)
+{
+	// Clicks the lobby didn't use bubble here: on the intro, a click on the bag joins the game.
+	if (!bInRoom && E.GetEffectingButton() == EKeys::LeftMouseButton && StartPanel.IsValid())
+		if (AFNStudio* St = FindStudio())
+			if (AFNPowerRing* R = AFNPowerRing::Get(St, false))
+			{
+				UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+				const FVector2D Size = G.GetLocalSize();
+				if (VC && VC->Viewport && Size.X > 1.0 && Size.Y > 1.0)
+				{
+					const FVector2D Px = G.AbsoluteToLocal(E.GetScreenSpacePosition()) / Size * FVector2D(VC->Viewport->GetSizeXY());
+					if (R->PouchAtPixel(Px))
+					{
+						UE_LOG(LogTemp, Display, TEXT("FN7 bag clicked on the intro: joining"));
+						bOpenPouchOnJoin = true;
+						StartPanel->JoinGame();
+						return FReply::Handled();
+					}
+				}
+			}
+	return SCompoundWidget::OnMouseButtonDown(G, E);
 }
 
 
@@ -1880,10 +1921,12 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 			FpsFrame = GFrameCounter;
 		}
 	}
+	if (AFNStudio* Sw = FindStudio()) Sw->HideWillBlock();   // the kit's WILL scroll replaces it, lobby included
+	if (!bInRoom) UpdateRing();                               // the intro's bag stands on the table before any message
 	if (ToastUntil > 0.0 && FPlatformTime::Seconds() > ToastUntil) { ToastUntil = 0.0; Model.Status = FText::GetEmpty(); Publish(); }
 	{
 		const double Now = FPlatformTime::Seconds();
-		if (GlobeHoldUntil > Now) { if (AFNStudio* Sg = FindStudio()) Sg->SetGlobeFocus(GlobeHoldLat, GlobeHoldLon); }
+		// (no re-assert loop: the studio keeps a picked spot itself now; re-asserting fought its own focus = the spinning)
 		if (SelectedUntil > 0.0 && Now > SelectedUntil)
 		{
 			SelectedUntil = 0.0;

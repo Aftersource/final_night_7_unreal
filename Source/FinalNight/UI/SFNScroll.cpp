@@ -28,6 +28,7 @@ void SFNScroll::Construct(const FArguments& InArgs)
 	Duration = FMath::Max(0.2f, InArgs._Duration);
 	ContentPadding = InArgs._ContentPadding;
 	RodH = FMath::Max(6.f, InArgs._RodHeight);
+	bSmooth = InArgs._bSmoothHeight;
 	Inner = InArgs._Content.Widget;
 
 	ChildSlot
@@ -111,7 +112,17 @@ void SFNScroll::Tick(const FGeometry& G, const double Now, const float Dt)
 		AnimStart = Now;
 	}
 	if (bAnimating && AnimStart < 0.0) AnimStart = Now;
-	if (!bAnimating) { Sway = FMath::Lerp(Sway, 0.f, 1.f - FMath::Exp(-6.f * Dt)); return; }
+	if (!bAnimating)
+	{
+		Sway = FMath::Lerp(Sway, 0.f, 1.f - FMath::Exp(-6.f * Dt));
+		if (bSmooth && Progress >= 1.f && Inner.IsValid())
+		{
+			// The inscription changed: the open cloth eases to its new height (no re-roll).
+			const float Target = Inner->GetDesiredSize().Y + ContentPadding.GetTotalSpaceAlong<Orient_Vertical>() + 12.f;
+			SmoothH = SmoothH < 0.f ? Target : FMath::FInterpTo(SmoothH, Target, Dt, 9.f);
+		}
+		return;
+	}
 
 	const float T = (float)(Now - AnimStart) / Duration;
 	if (bTarget)
@@ -135,7 +146,7 @@ FOptionalSize SFNScroll::GetBodyHeight() const
 {
 	// Open and still: size to the content (no override). A panel rebuilt on every refresh otherwise measured its content
 	// at 0 for a frame and collapsed ("the scrolls keep scrolling up").
-	if (!bAnimating && Progress >= 1.f) return FOptionalSize();
+	if (!bAnimating && Progress >= 1.f) return (bSmooth && SmoothH > 0.f) ? FOptionalSize(SmoothH) : FOptionalSize();
 	const float Full = Inner.IsValid() ? Inner->GetDesiredSize().Y + ContentPadding.GetTotalSpaceAlong<Orient_Vertical>() + 12.f : 0.f;
 	return FMath::Max(0.f, Full * Progress);
 }

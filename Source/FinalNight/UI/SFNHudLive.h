@@ -46,6 +46,9 @@ private:
 	TSharedPtr<class SFNPowerRingInput> RingInput;
 	bool bOverGlobe = false;
 	void UpdateRing();
+	/** The intro: a click on the bag is a join (joining is just clicking the bag ... that is also a join). */
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	bool bOpenPouchOnJoin = false;
 	// Summoning your demigods: drag its diorama box or board piece onto the board or the globe.
 	FDelegateHandle SummonOverHandle, SummonDropHandle;
 	TSet<FString> PreviewMine;
