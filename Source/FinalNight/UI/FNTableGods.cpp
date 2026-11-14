@@ -17,11 +17,11 @@
 
 namespace FN7Gods
 {
-	static const TCHAR* GodCube = TEXT("/Engine/BasicShapes/GodCube.GodCube");
+	static const TCHAR* GodCube = TEXT("/Engine/BasicShapes/Cube.Cube");
 	static const TCHAR* GodCyl = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	static const TCHAR* GodSph = TEXT("/Engine/BasicShapes/Sphere.Sphere");
-	static const TCHAR* GodCone = TEXT("/Engine/BasicShapes/GodCone.GodCone");
-	static const TCHAR* GodPlane = TEXT("/Engine/BasicShapes/GodPlane.GodPlane");
+	static const TCHAR* GodCone = TEXT("/Engine/BasicShapes/Cone.Cone");
+	static const TCHAR* GodPlane = TEXT("/Engine/BasicShapes/Plane.Plane");
 	static const TCHAR* GodBaseMatPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
 	static const TCHAR* GodImageMatPath = TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque");
 
