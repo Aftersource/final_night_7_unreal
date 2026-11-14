@@ -87,3 +87,7 @@ Config/*Local*.ini
 # Per-machine Final Night 7 client files (room code, host flag, name, settings): never commit
 Config/FN7*.txt
 Config/FN7RoomSettings.json
+
+# private production logs and secrets (never public)
+__production_steps/
+*.env
