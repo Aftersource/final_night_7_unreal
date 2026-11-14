@@ -114,17 +114,16 @@ void AFNDayNight::Push(float L, const FLinearColor& Tint)
 {
 	if (Grade)
 	{
-		// Day: no grade. Night (light 0.15): a cool tint, about one stop darker, two-thirds saturation.
-		const float Night = 1.f - L;
+		// The grade is set at full night strength (a cool or warm tint, a stop darker, two-thirds saturation) and its
+		// WEIGHT follows the dark: 0 at full day (no cast at noon), about 0.5 at dawn and dusk, about 0.85 at night (light 0.15).
 		FPostProcessSettings& P = Grade->Settings;
 		P.bOverride_SceneColorTint = true;
-		P.SceneColorTint = FLinearColor::LerpUsingHSV(FLinearColor::White, Tint, 0.6f);
+		P.SceneColorTint = FLinearColor::LerpUsingHSV(FLinearColor::White, Tint, 0.7f);
 		P.bOverride_ColorSaturation = true;
-		P.ColorSaturation = FVector4(1.f - 0.35f * Night, 1.f - 0.35f * Night, 1.f - 0.35f * Night, 1.f);
+		P.ColorSaturation = FVector4(0.62f, 0.62f, 0.62f, 1.f);
 		P.bOverride_ColorGain = true;
-		const float Gain = 1.f - 0.5f * Night;
-		P.ColorGain = FVector4(Gain, Gain, Gain, 1.f);
-		Grade->BlendWeight = 1.f;
+		P.ColorGain = FVector4(0.45f, 0.45f, 0.45f, 1.f);
+		Grade->BlendWeight = FMath::Clamp(1.f - L, 0.f, 1.f);
 	}
 	for (const FLamp& P : Lamps)
 	{
