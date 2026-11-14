@@ -23,6 +23,18 @@ struct FFNHudSeat
 	TArray<uint8> PortraitPng;
 };
 
+/** One of YOUR two demigods (rules 0.7.0: a Left and a Right hand, each with its own health). */
+struct FFNHudDemigod
+{
+	FText Name;
+	FString Side;            // "left" or "right"
+	int32 Health = 10;
+	int32 MaxHealth = 10;
+	bool bAlive = true;
+	UTexture2D* PortraitTexture = nullptr;
+	TArray<uint8> PortraitPng;
+};
+
 /** One line of news: a short tag (e.g. "BEAT 7", "YOU") and the text. */
 struct FFNHudNews
 {
@@ -62,6 +74,14 @@ struct FFNHudModel
 	FText Timer;            // "0:05"
 	FText Status;           // one line under the header: connection, waiting for host, match over
 	bool bViewer = false;   // watching the house game without a seat
+	int32 AliveOf = 0;      // demigods in the match (the "7/8 ALIVE" denominator); 0 = unknown
+	bool bReplay = false;   // the house is replaying a recorded match
+	TArray<FFNHudDemigod> Mine;   // your two demigods (empty on a one-demigod server: the classic you panel shows)
+	FLinearColor YourAura = FLinearColor(0.91f, 0.72f, 0.29f);
+	double Debt = -1.0;     // your open debt (summed over your demigods); -1 = not sent
+	FText TimeBill;         // the live bill while you hold slowed time, e.g. "1 bolt + 2.4 debt"; empty otherwise
+	bool bHoldingTime = false;
+	bool bPowerPanel = true;      // the HUD power panel (a fallback until the powers live on the board's edge)
 	TArray<FFNHudSeat> Seats;
 	TArray<FFNHudNews> News;
 	TArray<FFNHudPower> Powers;
@@ -74,8 +94,11 @@ DECLARE_DELEGATE(FOnFNHudTakeSeat);
 DECLARE_DELEGATE(FOnFNHudLobby);
 
 /**
- * The full FN7 HUD on a corner grid around a clear centre (the globe): header strip top left, WORLD news top right,
- * seat cards and your status lower left, powers and the WILL composer bottom centre (one bottom row, no overlap).
+ * The FN7 HUD, screen map v2: four corners around a completely clear centre (the hex board and the globe).
+ * Top left: the header strip and LOBBY. Top right: WORLD news, collapsible. Lower left: YOUR two demigods (portraits,
+ * their own health, bolts, sparks, debt, Time's live bill). Lower right: the WILL, a slim shiny scroll that unrolls
+ * when clicked and rolls up after SEND, with the compact power panel above it while it is the fallback.
+ * The rivals are not in the HUD: they are the gods on pedestals around the table.
  * SetModel refreshes every section in place; the composer keeps its text and focus across updates.
  */
 class FINALNIGHT_API SFNHudLayout : public SCompoundWidget
@@ -95,6 +118,13 @@ public:
 
 	void Construct(const FArguments& InArgs);
 	void SetModel(const FFNHudModel& InModel);
+	/** Time's live bill, updated every tick without rebuilding the sections. */
+	void SetTimeBill(const FText& Bill, bool bHolding) { Model.TimeBill = Bill; Model.bHoldingTime = bHolding; }
+	/** Unroll the WILL scroll and put the cursor in it (a click on the strip, or Enter). */
+	void FocusWill() { OpenWill(); }
+	bool IsWillOpen() const { return bWillOpen; }
+	/** Roll the WILL back up without sending (Esc while writing); the text stays. */
+	void RollUpWill();
 	const FFNHudModel& GetModel() const { return Model; }
 
 	/** A model filled with a believable mid-match state, for previews and screenshots. */
@@ -110,20 +140,25 @@ private:
 	FOnFNHudLobby OnLobby;
 	bool bTypingSignalled = false;
 
-	TSharedPtr<SBox> HeaderHolder, NewsHolder, SeatsHolder, YouHolder, PowersHolder;
-	FString SeatsSignature, PowersSignature;   // rebuild those sections only when their content changes
-	FString MakeSeatsSignature() const;
+	TSharedPtr<SBox> HeaderHolder, NewsHolder, YouHolder, PowersHolder;
+	FString YouSignature, PowersSignature;   // rebuild those sections only when their content changes
+	FString MakeYouSignature() const;
+	bool bNewsCollapsed = false;
+	bool bWillOpen = false;       // the WILL scroll: a slim rolled strip until clicked (or Enter), rolled up after SEND
+	TSharedPtr<FSlateBrush> AuraFrameBrush;
+	FLinearColor AuraFrameColor = FLinearColor::Transparent;
+	const FSlateBrush* AuraFrame();
+	TSharedRef<SWidget> MakeMine();
+	void OpenWill();
 	FString MakePowersSignature() const;
 	TArray<FFNHudPower> OrderedPowers() const;     // the server's powers in this machine's saved order
 	void ReorderPower(const FString& Dragged, const FString& Before);
 	TSharedPtr<SFNTextBox> Compose;
-	TArray<TSharedPtr<SFNPortraitCard>> Cards;
 
 	void RefreshSections();
 	TSharedRef<SWidget> MakeHeader();
 	TSharedRef<SWidget> MakeNews();
 	TSharedRef<SWidget> MakeYou();
-	TSharedRef<SWidget> MakeSeats();
 	TSharedRef<SWidget> MakePowers();
 	TSharedRef<SWidget> MakeComposePanel();
 	void HandleTextChanged(const FText& Text);

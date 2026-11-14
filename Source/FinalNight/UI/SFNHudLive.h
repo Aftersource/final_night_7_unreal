@@ -28,7 +28,7 @@ public:
 	virtual ~SFNHudLive() override;
 
 	/** Screenshots without joining a game: the sample table behind, then the lobby over the game and/or the "you fell" card. */
-	void DebugPreview(bool bLobby, bool bFell);
+	void DebugPreview(bool bLobby, bool bFell, bool bWill = false);
 
 private:
 	TWeakObjectPtr<UFNNetClient> Net;
@@ -79,6 +79,11 @@ private:
 	int32 WindowSeat = -1;
 	double DeadlineMs = 0.0;
 	FString ArmedPower;
+	TArray<FString> MinePortraitHash;   // media hash per Model.Mine entry
+	// Time's live bill while you hold slowed time (the Slowed phase event).
+	bool bSlowBill = false;
+	double SlowOpenedMs = 0.0, DebtBase = 0.0, DebtPerS = 0.0, DebtCap = 0.0;
+	int32 BoltPaid = 1;
 	TMap<FString, TStrongObjectPtr<UTexture2D>> Portraits;  // by media hash
 	TSet<FString> PortraitRequests;
 
@@ -108,5 +113,5 @@ namespace FN7HudMount
 	FINALNIGHT_API void Unmount();
 	FINALNIGHT_API bool IsMounted();
 	/** FN7.Hud ... lobby / fell: show those states on the mounted HUD for a screenshot. */
-	FINALNIGHT_API void Preview(bool bLobby, bool bFell);
+	FINALNIGHT_API void Preview(bool bLobby, bool bFell, bool bWill = false);
 }
