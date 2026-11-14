@@ -326,11 +326,11 @@ namespace FN7ClothGen
 		float Turb = 0.f, Amp = 1.f, F = 1.f / 160.f;
 		for (int32 o = 0; o < 6; ++o) { Turb += Amp * FMath::Abs(Noise(Fx * F + o * 31.7f, Fy * F - o * 17.3f)); Amp *= 0.5f; F *= 2.f; }
 		const float V = FMath::Abs(FMath::Sin((Fx * 0.6f + Fy) / 70.f + Turb * 6.f));      // 0 on a vein
-		const float Vein = FMath::Pow(FMath::Clamp(1.f - V, 0.f, 1.f), 18.f);              // thin bright veins
+		const float Vein = FMath::Pow(FMath::Clamp(1.f - V, 0.f, 1.f), 40.f);              // thin veins
 		const float Smoke = FMath::Pow(FMath::Clamp(1.f - V, 0.f, 1.f), 3.f) * 0.5f;        // smoky clouds around them
 		FLinearColor C = FLinearColor(0.012f, 0.011f, 0.016f);                            // deep black onyx
-		C += FLinearColor(0.06f, 0.06f, 0.07f) * Smoke;
-		C = FMath::Lerp(C, FLinearColor(0.62f, 0.55f, 0.42f), Vein * 0.85f);              // white-gold veins
+		C += FLinearColor(0.035f, 0.035f, 0.045f) * Smoke;
+		C = FMath::Lerp(C, FLinearColor(0.50f, 0.44f, 0.33f), Vein * 0.42f);              // faint white-gold veins
 		const float Speck = FMath::Frac(FMath::Sin(Fx * 12.9898f + Fy * 78.233f) * 43758.5453f);
 		if (Speck > 0.992f) C += FLinearColor(0.10f, 0.09f, 0.08f);                       // granite glints
 		// Polished sheen: a soft diagonal highlight.
