@@ -102,6 +102,8 @@ private:
 	void OnTyping();
 	void OnSend(const FString& Text);
 	void OnPower(const FString& Slug);
+	/** Arm a power ("slug" or "slug:tier", empty = none), telling FFNPowerDragDrop::OnMegaArmed when a mega comes or goes. */
+	void SetArmed(const FString& Key);
 	FText GetTimer() const;
 	EActiveTimerReturnType TickTimer(double InCurrentTime, float InDeltaTime);
 };
