@@ -39,17 +39,16 @@ namespace FNSeats
 		if (UMaterialInstanceDynamic* M = C ? Cast<UMaterialInstanceDynamic>(C->GetMaterial(0)) : nullptr) M->SetVectorParameterValue(TEXT("Color"), Col);
 	}
 }
-using namespace FNSeats;
 
 void AFNStudio::BuildSeats()
 {
 	auto Quiet = [](UStaticMeshComponent* C) { C->SetCollisionEnabled(ECollisionEnabled::NoCollision); return C; };
 	auto Keep = [this](auto* C) { SeatParts.Add(C); return C; };
-	SeatSlots.SetNum(NumSeats);
-	for (int32 k = 0; k < NumSeats; ++k)
+	SeatSlots.SetNum(FNSeats::NumSeats);
+	for (int32 k = 0; k < FNSeats::NumSeats; ++k)
 	{
 		FSeatSlot& S = SeatSlots[k];
-		const float A = SlotAngle(k);
+		const float A = FNSeats::SlotAngle(k);
 		const FString P = FString::Printf(TEXT("Seat%d"), k);
 		auto N = [&P](const TCHAR* What) { return FName(*(P + What)); };
 		// clicking the minifig or the silhouette picks that demigod (AFNStudio::ClickDemigod, id "SeatN")
@@ -60,29 +59,29 @@ void AFNStudio::BuildSeats()
 			S.Body = Keep(NewObject<USceneComponent>(this, N(TEXT("Body"))));
 			S.Body->SetupAttachment(RootComponent);
 			S.Body->SetMobility(EComponentMobility::Movable);
-			S.Body->SetRelativeLocation(Dir(A) * BodyR);
+			S.Body->SetRelativeLocation(FNSeats::Dir(A) * FNSeats::BodyR);
 			S.Body->SetRelativeRotation(FRotator(0.f, A + 180.f, 0.f));   // local +X looks at the table
 			S.Body->RegisterComponent();
-			Keep(Clickable(Shape(Cyl, N(TEXT("Torso")), FVector(0, 0, 128), FVector(0.55f, 0.36f, 0.95f), Shadow, S.Body)));
-			Keep(Quiet(Box(N(TEXT("Shoulders")), FVector::ZeroVector, FVector(36, 64, 16), Shadow)));
+			Keep(Clickable(Shape(FNSeats::Cyl, N(TEXT("Torso")), FVector(0, 0, 128), FVector(0.55f, 0.36f, 0.95f), FNSeats::Shadow, S.Body)));
+			Keep(Quiet(Box(N(TEXT("Shoulders")), FVector::ZeroVector, FVector(36, 64, 16), FNSeats::Shadow)));
 			SeatParts.Last()->AttachToComponent(S.Body, FAttachmentTransformRules::KeepRelativeTransform);
 			SeatParts.Last()->SetRelativeLocation(FVector(0, 0, 170));
-			Keep(Clickable(Shape(Sph, N(TEXT("Head")), FVector(0, 0, 196), FVector(0.34f), Shadow, S.Body)));
-			S.Face = Clickable(Shape(Pln, N(TEXT("Face")), FVector(20, 0, 196), FVector(0.36f), FLinearColor::White, S.Body));
+			Keep(Clickable(Shape(FNSeats::Sph, N(TEXT("Head")), FVector(0, 0, 196), FVector(0.34f), FNSeats::Shadow, S.Body)));
+			S.Face = Clickable(Shape(FNSeats::Pln, N(TEXT("Face")), FVector(20, 0, 196), FVector(0.36f), FLinearColor::White, S.Body));
 			S.Face->SetVisibility(false);
 			Keep(S.Face);
-			for (int32 i = 0; i < HaloBeads + AiCubes; ++i)
+			for (int32 i = 0; i < FNSeats::HaloBeads + FNSeats::AiCubes; ++i)
 			{
-				const bool bCube = i >= HaloBeads;
-				UStaticMeshComponent* B = Quiet(Shape(bCube ? Cub : Sph, FName(*FString::Printf(TEXT("%sAura%d"), *P, i)), FVector(0, 0, 230), FVector(bCube ? 0.07f : 0.05f), bCube ? AiAura : HumanAura, S.Body));
+				const bool bCube = i >= FNSeats::HaloBeads;
+				UStaticMeshComponent* B = Quiet(Shape(bCube ? FNSeats::Cub : FNSeats::Sph, FName(*FString::Printf(TEXT("%sAura%d"), *P, i)), FVector(0, 0, 230), FVector(bCube ? 0.07f : 0.05f), bCube ? FNSeats::AiAura : FNSeats::HumanAura, S.Body));
 				B->SetCastShadow(false);
 				B->SetVisibility(false);
 				S.Aura.Add(B);
 				Keep(B);
 			}
-			S.Glow = Light(N(TEXT("Glow")), Dir(A) * (BodyR + 40.f) + FVector(0, 0, 150), 0.f, HumanAura, 230.f);
+			S.Glow = Light(N(TEXT("Glow")), FNSeats::Dir(A) * (FNSeats::BodyR + 40.f) + FVector(0, 0, 150), 0.f, FNSeats::HumanAura, 230.f);
 			Keep(S.Glow);
-			S.Label = Text(N(TEXT("Label")), Dir(A) * BodyR + FVector(0, 0, 250), FRotator::ZeroRotator, 9.f, FColor(225, 218, 205), FString());
+			S.Label = Text(N(TEXT("Label")), FNSeats::Dir(A) * FNSeats::BodyR + FVector(0, 0, 250), FRotator::ZeroRotator, 9.f, FColor(225, 218, 205), FString());
 			Keep(S.Label);
 			S.Body->SetVisibility(false, true);
 			S.Label->SetVisibility(false);
@@ -91,12 +90,12 @@ void AFNStudio::BuildSeats()
 		S.Fig = Keep(NewObject<USceneComponent>(this, N(TEXT("Fig"))));
 		S.Fig->SetupAttachment(RootComponent);
 		S.Fig->SetMobility(EComponentMobility::Movable);
-		S.Fig->SetRelativeLocation(Dir(FigAngle(k)) * FigR + FVector(0, 0, 80));   // table top is at 80 cm
+		S.Fig->SetRelativeLocation(FNSeats::Dir(FNSeats::FigAngle(k)) * FNSeats::FigR + FVector(0, 0, 80));   // table top is at 80 cm
 		S.Fig->RegisterComponent();
-		S.FigBase = Keep(Quiet(Shape(Cyl, N(TEXT("FigBase")), FVector(0, 0, 1.25f), FVector(0.13f, 0.13f, 0.025f), SeatBrass, S.Fig)));
-		S.FigBody = Keep(Clickable(Shape(Cyl, N(TEXT("FigBody")), FVector(0, 0, 10.5f), FVector(0.07f, 0.07f, 0.16f), FLinearColor::White, S.Fig)));
-		S.FigHead = Keep(Clickable(Shape(Sph, N(TEXT("FigHead")), FVector(0, 0, 22.5f), FVector(0.08f), FLinearColor::White, S.Fig)));
-		S.Standee = Keep(Clickable(Shape(Pln, N(TEXT("Standee")), FVector(0, 0, 15.5f), FVector(0.2f, 0.26f, 1.f), FLinearColor::White, S.Fig)));
+		S.FigBase = Keep(Quiet(Shape(FNSeats::Cyl, N(TEXT("FigBase")), FVector(0, 0, 1.25f), FVector(0.13f, 0.13f, 0.025f), FNSeats::SeatBrass, S.Fig)));
+		S.FigBody = Keep(Clickable(Shape(FNSeats::Cyl, N(TEXT("FigBody")), FVector(0, 0, 10.5f), FVector(0.07f, 0.07f, 0.16f), FLinearColor::White, S.Fig)));
+		S.FigHead = Keep(Clickable(Shape(FNSeats::Sph, N(TEXT("FigHead")), FVector(0, 0, 22.5f), FVector(0.08f), FLinearColor::White, S.Fig)));
+		S.Standee = Keep(Clickable(Shape(FNSeats::Pln, N(TEXT("Standee")), FVector(0, 0, 15.5f), FVector(0.2f, 0.26f, 1.f), FLinearColor::White, S.Fig)));
 		S.FigLabel = Keep(Text(N(TEXT("FigLabel")), FVector(0, 0, 33.f), FRotator::ZeroRotator, 3.5f, FColor(225, 218, 205), FString(), S.Fig));
 		S.Fig->SetVisibility(false, true);
 	}
@@ -108,19 +107,19 @@ void AFNStudio::ShowSeats(const TArray<FFNSeatInfo>& Seats)
 	int32 MySeat = -1;
 	for (const FFNSeatInfo& I : Seats) if (I.bMine) { MySeat = I.Seat; break; }
 
-	TArray<bool> Taken; Taken.Init(false, NumSeats);
+	TArray<bool> Taken; Taken.Init(false, FNSeats::NumSeats);
 	TArray<int32> SlotOf; SlotOf.Init(-1, Seats.Num());
 	for (int32 i = 0; i < Seats.Num(); ++i)   // seat numbers decide the slot when we know them
 	{
 		const FFNSeatInfo& I = Seats[i];
-		int32 Slot = I.bMine ? 0 : (I.Seat >= 0 && MySeat >= 0 ? ((I.Seat - MySeat) % NumSeats + NumSeats) % NumSeats : -1);
+		int32 Slot = I.bMine ? 0 : (I.Seat >= 0 && MySeat >= 0 ? ((I.Seat - MySeat) % FNSeats::NumSeats + FNSeats::NumSeats) % FNSeats::NumSeats : -1);
 		if (Slot >= 0 && !Taken[Slot]) { Taken[Slot] = true; SlotOf[i] = Slot; }
 	}
 	for (int32 i = 0; i < Seats.Num(); ++i)   // the rest take the next free chair, clockwise
 	{
 		if (SlotOf[i] >= 0) continue;
-		for (int32 k = 1; k < NumSeats; ++k) if (!Taken[k]) { Taken[k] = true; SlotOf[i] = k; break; }
-		if (SlotOf[i] < 0) UE_LOG(LogTemp, Warning, TEXT("FNSeats: more than %d seats, %s has no chair"), NumSeats, *Seats[i].Name);
+		for (int32 k = 1; k < FNSeats::NumSeats; ++k) if (!Taken[k]) { Taken[k] = true; SlotOf[i] = k; break; }
+		if (SlotOf[i] < 0) UE_LOG(LogTemp, Warning, TEXT("FNSeats: more than %d seats, %s has no chair"), FNSeats::NumSeats, *Seats[i].Name);
 	}
 
 	FString Summary;
@@ -135,7 +134,7 @@ void AFNStudio::ShowSeats(const TArray<FFNSeatInfo>& Seats)
 		Summary += FString::Printf(TEXT(" [%d seat%d %s %s%s%s%s]"), SlotOf[i], I.Seat, *I.Name, I.bHuman ? TEXT("human") : TEXT("AI"),
 			I.bMine ? TEXT(" mine") : TEXT(""), I.bConnected ? TEXT("") : TEXT(" away"), I.bAlive ? TEXT("") : TEXT(" fallen"));
 
-		const FLinearColor Col = I.bAlive ? I.Color : Fallen;
+		const FLinearColor Col = I.bAlive ? I.Color : FNSeats::Fallen;
 		const FString Tag = !I.bAlive ? TEXT("fallen") : !I.bConnected ? TEXT("away") : I.bHuman ? TEXT("HUMAN") : TEXT("AI");
 		// the minifig, or the diorama image on its standee
 		UTexture2D* Img = ImageMat ? I.Diorama : nullptr;
@@ -149,9 +148,9 @@ void AFNStudio::ShowSeats(const TArray<FFNSeatInfo>& Seats)
 			if (!M || M->Parent != ImageMat) { M = UMaterialInstanceDynamic::Create(ImageMat, S.Standee); S.Standee->SetMaterial(0, M); }
 			M->SetTextureParameterValue(TEXT("SlateUI"), Img);
 		}
-		SetCol(S.FigBody, Col);
-		SetCol(S.FigHead, Col * 1.15f);
-		SetCol(S.FigBase, I.bMine ? FLinearColor(0.9f, 0.9f, 0.85f) : SeatBrass);   // mine stands on a white base
+		FNSeats::SetCol(S.FigBody, Col);
+		FNSeats::SetCol(S.FigHead, Col * 1.15f);
+		FNSeats::SetCol(S.FigBase, I.bMine ? FLinearColor(0.9f, 0.9f, 0.85f) : FNSeats::SeatBrass);   // mine stands on a white base
 		S.Fig->SetRelativeRotation(FRotator(0.f, 0.f, I.bAlive ? 0.f : 80.f));    // the fallen lie on the table
 		S.FigLabel->SetText(FText::FromString(I.bMine ? I.Name + TEXT(" (you)") : I.Name));
 		S.FigLabel->SetTextRenderColor(Col.ToFColor(true));
@@ -168,8 +167,8 @@ void AFNStudio::ShowSeats(const TArray<FFNSeatInfo>& Seats)
 		}
 		S.Label->SetVisibility(true);
 		S.Label->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *I.Name, *Tag)));
-		S.Label->SetTextRenderColor((I.bAlive ? (I.bHuman ? HumanAura : AiAura) : Fallen * 4.f).ToFColor(true));
-		S.Glow->SetLightColor(I.bHuman ? HumanAura : AiAura);
+		S.Label->SetTextRenderColor((I.bAlive ? (I.bHuman ? FNSeats::HumanAura : FNSeats::AiAura) : FNSeats::Fallen * 4.f).ToFColor(true));
+		S.Glow->SetLightColor(I.bHuman ? FNSeats::HumanAura : FNSeats::AiAura);
 	}
 	for (FSeatSlot& S : SeatSlots)   // empty chairs: nothing there
 	{
@@ -193,7 +192,7 @@ void AFNStudio::UpdateSeats(float Dt)
 		FVector To = Cam - C->GetComponentLocation(); To.Z = 0.f;
 		if (!To.Normalize()) return;
 		// text faces its +X; a plane faces its +Z. The image's up runs along the plane's Y (with X up, every picture lay on its side)
-		C->SetWorldRotation(bPlane ? FRotationMatrix::MakeFromZY(To, ImageUp).Rotator() : To.Rotation());
+		C->SetWorldRotation(bPlane ? FRotationMatrix::MakeFromZY(To, FNSeats::ImageUp).Rotator() : To.Rotation());
 	};
 
 	for (int32 k = 0; k < SeatSlots.Num(); ++k)
@@ -215,18 +214,18 @@ void AFNStudio::UpdateSeats(float Dt)
 		for (int32 i = 0; i < S.Aura.Num(); ++i)
 		{
 			UStaticMeshComponent* B = S.Aura[i];
-			const bool bCube = i >= HaloBeads;
+			const bool bCube = i >= FNSeats::HaloBeads;
 			const bool bOn = bShow && bCube != I.bHuman;
 			B->SetVisibility(bOn);
 			if (!bOn) continue;
 			if (!bCube)   // a level ring above the head
 			{
-				const float A = 2.f * PI * i / HaloBeads + T * 0.4f;
+				const float A = 2.f * PI * i / FNSeats::HaloBeads + T * 0.4f;
 				B->SetRelativeLocation(FVector(FMath::Cos(A) * 22.f, FMath::Sin(A) * 22.f, 226.f + 1.5f * FMath::Sin(T * 1.6f)));
 			}
 			else          // cubes orbiting the head on a tilted path
 			{
-				const float A = 2.f * PI * (i - HaloBeads) / AiCubes + T * 2.2f;
+				const float A = 2.f * PI * (i - FNSeats::HaloBeads) / FNSeats::AiCubes + T * 2.2f;
 				B->SetRelativeLocation(FVector(FMath::Cos(A) * 30.f, FMath::Sin(A) * 30.f, 196.f + FMath::Sin(A * 2.f) * 12.f));
 				B->SetRelativeRotation(FRotator(T * 90.f, T * 120.f, 0.f));
 			}

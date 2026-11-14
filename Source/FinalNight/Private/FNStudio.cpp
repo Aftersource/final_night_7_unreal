@@ -48,7 +48,6 @@ namespace FNTable
 	static constexpr float GlobeScale = 1.3f;
 	static const FLinearColor ArenaRed(1.f, 0.06f, 0.03f);
 }
-using namespace FNTable;
 
 FLinearColor AFNStudio::PlayerColor(int32 Index)
 {
@@ -156,33 +155,33 @@ void AFNStudio::BeginPlay()
 	const FRotator FaceSeat(0.f, 90.f, 0.f); // text faces +Y, toward the seat
 
 	// A dark stone chamber
-	Box(TEXT("Floor"), FVector(0, 0, -10), FVector(1800, 1800, 20), DarkStone);
-	Box(TEXT("WallN"), FVector(0, -900, 400), FVector(1800, 40, 800), Stone);
-	Box(TEXT("WallS"), FVector(0, 900, 400), FVector(1800, 40, 800), Stone);
-	Box(TEXT("WallE"), FVector(900, 0, 400), FVector(40, 1800, 800), Stone);
-	Box(TEXT("WallW"), FVector(-900, 0, 400), FVector(40, 1800, 800), Stone);
+	Box(TEXT("Floor"), FVector(0, 0, -10), FVector(1800, 1800, 20), FNTable::DarkStone);
+	Box(TEXT("WallN"), FVector(0, -900, 400), FVector(1800, 40, 800), FNTable::Stone);
+	Box(TEXT("WallS"), FVector(0, 900, 400), FVector(1800, 40, 800), FNTable::Stone);
+	Box(TEXT("WallE"), FVector(900, 0, 400), FVector(40, 1800, 800), FNTable::Stone);
+	Box(TEXT("WallW"), FVector(-900, 0, 400), FVector(40, 1800, 800), FNTable::Stone);
 	for (int32 i = 0; i < 4; ++i)
 	{
 		const FVector P((i % 2 ? 1 : -1) * 600.f, (i < 2 ? -1 : 1) * 600.f, 400.f);
-		Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Pillar%d"), i)), P, FVector(1.2f, 1.2f, 8.f), Stone);
+		Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Pillar%d"), i)), P, FVector(1.2f, 1.2f, 8.f), FNTable::Stone);
 	}
 
 	// The table
-	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("TableTop"), FVector(0, 0, 76), FVector(4.8f, 4.8f, 0.08f), Wood);
-	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("TableRim"), FVector(0, 0, 72), FVector(4.95f, 4.95f, 0.06f), Brass);
-	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("TableLeg"), FVector(0, 0, 36), FVector(1.0f, 1.0f, 0.75f), Wood);
+	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("TableTop"), FVector(0, 0, 76), FVector(4.8f, 4.8f, 0.08f), FNTable::Wood);
+	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("TableRim"), FVector(0, 0, 72), FVector(4.95f, 4.95f, 0.06f), FNTable::Brass);
+	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("TableLeg"), FVector(0, 0, 36), FVector(1.0f, 1.0f, 0.75f), FNTable::Wood);
 
 	// Centrex: the Globe of Destiny, a little tile world (think Polytopia, on a globe) on a brass stand
 	// a low brass plinth and a thin shaft of light holding the Globe up in the air
-	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("CentrexStand"), FVector(0, -10, 82), FVector(0.6f, 0.6f, 0.04f), Brass);
-	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("GlobeShaft"), FVector(0, -10, 92), FVector(0.03f, 0.03f, 0.2f), Opal)->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("CentrexStand"), FVector(0, -10, 82), FVector(0.6f, 0.6f, 0.04f), FNTable::Brass);
+	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("GlobeShaft"), FVector(0, -10, 92), FVector(0.03f, 0.03f, 0.2f), FNTable::Opal)->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Light(TEXT("ShaftGlow"), FVector(0, -10, 95), 6.f, FLinearColor(0.4f, 0.9f, 1.f), 160.f);
 	GlobePivot = NewObject<USceneComponent>(this, TEXT("GlobePivot"));
 	GlobePivot->SetupAttachment(RootComponent);
-	GlobePivot->SetRelativeLocation(GlobeC);
-	GlobePivot->SetRelativeScale3D(FVector(GlobeScale));
+	GlobePivot->SetRelativeLocation(FNTable::GlobeC);
+	GlobePivot->SetRelativeScale3D(FVector(FNTable::GlobeScale));
 	GlobePivot->RegisterComponent();
-	FxCenter = GlobeC;
+	FxCenter = FNTable::GlobeC;
 	BoardRoot = NewObject<USceneComponent>(this, TEXT("BoardRoot"));
 	BoardRoot->SetupAttachment(GlobePivot);
 	BoardRoot->SetMobility(EComponentMobility::Movable);
@@ -196,15 +195,15 @@ void AFNStudio::BeginPlay()
 	// Globe guard: a shell of opal shards that blitzes until you join, and seals when your WILL is locked
 	GuardPivot = NewObject<USceneComponent>(this, TEXT("GuardPivot"));
 	GuardPivot->SetupAttachment(RootComponent);
-	GuardPivot->SetRelativeLocation(GlobeC);
-	GuardPivot->SetRelativeScale3D(FVector(GlobeScale));
+	GuardPivot->SetRelativeLocation(FNTable::GlobeC);
+	GuardPivot->SetRelativeScale3D(FVector(FNTable::GlobeScale));
 	GuardPivot->RegisterComponent();
 	for (int32 i = 0; i < 24; ++i)
 	{
 		const float Lat = FMath::DegreesToRadians(-60.f + 120.f * ((i / 8) / 2.f));
 		const float Lon = FMath::DegreesToRadians(45.f * (i % 8) + 22.5f * (i / 8));
 		const FVector D(FMath::Cos(Lat) * FMath::Cos(Lon), FMath::Cos(Lat) * FMath::Sin(Lon), FMath::Sin(Lat));
-		UStaticMeshComponent* S = Shape(TEXT("/Engine/BasicShapes/Cube.Cube"), FName(*FString::Printf(TEXT("Guard%d"), i)), D * (BoardR + 16.f), FVector(0.14f, 0.14f, 0.02f), Opal, GuardPivot);
+		UStaticMeshComponent* S = Shape(TEXT("/Engine/BasicShapes/Cube.Cube"), FName(*FString::Printf(TEXT("Guard%d"), i)), D * (BoardR + 16.f), FVector(0.14f, 0.14f, 0.02f), FNTable::Opal, GuardPivot);
 		S->SetRelativeRotation(D.ToOrientationRotator() + FRotator(90.f, 0.f, 0.f));
 		S->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		S->SetVisibility(false);
@@ -213,14 +212,14 @@ void AFNStudio::BeginPlay()
 
 	// Table easel (the tablet): welcome message and round primers
 	// raised 60 cm so the floating Globe doesn't hide the writing
-	Box(TEXT("TabletFrame"), FVector(0, -250, 310), FVector(316, 8, 186), Brass);
-	Box(TEXT("Tablet"), FVector(0, -246, 310), FVector(302, 4, 172), Tablet);
-	Box(TEXT("TabletLegL"), FVector(-130, -255, 110), FVector(8, 8, 220), Brass);
-	Box(TEXT("TabletLegR"), FVector(130, -255, 110), FVector(8, 8, 220), Brass);
-	EaselHeader = Text(TEXT("EaselHeader"), FVector(0, -243, 382), FaceSeat, 12.f, Gold, FString());
-	EaselBody = Text(TEXT("EaselBody"), FVector(0, -243, 330), FaceSeat, 7.5f, Pale, FString());
+	Box(TEXT("TabletFrame"), FVector(0, -250, 310), FVector(316, 8, 186), FNTable::Brass);
+	Box(TEXT("Tablet"), FVector(0, -246, 310), FVector(302, 4, 172), FNTable::Tablet);
+	Box(TEXT("TabletLegL"), FVector(-130, -255, 110), FVector(8, 8, 220), FNTable::Brass);
+	Box(TEXT("TabletLegR"), FVector(130, -255, 110), FVector(8, 8, 220), FNTable::Brass);
+	EaselHeader = Text(TEXT("EaselHeader"), FVector(0, -243, 382), FaceSeat, 12.f, FNTable::Gold, FString());
+	EaselBody = Text(TEXT("EaselBody"), FVector(0, -243, 330), FaceSeat, 7.5f, FNTable::Pale, FString());
 	ShowEaselText(FString(), TEXT("Connect to Network and click the Globe to Begin"));
-	EaselBody->SetTextRenderColor(Cyan);
+	EaselBody->SetTextRenderColor(FNTable::Cyan);
 
 	// The player easel: click it to begin
 	PlayerEaselPivot = NewObject<USceneComponent>(this, TEXT("PlayerEaselPivot"));
@@ -228,17 +227,17 @@ void AFNStudio::BeginPlay()
 	PlayerEaselPivot->SetRelativeLocation(FVector(-118, 160, 70));
 	PlayerEaselPivot->SetRelativeRotation(FRotator(0, 25, 0));
 	PlayerEaselPivot->RegisterComponent();
-	UStaticMeshComponent* PE = Shape(TEXT("/Engine/BasicShapes/Cube.Cube"), TEXT("PlayerEasel"), FVector(0, 0, 55), FVector(0.9f, 0.05f, 0.75f), Parch, PlayerEaselPivot);
+	UStaticMeshComponent* PE = Shape(TEXT("/Engine/BasicShapes/Cube.Cube"), TEXT("PlayerEasel"), FVector(0, 0, 55), FVector(0.9f, 0.05f, 0.75f), FNTable::Parch, PlayerEaselPivot);
 	PE->SetRelativeRotation(FRotator(0, 0, -12));
 	Tag(PE, PlayerEasel);
-	Text(TEXT("PlayerEaselText"), FVector(0, 4, 58), FRotator(0, 90, -12), 5.5f, Ink, TEXT("FINAL NIGHT\n\nclick to begin"), PlayerEaselPivot);
+	Text(TEXT("PlayerEaselText"), FVector(0, 4, 58), FRotator(0, 90, -12), 5.5f, FNTable::Ink, TEXT("FINAL NIGHT\n\nclick to begin"), PlayerEaselPivot);
 	PlayerEaselPivot->SetVisibility(false, true);   // it read as a black slab; a click anywhere on the table starts the game
 
 	// WILL panel: a brass plaque on the table in front of you
 	// front-right of the table, inside your view (it used to sit just below the bottom of the screen)
-	UStaticMeshComponent* WP = Box(TEXT("WillPanel"), FVector(100, 150, 90), FVector(64, 32, 8), Brass, FRotator(0, 30, -14));
+	UStaticMeshComponent* WP = Box(TEXT("WillPanel"), FVector(100, 150, 90), FVector(64, 32, 8), FNTable::Brass, FRotator(0, 30, -14));
 	Tag(WP, WillPanel);
-	WillLabel = Text(TEXT("WillLabel"), FVector(98, 153, 102), FRotator(25, 120, 0), 7.f, Gold, TEXT("WILL"));
+	WillLabel = Text(TEXT("WillLabel"), FVector(98, 153, 102), FRotator(25, 120, 0), 7.f, FNTable::Gold, TEXT("WILL"));
 
 	// Episode ribbons circle the globe when the round's outcomes arrive
 	RibbonPivot = NewObject<USceneComponent>(this, TEXT("RibbonPivot"));
@@ -257,7 +256,7 @@ void AFNStudio::BeginPlay()
 		R->SetVisibility(false);
 		R->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Ribbons.Add(R);
-		UTextRenderComponent* T = Text(FName(*FString::Printf(TEXT("RibbonText%d"), i)), CardPos[i] + ToSeat * 2.5f, FRotator(0, YawToSeat, 0), 4.2f, Pale, FString(), RibbonPivot);
+		UTextRenderComponent* T = Text(FName(*FString::Printf(TEXT("RibbonText%d"), i)), CardPos[i] + ToSeat * 2.5f, FRotator(0, YawToSeat, 0), 4.2f, FNTable::Pale, FString(), RibbonPivot);
 		T->SetVisibility(false);
 		RibbonTexts.Add(T);
 	}
@@ -267,7 +266,7 @@ void AFNStudio::BeginPlay()
 	{
 		const float A = FMath::DegreesToRadians(200.f + 35.f * i);
 		const FVector P(215.f * FMath::Cos(A), 215.f * FMath::Sin(A) - 10.f, 0.f);
-		Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Candle%d"), i)), P + FVector(0, 0, 92), FVector(0.06f, 0.06f, 0.3f), Wax);
+		Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Candle%d"), i)), P + FVector(0, 0, 92), FVector(0.06f, 0.06f, 0.3f), FNTable::Wax);
 		Shape(TEXT("/Engine/BasicShapes/Sphere.Sphere"), FName(*FString::Printf(TEXT("Flame%d"), i)), P + FVector(0, 0, 110), FVector(0.03f, 0.03f, 0.05f), FLinearColor(1.f, 0.6f, 0.15f))->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Candles.Add(Light(FName(*FString::Printf(TEXT("CandleLight%d"), i)), P + FVector(0, 0, 118), 3.f, FLinearColor(1.f, 0.62f, 0.3f), 420.f));
 	}
@@ -301,8 +300,8 @@ void AFNStudio::BeginPlay()
 		for (UStaticMeshComponent* Pc : { Top, Bot }) Pc->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 	DicePivot->SetVisibility(false, true);
-	DiceNumber = Text(TEXT("DiceNumber"), FVector(78.f, 118.f, 128.f), FRotator::ZeroRotator, 22.f, Gold, FString());
-	DiceLine = Text(TEXT("DiceLine"), FVector(78.f, 118.f, 110.f), FRotator::ZeroRotator, 5.f, Pale, FString());
+	DiceNumber = Text(TEXT("DiceNumber"), FVector(78.f, 118.f, 128.f), FRotator::ZeroRotator, 22.f, FNTable::Gold, FString());
+	DiceLine = Text(TEXT("DiceLine"), FVector(78.f, 118.f, 110.f), FRotator::ZeroRotator, 5.f, FNTable::Pale, FString());
 
 	// Sound: one procedural voice that we keep fed from Tick
 	Rng.Initialize(0xF17A1);
@@ -416,8 +415,8 @@ void AFNStudio::Tick(float DeltaSeconds)
 	if (GlobePivot && FxKind != 3)
 	{
 		// a slow bob so it reads as floating
-		GlobePivot->SetRelativeLocation(GlobeC + FVector(0.f, 0.f, 6.f * CutZoom + 1.5f * FMath::Sin(Time * 1.1f)));
-		GlobePivot->SetRelativeScale3D(FVector(GlobeScale * (1.f + 0.06f * CutZoom)));
+		GlobePivot->SetRelativeLocation(FNTable::GlobeC + FVector(0.f, 0.f, 6.f * CutZoom + 1.5f * FMath::Sin(Time * 1.1f)));
+		GlobePivot->SetRelativeScale3D(FVector(FNTable::GlobeScale * (1.f + 0.06f * CutZoom)));
 		if (GlobeLight && CutZoom > 0.01f) GlobeLight->SetIntensity(GlobeLight->Intensity + 6.f * CutZoom);
 	}
 	PumpAudio();
@@ -470,7 +469,7 @@ void AFNStudio::SetWillPanelState(const FString& Label, bool bActive)
 	if (WillLabel)
 	{
 		WillLabel->SetText(FText::FromString(Label));
-		WillLabel->SetTextRenderColor(bActive ? Gold : FColor(110, 90, 50));
+		WillLabel->SetTextRenderColor(bActive ? FNTable::Gold : FColor(110, 90, 50));
 	}
 }
 
@@ -502,7 +501,7 @@ void AFNStudio::ShowEaselText(const FString& Header, const FString& Body)
 	if (EaselHeader) EaselHeader->SetText(FText::FromString(Header));
 	if (EaselBody)
 	{
-		EaselBody->SetTextRenderColor(Pale);
+		EaselBody->SetTextRenderColor(FNTable::Pale);
 		TypeFull = Wrap(Body, 92, 20);
 		TypeShown = 0.f;
 		TypeLastQuill = 0;
@@ -519,7 +518,7 @@ FVector AFNStudio::LonLatToGlobe(double Lon, double Lat, float R)
 
 FVector AFNStudio::BoardToActor(const FVector& LocalDir, float Radius) const
 {
-	if (!BoardRoot) return GlobeC;
+	if (!BoardRoot) return FNTable::GlobeC;
 	return GetActorTransform().InverseTransformPosition(BoardRoot->GetComponentTransform().TransformPosition(LocalDir * Radius));
 }
 
@@ -643,7 +642,7 @@ void AFNStudio::ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm)
 	{
 		for (int32 i = 0; i < 64; ++i)
 		{
-			UStaticMeshComponent* M = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Zone%d"), i)), FVector::ZeroVector, FVector(0.014f, 0.014f, 0.08f), ArenaRed, BoardRoot);
+			UStaticMeshComponent* M = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Zone%d"), i)), FVector::ZeroVector, FVector(0.014f, 0.014f, 0.08f), FNTable::ArenaRed, BoardRoot);
 			M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			M->SetCastShadow(false);
 			ZoneMarkers.Add(M);
@@ -708,16 +707,16 @@ void AFNStudio::ShowWorld(const TArray<FFNPiece>& Pieces)
 		R->SetMobility(EComponentMobility::Movable);
 		R->RegisterComponent();
 		PieceRoots.Add(R);
-		UStaticMeshComponent* P0 = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("PieceBase%d"), i)), FVector(0, 0, 0.4f), FVector(0.03f, 0.03f, 0.008f), Brass, R);
-		UStaticMeshComponent* P1 = Shape(TEXT("/Engine/BasicShapes/Cone.Cone"), FName(*FString::Printf(TEXT("PieceBody%d"), i)), FVector(0, 0, 3.0f), FVector(0.022f, 0.022f, 0.045f), Brass, R);
-		UStaticMeshComponent* P2 = Shape(TEXT("/Engine/BasicShapes/Sphere.Sphere"), FName(*FString::Printf(TEXT("PieceHead%d"), i)), FVector(0, 0, 5.6f), FVector(0.02f), Brass, R);
+		UStaticMeshComponent* P0 = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("PieceBase%d"), i)), FVector(0, 0, 0.4f), FVector(0.03f, 0.03f, 0.008f), FNTable::Brass, R);
+		UStaticMeshComponent* P1 = Shape(TEXT("/Engine/BasicShapes/Cone.Cone"), FName(*FString::Printf(TEXT("PieceBody%d"), i)), FVector(0, 0, 3.0f), FVector(0.022f, 0.022f, 0.045f), FNTable::Brass, R);
+		UStaticMeshComponent* P2 = Shape(TEXT("/Engine/BasicShapes/Sphere.Sphere"), FName(*FString::Printf(TEXT("PieceHead%d"), i)), FVector(0, 0, 5.6f), FVector(0.02f), FNTable::Brass, R);
 		for (UStaticMeshComponent* P : { P0, P1, P2 }) { P->SetCollisionEnabled(ECollisionEnabled::NoCollision); PieceParts.Add(P); }
 		// white halo disc under the piece: only shown for your own demigod
 		UStaticMeshComponent* H = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("PieceHalo%d"), i)), FVector(0, 0, 0.1f), FVector(0.075f, 0.075f, 0.004f), FLinearColor(1.f, 1.f, 1.f), R);
 		H->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		H->SetCastShadow(false);
 		Halos.Add(H);
-		PieceLabels.Add(Text(FName(*FString::Printf(TEXT("PieceLabel%d"), i)), FVector::ZeroVector, FRotator::ZeroRotator, 3.f, Pale, FString()));
+		PieceLabels.Add(Text(FName(*FString::Printf(TEXT("PieceLabel%d"), i)), FVector::ZeroVector, FRotator::ZeroRotator, 3.f, FNTable::Pale, FString()));
 	}
 	PieceDirs.SetNum(PieceRoots.Num());
 	PieceKinds.SetNum(PieceRoots.Num());
@@ -746,8 +745,8 @@ void AFNStudio::PlacePiece(int32 i, const FFNPiece& P)
 	FString Label = P.Name; float LabelSize = 4.f;
 	switch (P.Kind)
 	{
-	case 0: Scale = 3.0f; Col = FLinearColor(1.f, 0.72f, 0.12f); LabelCol = Gold; Label = P.Name.IsEmpty() ? FString(TEXT("YOU")) : P.Name; LabelSize = 6.f; break;
-	case 2: Scale = 1.6f; Col = FLinearColor(0.50f, 0.47f, 0.42f); LabelCol = Pale; LabelSize = 3.f; break;   // AI demigod: named, smaller
+	case 0: Scale = 3.0f; Col = FLinearColor(1.f, 0.72f, 0.12f); LabelCol = FNTable::Gold; Label = P.Name.IsEmpty() ? FString(TEXT("YOU")) : P.Name; LabelSize = 6.f; break;
+	case 2: Scale = 1.6f; Col = FLinearColor(0.50f, 0.47f, 0.42f); LabelCol = FNTable::Pale; LabelSize = 3.f; break;   // AI demigod: named, smaller
 	case 3: Scale = 1.8f; Col = FLinearColor(0.10f, 0.08f, 0.08f); LabelCol = FColor(150, 40, 30); Label = TEXT("fallen: ") + P.Name;
 		Rot = (FRotationMatrix::MakeFromZX(D, East).ToQuat() * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(80.f))).Rotator(); break;
 	case 4: Scale = 1.8f; Col = FLinearColor(0.9f, 0.75f, 0.25f); LabelCol = FColor(255, 221, 54); LabelSize = 2.4f; break;
@@ -784,7 +783,7 @@ void AFNStudio::ShowBuilt(const TArray<FString>& Things)
 		R->SetMobility(EComponentMobility::Movable);
 		R->RegisterComponent();
 		const bool bTower = i % 3 == 1;
-		Shape(TEXT("/Engine/BasicShapes/Cube.Cube"), FName(*FString::Printf(TEXT("HutWall%d"), i)), FVector(0, 0, bTower ? 2.2f : 1.1f), bTower ? FVector(0.016f, 0.016f, 0.044f) : FVector(0.026f, 0.022f, 0.022f), Wood, R)->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Shape(TEXT("/Engine/BasicShapes/Cube.Cube"), FName(*FString::Printf(TEXT("HutWall%d"), i)), FVector(0, 0, bTower ? 2.2f : 1.1f), bTower ? FVector(0.016f, 0.016f, 0.044f) : FVector(0.026f, 0.022f, 0.022f), FNTable::Wood, R)->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Shape(TEXT("/Engine/BasicShapes/Cone.Cone"), FName(*FString::Printf(TEXT("HutRoof%d"), i)), FVector(0, 0, bTower ? 5.4f : 3.1f), FVector(0.024f, 0.024f, 0.02f), FLinearColor(0.35f, 0.08f, 0.05f), R)->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		HutRoots.Add(R);
 		HutLabels.Add(Text(FName(*FString::Printf(TEXT("HutLabel%d"), i)), FVector::ZeroVector, FRotator::ZeroRotator, 1.9f, FColor(200, 170, 120), FString()));
@@ -853,9 +852,9 @@ void AFNStudio::ShowNearby(const TArray<FFNPlayer>& Nearby)
 		{
 			const float A = FMath::DegreesToRadians(Angles[i]);
 			const FVector P(175.f * FMath::Cos(A), 175.f * FMath::Sin(A), 0.f);
-			Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("StandBase%d"), i)), P + FVector(0, 0, 82), FVector(0.3f, 0.3f, 0.05f), Brass);
+			Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("StandBase%d"), i)), P + FVector(0, 0, 82), FVector(0.3f, 0.3f, 0.05f), FNTable::Brass);
 			Box(FName(*FString::Printf(TEXT("StandCard%d"), i)), P + FVector(0, 0, 112), FVector(40, 4, 52), PlayerColor(i), FRotator(0, 0, 0));
-			StandTexts.Add(Text(FName(*FString::Printf(TEXT("StandText%d"), i)), P + FVector(0, 3, 160), FRotator(0, 90, 0), 5.f, Pale, FString()));
+			StandTexts.Add(Text(FName(*FString::Printf(TEXT("StandText%d"), i)), P + FVector(0, 3, 160), FRotator(0, 90, 0), 5.f, FNTable::Pale, FString()));
 		}
 	}
 	for (int32 i = 0; i < StandTexts.Num(); ++i)
@@ -1096,7 +1095,7 @@ FRotator AFNStudio::GetShake() const
 
 void AFNStudio::ResetFxBit(int32 i)
 {
-	const FVector GC = GlobeC;
+	const FVector GC = FNTable::GlobeC;
 	if (FxKind == 1)
 	{
 		const FVector N = (FxCenter - GC).GetSafeNormal();
@@ -1126,7 +1125,7 @@ void AFNStudio::PlayHazard(const FString& HazardIn)
 	FxKind = H.Contains(TEXT("meteor")) ? 1 : H.Contains(TEXT("locust")) ? 2 : H.Contains(TEXT("dino")) ? 3 : 4;
 	FxT = 0.f; FxDur = FxKind == 1 ? 4.5f : FxKind == 2 ? 5.f : FxKind == 3 ? 3.2f : 1.5f;
 	StompsDone = 0; FlashAmt = 1.f; ShakeAmt = 2.5f;
-	FxCenter = bHasFocus ? BoardToActor(FocusDir, BoardR + 3.f) : GlobeC + FVector(0.f, 0.f, BoardR * GlobeScale);
+	FxCenter = bHasFocus ? BoardToActor(FocusDir, BoardR + 3.f) : FNTable::GlobeC + FVector(0.f, 0.f, BoardR * FNTable::GlobeScale);
 	FLinearColor Col(0.9f, 0.15f, 0.08f), FlashCol(1.f, 0.25f, 0.1f);
 	int32 Count = 0;
 	switch (FxKind)
@@ -1155,7 +1154,7 @@ void AFNStudio::UpdateFx(float Dt)
 
 	FxT += Dt;
 	const bool bEnding = FxT > FxDur;
-	const FVector GC = GlobeC;
+	const FVector GC = FNTable::GlobeC;
 	for (int32 i = 0; i < FxBits.Num(); ++i)
 	{
 		UStaticMeshComponent* B = FxBits[i];
@@ -1163,7 +1162,7 @@ void AFNStudio::UpdateFx(float Dt)
 		if (FxKind == 1)
 		{
 			FxPos[i] += FxVel[i] * Dt;
-			if (FVector::Dist(FxPos[i], GC) < BoardR * GlobeScale + 3.f || FVector::Dist(FxPos[i], FxCenter) < 3.f)
+			if (FVector::Dist(FxPos[i], GC) < BoardR * FNTable::GlobeScale + 3.f || FVector::Dist(FxPos[i], FxCenter) < 3.f)
 			{
 				if (Time - LastImpact > 0.15f) { PlaySfx(EFNSfx::Impact, Rng.FRandRange(0.35f, 0.6f)); LastImpact = Time; }
 				FlashAmt = FMath::Max(FlashAmt, 0.7f); ShakeAmt = FMath::Max(ShakeAmt, 1.2f);
@@ -1205,12 +1204,12 @@ void AFNStudio::UpdateFx(float Dt)
 			}
 		}
 		if (GlobePivot)
-			GlobePivot->SetRelativeLocation(GlobeC + FVector(FMath::PerlinNoise1D(Time * 30.f), FMath::PerlinNoise1D(Time * 27.f + 5.f), 0.f) * ShakeAmt * 1.5f);
+			GlobePivot->SetRelativeLocation(FNTable::GlobeC + FVector(FMath::PerlinNoise1D(Time * 30.f), FMath::PerlinNoise1D(Time * 27.f + 5.f), 0.f) * ShakeAmt * 1.5f);
 	}
 	if (FxT > FxDur + 1.5f)
 	{
 		for (UStaticMeshComponent* B : FxBits) B->SetVisibility(false);
-		if (GlobePivot) GlobePivot->SetRelativeLocation(GlobeC);
+		if (GlobePivot) GlobePivot->SetRelativeLocation(FNTable::GlobeC);
 		FxKind = 0;
 	}
 }
@@ -1227,7 +1226,7 @@ void AFNStudio::RollDice(int32 D20, int32 Mod, const FString& Verdict)
 	if (DiceNumber)
 	{
 		DiceNumber->SetText(FText::FromString(FString::FromInt(D20)));
-		DiceNumber->SetTextRenderColor(D20 == 20 ? FColor(120, 255, 140) : D20 == 1 ? FColor(255, 60, 40) : Gold);
+		DiceNumber->SetTextRenderColor(D20 == 20 ? FColor(120, 255, 140) : D20 == 1 ? FColor(255, 60, 40) : FNTable::Gold);
 		DiceNumber->SetVisibility(false);
 	}
 	if (DiceLine)
