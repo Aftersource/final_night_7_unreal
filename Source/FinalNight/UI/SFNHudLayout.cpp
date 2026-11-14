@@ -1016,7 +1016,7 @@ FFNHudModel SFNHudLayout::SampleModel()
 	const int32 SeatBolts[] = { 1, 3, 2, 0 }, SeatSparks[] = { 5, 4, 2, 0 };
 	for (int32 i = 0; i < M.Seats.Num() && i < 4; ++i) { M.Seats[i].Bolts = SeatBolts[i]; M.Seats[i].Sparks = SeatSparks[i]; }
 
-	auto News = [](const TCHAR* Tag, const TCHAR* Text) { FFNHudNews N; N.Tag = FText::FromString(Tag); N.Text = FText::FromString(Text); return N; };
+	auto News = [](const TCHAR* InTag, const TCHAR* InText) { FFNHudNews N; N.Tag = FText::FromString(InTag); N.Text = FText::FromString(InText); return N; };
 	M.News.Add(News(TEXT("BEAT 7"), TEXT("Oko slowed time and the crowds went wild. Tashkent's army pulled back.")));
 	M.News.Add(News(TEXT("BEAT 7"), TEXT("The Monterrey bread riot under Isabela Valdez breaks open the granaries: stores fall to 45%.")));
 	M.News.Add(News(TEXT("BEAT 7"), TEXT("The displaced doomsayers of Tashkent take up arms for Mara: 3289 volunteers.")));
