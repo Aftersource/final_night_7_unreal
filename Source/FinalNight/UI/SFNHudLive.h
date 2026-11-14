@@ -62,6 +62,11 @@ private:
 	FString PendingSummonRef;            // your drop, waiting for the server's answer
 	double PendingSummonAt = 0.0;
 	TSet<FString> SeenSummons;           // summoned events already played (they come in summons[], events[] and dm_events[])
+	TMap<FString, double> WarpedAt;      // demigods already warped in on the accept (the resolve adds only the result)
+	FString MatchId;                     // refs are reused across matches: summon state resets when this changes
+	void NewMatch(const FString& Id);
+	/** The demigod ref of an event: demigod_ref, else a "dg:" demigod, else the demigod NAME looked up in the public state. */
+	FString EventRef(const TSharedPtr<FJsonObject>& E) const;
 	TMap<FString, FString> LastDioHash;  // to log a demigod's new diorama (a takeover rename)
 	double BannerAt = 0.0, BannerUntil = 0.0;
 	FText NextBannerTitle, NextBanner;

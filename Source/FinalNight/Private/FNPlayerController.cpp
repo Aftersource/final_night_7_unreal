@@ -102,10 +102,12 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 	if (WasInputKeyJustPressed(EKeys::LeftMouseButton) && !Root->IsTyping())
 	{
 		Studio->PlaySfx(EFNSfx::Click, Id != NAME_None ? 1.f : 0.5f);
-		// during a match a click on the table map zooms in there (web-map style) instead of opening WILL
-		// a click on a demigod (map marker, minifig or silhouette) centres the map on it and opens its card
-		if (Id != NAME_None && Studio->ClickDemigod(Id)) {}
-		else if (Id != NAME_None || !Studio->MapClick(true)) Root->OnWorldClick(Id);
+		// FN7 rule (Chris, 2026-11-14, asked that the view stop warping around; Mac session with the backend's go-ahead): a single
+		// click NEVER moves the board view: no click-to-zoom on the map (MapClick) and no centring on a clicked demigod
+		// marker (ClickDemigod -> CenterMapOn). View changes: the wheel, right-click (out), RESET VIEW / R / Home.
+		const FString IdS = Id.ToString();
+		const bool bPiece = IdS.StartsWith(TEXT("Hero")) || IdS.StartsWith(TEXT("Seat"));
+		if (Id != NAME_None && !bPiece) Root->OnWorldClick(Id);
 	}
 	if (!Root->IsTyping())
 	{

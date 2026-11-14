@@ -506,28 +506,41 @@ bool AFNTableGods::GetBoardPos(const FString& Ref, double& OutLat, double& OutLo
 void AFNTableGods::PlaySummoning(const FString& Ref, double FromLat, double FromLon, const FLinearColor& Aura)
 {
 	using namespace FN7Gods;
-	if (Dissolved.Contains(Ref)) return;   // already dissolving (your drop showed it at once; then the server's push came)
+	if (Dissolved.Contains(Ref) || PulseOut.Contains(Ref)) return;   // already going (your drop, then the server's push)
 	const float S = Studio.IsValid() ? (float)Studio->GetActorScale3D().X : 1.f;
 	FVector At;
-	if (BoardWorld(FromLat, FromLon, At))
-	{
-		// A column of light at the origin: a tall glowing shaft that rises (0.3 s) and thins away; the piece goes with it.
-		FFx F;
-		F.Kind = 0;
-		F.Dur = 0.9f;
-		F.A = At;
-		F.Color = Aura;
-		F.Comps.Add(FxShape(GodCyl, At, FVector(0.05f * S, 0.05f * S, 0.01f), Aura * 3.f));
-		F.Comps.Add(FxShape(GodCyl, At, FVector(0.12f * S, 0.12f * S, 0.01f), Aura * 1.2f));
-		Fx.Add(F);
-	}
-	Dissolved.Add(Ref, 0.f);
+	if (!BoardWorld(FromLat, FromLon, At)) { Dissolved.Add(Ref, 0.f); return; }
+	// The red aura should gently pulse in and out, and beams must not obscure it. A red aura disc breathes under
+	// the piece while it pulses out.
+	FFx F;
+	F.Kind = 6;
+	F.Dur = 0.9f;
+	F.A = At;
+	F.Ref = Ref;
+	F.Comps.Add(FxShape(GodCyl, At + FVector(0, 0, 0.4f * S), FVector(0.001f), FLinearColor(1.f, 0.07f, 0.04f) * 3.f));
+	Fx.Add(F);
+	PulseOut.Add(Ref, 0.f);
+	PulseIn.Remove(Ref);
+}
+
+void AFNTableGods::ResetSummons()
+{
+	for (FFx& F : Fx) for (USceneComponent* C : F.Comps) if (C) { FxParts.Remove(C); C->DestroyComponent(); }
+	Fx.Reset();
+	Dissolved.Reset();
+	LocalPos.Reset();
+	PulseOut.Reset();
+	PulseIn.Reset();
+	Shake.Reset();
+	PieceLL.Reset();
 }
 
 void AFNTableGods::CancelSummon(const FString& Ref)
 {
 	Dissolved.Remove(Ref);
 	LocalPos.Remove(Ref);
+	PulseOut.Remove(Ref);
+	PulseIn.Remove(Ref);
 	Shake.Add(Ref, 0.7f);
 	for (int32 i = Fx.Num() - 1; i >= 0; --i)
 		if (Fx[i].Ref == Ref)
@@ -537,30 +550,131 @@ void AFNTableGods::CancelSummon(const FString& Ref)
 		}
 }
 
-void AFNTableGods::PlaySummoned(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, float HealthLost, int32 Roll, const FLinearColor& Aura)
+void AFNTableGods::PlaySummoned(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, float HealthLost, int32 Roll, const FLinearColor& Aura, float Delay)
 {
 	using namespace FN7Gods;
 	const float S = Studio.IsValid() ? (float)Studio->GetActorScale3D().X : 1.f;
 	// Its new place holds until the commit agrees (every HUD refresh rebuilds the board from the last commit).
 	SetLocalPos(Ref, ToLat, ToLon);
 	LocalPos.Add(Ref, FVector(ToLat, ToLon, 0.f));
-	FVector A, B;
-	const bool bA = BoardWorld(FromLat, FromLon, A), bB = BoardWorld(ToLat, ToLon, B);
-	if (!bB) { Dissolved.Remove(Ref); return; }   // landed off the board: it simply stands at its new place
-	Dissolved.Add(Ref, 0.f);
-	if (!bA) A = B + FVector(0, 0, 140.f * S);     // from off the board: it falls in from above
-	FFx Arc;
-	Arc.Kind = 1;
-	Arc.Dur = 0.8f;
-	Arc.A = A;
-	Arc.B = B;
-	Arc.Color = Aura;
-	Arc.Ref = Ref;
-	Arc.Value = HealthLost;
-	Arc.Roll = Roll;
-	if (const TWeakObjectPtr<UTexture2D>* T = DioramaOf.Find(Ref)) Arc.Tex = *T;
-	for (int32 i = 0; i < 7; ++i) Arc.Comps.Add(FxShape(GodSph, A, FVector((0.06f - 0.006f * i) * S), Aura * (3.f - 0.3f * i)));
-	Fx.Add(Arc);
+	FVector B;
+	if (!BoardWorld(ToLat, ToLon, B)) { Dissolved.Remove(Ref); PulseOut.Remove(Ref); return; }   // off the board: it simply stands there
+	if (!PulseOut.Contains(Ref)) Dissolved.Add(Ref, 0.f);
+	// At the target: a red aura breathing on the hex, the diorama card shown briefly over it (no beams), then the piece
+	// pulses in. Delay lets the origin's pulse-out finish first.
+	FFx Ring;
+	Ring.Kind = 6;
+	Ring.Dur = 2.6f;
+	Ring.T = -Delay;
+	Ring.A = B;
+	Ring.Ref = Ref;
+	Ring.Comps.Add(FxShape(GodCyl, B + FVector(0, 0, 0.4f * S), FVector(0.001f), FLinearColor(1.f, 0.07f, 0.04f) * 3.f));
+	Fx.Add(Ring);
+	FFx Card;
+	Card.Kind = 4;
+	Card.Dur = 1.1f;
+	Card.T = -Delay;
+	Card.A = B;
+	Card.Color = FLinearColor(1.f, 0.12f, 0.08f);
+	Card.Ref = Ref;
+	Card.Value = HealthLost;
+	Card.Roll = Roll;
+	if (const TWeakObjectPtr<UTexture2D>* T = DioramaOf.Find(Ref)) Card.Tex = *T;
+	USceneComponent* Root = FxRoot(B);
+	Card.Comps.Add(Root);
+	Card.Comps.Add(FxChild(Root, GodPlane, FVector(0, 0, -0.8f), FVector(1.08f, 1.08f, 1.f), FRotator::ZeroRotator, FLinearColor(0.01f, 0.01f, 0.015f)));
+	Card.Comps.Add(FxChild(Root, GodPlane, FVector(0, 0, -0.4f), FVector(1.03f, 1.03f, 1.f), FRotator::ZeroRotator, Card.Color * 1.6f));
+	UStaticMeshComponent* Img = FxChild(Root, GodPlane, FVector::ZeroVector, FVector(0.95f, 0.95f, 1.f), FRotator::ZeroRotator, Aura * 0.25f);
+	if (UTexture2D* T = Card.Tex.Get())
+		if (CardMat)
+		{
+			UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(CardMat, Img);
+			M->SetTextureParameterValue(TEXT("SlateUI"), T);
+			Img->SetMaterial(0, M);
+		}
+	Card.Comps.Add(Img);
+	Root->SetWorldScale3D(FVector(0.001f));
+	Fx.Add(Card);
+}
+
+void AFNTableGods::SpawnLanding(const FVector& At, float HealthLost, int32 Roll, TArray<FFx>& Out)
+{
+	using namespace FN7Gods;
+	const float S = Studio.IsValid() ? (float)Studio->GetActorScale3D().X : 1.f;
+	const FVector Cam = GodCameraLocation(GetWorld(), GetActorLocation() + FVector(0, 340.f * S, 190.f * S));
+				if (HealthLost > 0.f)
+				{
+					FFx Dmg;
+					Dmg.Kind = 3;
+					Dmg.Dur = 2.4f;
+					Dmg.A = At + FVector(0, 0, 25.f * S);
+					UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+					T->SetupAttachment(RootComponent);
+					T->SetUsingAbsoluteLocation(true);
+					T->SetUsingAbsoluteRotation(true);
+					T->SetUsingAbsoluteScale(true);
+					T->SetHorizontalAlignment(EHTA_Center);
+					T->SetVerticalAlignment(EVRTA_TextCenter);
+					T->SetWorldSize(11.f * S);
+					T->SetTextRenderColor(FColor(255, 70, 50));
+					T->SetText(FText::FromString(FString::Printf(TEXT("-%g"), FMath::RoundToFloat(HealthLost * 10.f) / 10.f)));
+					T->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					T->SetWorldLocation(Dmg.A);
+					T->RegisterComponent();
+					FxParts.Add(T);
+					Dmg.Comps.Add(T);
+					Out.Add(Dmg);
+				}
+				if (Roll > 0)
+				{
+					// The d20: an ivory gem thrown out beside the piece, tumbling, settling with its number over it.
+					FFx Die;
+					Die.Kind = 5;
+					Die.Dur = 3.6f;
+					FVector Side = FVector::CrossProduct(FVector::UpVector, (Cam - At).GetSafeNormal2D()).GetSafeNormal();
+					if (Side.IsNearlyZero()) Side = FVector(1, 0, 0);
+					Die.A = At + FVector(0, 0, 10.f * S);
+					Die.B = At + Side * 16.f * S + FVector(0, 0, 3.f * S);
+					Die.Roll = Roll;
+					USceneComponent* Gem = FxRoot(Die.A);
+					Gem->SetWorldScale3D(FVector(S));
+					Die.Comps.Add(Gem);
+					Die.Comps.Add(FxChild(Gem, GodCone, FVector(0, 0, 4.f), FVector(0.1f, 0.1f, 0.08f), FRotator::ZeroRotator, GodIvory * 1.5f));
+					Die.Comps.Add(FxChild(Gem, GodCone, FVector(0, 0, -4.f), FVector(0.1f, 0.1f, 0.08f), FRotator(180.f, 0.f, 0.f), GodIvory * 1.2f));
+					UTextRenderComponent* N = NewObject<UTextRenderComponent>(this);
+					N->SetupAttachment(RootComponent);
+					N->SetUsingAbsoluteLocation(true);
+					N->SetUsingAbsoluteRotation(true);
+					N->SetUsingAbsoluteScale(true);
+					N->SetHorizontalAlignment(EHTA_Center);
+					N->SetVerticalAlignment(EVRTA_TextCenter);
+					N->SetWorldSize(10.f * S);
+					N->SetTextRenderColor(Roll == 1 ? FColor(255, 70, 50) : (Roll == 20 ? FColor(120, 255, 140) : FColor(255, 214, 120)));
+					N->SetText(FText::AsNumber(Roll));
+					N->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					N->SetVisibility(false);
+					N->SetWorldLocation(Die.B + FVector(0, 0, 12.f * S));
+					N->RegisterComponent();
+					FxParts.Add(N);
+					Die.Comps.Add(N);
+					Out.Add(Die);
+				}
+}
+
+void AFNTableGods::PlayWarpIn(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, const FLinearColor& Aura, float Delay)
+{
+	PlaySummoned(Ref, FromLat, FromLon, ToLat, ToLon, 0.f, 0, Aura, Delay);
+}
+
+void AFNTableGods::PlaySummonResult(const FString& Ref, double ToLat, double ToLon, float HealthLost, int32 Roll)
+{
+	SetLocalPos(Ref, ToLat, ToLon);
+	LocalPos.Add(Ref, FVector(ToLat, ToLon, 0.f));
+	FVector B;
+	if (!BoardWorld(ToLat, ToLon, B)) return;
+	TArray<FFx> Out;
+	SpawnLanding(B, HealthLost, Roll, Out);
+	Fx.Append(Out);
 }
 
 void AFNTableGods::TickFx(float Dt)
@@ -660,7 +774,7 @@ void AFNTableGods::TickFx(float Dt)
 			USceneComponent* Root = F.Comps.Num() > 0 ? F.Comps[0] : nullptr;
 			if (Root)
 			{
-				const float Big = 0.55f * S;     // ~55 cm of table at the table's scale (it ends where the piece's raised card stands)
+				const float Big = 0.42f * S;     // ~42 cm of table at the table's scale (it ends where the piece's raised card stands)
 				float Sc, Up;
 				if (U < 0.3f)
 				{
@@ -691,65 +805,19 @@ void AFNTableGods::TickFx(float Dt)
 			{
 				// It settles into its piece: the piece drops onto its hex, the damage rises, the d20 tumbles beside it.
 				Dissolved.Remove(F.Ref);
-				if (TObjectPtr<AFNDemigodFigure>* Fig = OnBoard.Find(F.Ref)) if (Fig->Get()) (*Fig)->SetActorLocation(F.A + FVector(0, 0, 18.f * S));
-			if (FVector* LL = PieceLL.Find(F.Ref)) LL->Z = 0.f;   // it drops in (a glide down onto its hex)
-				if (F.Value > 0.f)
-				{
-					FFx Dmg;
-					Dmg.Kind = 3;
-					Dmg.Dur = 2.4f;
-					Dmg.A = F.A + FVector(0, 0, 25.f * S);
-					UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
-					T->SetupAttachment(RootComponent);
-					T->SetUsingAbsoluteLocation(true);
-					T->SetUsingAbsoluteRotation(true);
-					T->SetUsingAbsoluteScale(true);
-					T->SetHorizontalAlignment(EHTA_Center);
-					T->SetVerticalAlignment(EVRTA_TextCenter);
-					T->SetWorldSize(11.f * S);
-					T->SetTextRenderColor(FColor(255, 70, 50));
-					T->SetText(FText::FromString(FString::Printf(TEXT("-%g"), FMath::RoundToFloat(F.Value * 10.f) / 10.f)));
-					T->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-					T->SetWorldLocation(Dmg.A);
-					T->RegisterComponent();
-					FxParts.Add(T);
-					Dmg.Comps.Add(T);
-					Spawned.Add(Dmg);
-				}
-				if (F.Roll > 0)
-				{
-					// The d20: an ivory gem thrown out beside the piece, tumbling, settling with its number over it.
-					FFx Die;
-					Die.Kind = 5;
-					Die.Dur = 3.6f;
-					FVector Side = FVector::CrossProduct(FVector::UpVector, (Cam - F.A).GetSafeNormal2D()).GetSafeNormal();
-					if (Side.IsNearlyZero()) Side = FVector(1, 0, 0);
-					Die.A = F.A + FVector(0, 0, 10.f * S);
-					Die.B = F.A + Side * 16.f * S + FVector(0, 0, 3.f * S);
-					Die.Roll = F.Roll;
-					USceneComponent* Gem = FxRoot(Die.A);
-					Gem->SetWorldScale3D(FVector(S));
-					Die.Comps.Add(Gem);
-					Die.Comps.Add(FxChild(Gem, GodCone, FVector(0, 0, 4.f), FVector(0.1f, 0.1f, 0.08f), FRotator::ZeroRotator, GodIvory * 1.5f));
-					Die.Comps.Add(FxChild(Gem, GodCone, FVector(0, 0, -4.f), FVector(0.1f, 0.1f, 0.08f), FRotator(180.f, 0.f, 0.f), GodIvory * 1.2f));
-					UTextRenderComponent* N = NewObject<UTextRenderComponent>(this);
-					N->SetupAttachment(RootComponent);
-					N->SetUsingAbsoluteLocation(true);
-					N->SetUsingAbsoluteRotation(true);
-					N->SetUsingAbsoluteScale(true);
-					N->SetHorizontalAlignment(EHTA_Center);
-					N->SetVerticalAlignment(EVRTA_TextCenter);
-					N->SetWorldSize(10.f * S);
-					N->SetTextRenderColor(F.Roll == 1 ? FColor(255, 70, 50) : (F.Roll == 20 ? FColor(120, 255, 140) : FColor(255, 214, 120)));
-					N->SetText(FText::AsNumber(F.Roll));
-					N->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-					N->SetVisibility(false);
-					N->SetWorldLocation(Die.B + FVector(0, 0, 12.f * S));
-					N->RegisterComponent();
-					FxParts.Add(N);
-					Die.Comps.Add(N);
-					Spawned.Add(Die);
-				}
+				PulseIn.Add(F.Ref, 0.f);
+				if (TObjectPtr<AFNDemigodFigure>* Fig = OnBoard.Find(F.Ref)) if (Fig->Get()) (*Fig)->SetActorLocation(F.A);
+				if (const FFNTableDemigod* D = BoardInfo.Find(F.Ref)) PieceLL.Add(F.Ref, FVector(D->Lat, D->Lon, -1.f));   // stands there: no slide
+				SpawnLanding(F.A, F.Value, F.Roll, Spawned);
+			}
+		}
+		else if (F.Kind == 6)   // the red aura: a disc on the hex that breathes gently, swelling in and fading out
+		{
+			if (F.T >= 0.f && F.Comps.Num() > 0)
+			{
+				const float In = FMath::Clamp(F.T / 0.25f, 0.f, 1.f), Out = FMath::Clamp((F.Dur - F.T) / 0.4f, 0.f, 1.f);
+				const float R = 0.2f * S * In * Out * (1.f + 0.22f * FMath::Sin(F.T * 7.f));
+				F.Comps[0]->SetWorldScale3D(FVector(FMath::Max(R, 0.001f), FMath::Max(R, 0.001f), 0.004f));
 			}
 		}
 		else if (F.Kind == 5)   // the d20: thrown in an arc, spinning, rests; then its number shows
@@ -1033,8 +1101,25 @@ void AFNTableGods::Tick(float Dt)
 			}
 			// A refused summon shakes.
 			if (const float* Sh = Shake.Find(KV.Key)) At += FVector(FMath::Sin(*Sh * 70.f) * 3.f * S * (*Sh / 0.7f), 0.f, 0.f);
+			if (PulseOut.Contains(KV.Key)) At = Fig->GetActorLocation();   // pulsing out where it stood: it never slides
 			Fig->SetActorLocation(At);
-			Fig->SetActorScale3D(FVector(0.36f * S));
+			// Teleporting: the piece pulses out at the origin, and in at the target (gently, a few beats of a pulse).
+			float Sc = 1.f;
+			if (float* Po = PulseOut.Find(KV.Key))
+			{
+				*Po += Dt;
+				const float E = FMath::Clamp(*Po / 0.6f, 0.f, 1.f);
+				Sc = (1.f - E * E * (3.f - 2.f * E)) * (1.f + 0.14f * FMath::Sin(*Po * 16.f));
+				if (*Po >= 0.6f) { PulseOut.Remove(KV.Key); Dissolved.Add(KV.Key, 0.f); }
+			}
+			else if (float* Pi = PulseIn.Find(KV.Key))
+			{
+				*Pi += Dt;
+				const float E = FMath::Clamp(*Pi / 1.4f, 0.f, 1.f);
+				Sc = FMath::Min(1.f, E * 2.f) * (1.f + 0.16f * (1.f - E) * FMath::Sin(*Pi * 9.f));
+				if (*Pi >= 1.4f) PulseIn.Remove(KV.Key);
+			}
+			Fig->SetActorScale3D(FVector(0.36f * S * FMath::Max(Sc, 0.01f)));
 		}
 	}
 }
