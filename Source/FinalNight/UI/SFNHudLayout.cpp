@@ -749,7 +749,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 			[
 				SNew(SFNFoil)
 				.Visibility(EVisibility::HitTestInvisible)
-				.bHot_Lambda([this]() { return Model.bHoldingTime; })
+				.bHot_Lambda([this]() { return Model.bHoldingTime && !bWillOpen; })   // nothing flashes on the open scroll
 				.Strength_Lambda([this]() { return bWillOpen ? 0.f : 1.1f; })   // the shine invites the click; open, it rests
 				.CornerRadius(6.f)
 			]

@@ -33,7 +33,7 @@ void SFNFoil::Construct(const FArguments& InArgs)
 	StartTime = FSlateApplication::IsInitialized() ? FSlateApplication::Get().GetCurrentTime() : 0.0;
 	SetCanTick(false);
 	SetClipping(EWidgetClipping::ClipToBounds);
-	// Repaint every frame while visible: the sheen moves with time and the mouse.
+	// Repaint every frame while visible: the sheen moves with time and the mouse (nothing to paint at zero strength).
 	RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float)
 	{
 		Invalidate(EInvalidateWidgetReason::Paint);
