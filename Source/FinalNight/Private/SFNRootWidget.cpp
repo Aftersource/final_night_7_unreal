@@ -3,6 +3,7 @@
 #include "FNStudio.h"
 #include "Features/FNDayNight.h"
 #include "Features/FNEncounters.h"
+#include "Features/FNSettlements.h"
 #include "../UI/SFNHudLive.h"   // FN7HudMount::IsMounted(): hide this classic HUD when the style-kit HUD is up
 
 #include "Widgets/SBoxPanel.h"
@@ -1034,6 +1035,9 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	// Benito's features 4 + 5: the encounter and loot markers read the game queries' replies (game.encounters / region / node)
 	if (T == TEXT("game.encounters") || T == TEXT("game.region") || T == TEXT("game.node"))
 		if (AFNEncounters* En = Encounters()) En->Apply(D);
+	// Benito's features 1 + 7: settlements and roads read game.globe / region / node
+	if (T == TEXT("game.globe") || T == TEXT("game.region") || T == TEXT("game.node"))
+		if (AFNSettlements* Se = Settlements()) Se->Apply(D);
 	AFNStudio* St = Studio.Get();
 	// Chris's rule: JOINING = TAKING A SEAT. If the house made us a viewer (it is replaying) and we didn't choose WATCH, ask once.
 	if (T == TEXT("match.ended") && Net.IsValid()) Net->bSeatAsked = false;   // a new match: JOIN may ask for a seat again
@@ -1164,17 +1168,20 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		{
 			AFNDayNight* Dn = DayNight();
 			AFNEncounters* En = Encounters();
+			AFNSettlements* Se = Settlements();
 			for (int32 i = 0, Shown = 0; i < Dm->Num(); ++i)
 			{
 				const TSharedPtr<FJsonObject> E = (*Dm)[i].IsValid() ? (*Dm)[i]->AsObject() : nullptr;
 				if (!E.IsValid() || Str(E, TEXT("event")) == TEXT("summoned")) continue;   // the kit HUD shows summons
 				if (Dn) Dn->ApplyEvent(E);
 				if (En) En->ApplyEvent(E);
+				if (Se) Se->ApplyEvent(E);
 				const FString Line = Str(E, TEXT("text"));
 				if (!Line.IsEmpty() && Shown < 3) { AddBanner(Line, UiCyan); ++Shown; }
 			}
 		}
 		if (Net.IsValid()) Net->Query(TEXT("game.encounters"));   // feature 4: the marked hexes, refreshed each beat
+		if (AFNSettlements* Se = Settlements()) Se->Refresh();   // features 1 + 7: the roads and the towns under the board
 		const FString Cap = Str(Pub, TEXT("previous_caption"));
 		if (!Cap.IsEmpty()) { AddBanner(Cap, UiPale); CutLines.Add(Cap); CutSpots.Add(FVector2D(MyLon, MyLat)); }
 		if (const TArray<TSharedPtr<FJsonValue>>* Om = Arr(Pub, TEXT("omens")))
@@ -1948,4 +1955,22 @@ AFNEncounters* SFNRootWidget::Encounters()
 	if (En) En->Bind(St);
 	EncountersActor = En;
 	return En;
+}
+
+AFNSettlements* SFNRootWidget::Settlements()
+{
+	if (AFNSettlements* Se = SettlementsActor.Get()) return Se;
+	AFNStudio* St = Studio.Get();
+	UWorld* W = St ? St->GetWorld() : nullptr;
+	if (!W) return nullptr;
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AFNSettlements* Se = W->SpawnActor<AFNSettlements>(AFNSettlements::StaticClass(), FTransform::Identity, P);
+	if (Se)
+	{
+		TWeakObjectPtr<UFNNetClient> WeakNet = Net;
+		Se->Bind(St, [WeakNet](const FString& Name, TSharedPtr<FJsonObject> Args) { if (UFNNetClient* N = WeakNet.Get()) N->Query(Name, Args); });
+	}
+	SettlementsActor = Se;
+	return Se;
 }

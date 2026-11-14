@@ -60,6 +60,8 @@ private:
 	class AFNDayNight* DayNight();
 	TWeakObjectPtr<class AFNEncounters> EncountersActor;
 	class AFNEncounters* Encounters();
+	TWeakObjectPtr<class AFNSettlements> SettlementsActor;
+	class AFNSettlements* Settlements();
 	/** A Final Night 7 SeatView: health, position, alive. */
 	void ApplyFn7View(const TSharedPtr<FJsonObject>& View);
 	/** The Final Night 7 demigods from a PublicView, as pieces on the globe. */
