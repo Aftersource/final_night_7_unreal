@@ -1,0 +1,16 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{5008474E-4C72-B759-36AB-89A4FC8C4207}",
+	"Category": "",
+	"Description": "Final Night - Director's Cut (Epic AI MegaJam 2026)",
+	"Modules": [
+		{
+			"Name": "FinalNight",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		}
+	]
+}

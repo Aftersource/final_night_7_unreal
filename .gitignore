@@ -78,3 +78,8 @@ DerivedDataCache/*
 *.key
 Config/*Local*.ini
 Saved/
+
+# Key files read by the client at runtime (this PC only): never commit
+Config/*Key.txt
+Config/*Key*.txt
+Config/*Local*.ini
