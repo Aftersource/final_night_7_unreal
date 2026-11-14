@@ -26,6 +26,8 @@ DECLARE_DELEGATE_OneParam(FOnFNJoinChoice, bool /*bTakeSeat*/);
 class FINALNIGHT_API SFNStartPanel : public SCompoundWidget
 {
 public:
+	/** JOIN THE GAME, as the button does (the intro's bag click calls it too). */
+	void JoinGame() { Enter(true); }
 	SLATE_BEGIN_ARGS(SFNStartPanel) : _bInGame(false) {}
 		SLATE_ARGUMENT(UFNNetClient*, Net)
 		/** True while we are in a room: the lobby was opened over the game. */

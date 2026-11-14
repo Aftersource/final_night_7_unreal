@@ -128,7 +128,8 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 	[
 		// The scrim: covers the viewport, dims the table a little, and is hit-testable (see OnMouseButtonDown).
 		SNew(SBorder)
-		.BorderImage(Brush::Segment(FLinearColor(0.f, 0.f, 0.02f, 0.5f)))
+		// Plainer until you're in (Chris asked for a plainer look until loaded in); a light veil over the game when opened in it.
+		.BorderImage_Lambda([this]() { return bInGame.Get() ? Brush::Segment(FLinearColor(0.f, 0.f, 0.02f, 0.5f)) : Brush::Segment(FLinearColor(0.f, 0.f, 0.02f, 0.7f)); })
 		.Padding(0.f)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)

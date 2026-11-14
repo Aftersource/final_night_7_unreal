@@ -21,6 +21,7 @@ public:
 		, _ContentPadding(FMargin(34.f, 22.f))
 		, _RodHeight(30.f)
 		, _bStartOpen(false)
+		, _bSmoothHeight(false)
 	{}
 		SLATE_ATTRIBUTE(bool, bUnrolled)
 		SLATE_ARGUMENT(float, Duration)
@@ -29,6 +30,8 @@ public:
 		SLATE_ARGUMENT(float, RodHeight)
 		/** Already unrolled when built (a panel rebuilt on every refresh must not replay the unroll). */
 		SLATE_ARGUMENT(bool, bStartOpen)
+		/** Open: the cloth eases to the inscription's height when it changes (expands / contracts, never re-rolls). */
+		SLATE_ARGUMENT(bool, bSmoothHeight)
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
 
@@ -40,6 +43,8 @@ private:
 	float Duration = 1.4f;
 	FMargin ContentPadding;
 	float RodH = 30.f;
+	bool bSmooth = false;
+	float SmoothH = -1.f;   // the cloth's shown height while open (eases to the content)
 	TSharedPtr<SWidget> Inner;
 
 	bool bTarget = false;
