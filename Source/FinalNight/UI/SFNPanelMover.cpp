@@ -154,9 +154,9 @@ FVector2D SFNPanelMover::Snap(const FVector2D& Wanted) const
 		float BestD = SnapPx * S;
 		bool bFound = false;
 		for (float L : Lines)
-			for (float Edge : { A, B, Mid })
+			for (float EdgeV : { A, B, Mid })
 			{
-				const float D = L - Edge;
+				const float D = L - EdgeV;
 				if (FMath::Abs(D) < BestD) { BestD = FMath::Abs(D); OutShift = D; bFound = true; }
 			}
 		return bFound;

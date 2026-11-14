@@ -30,7 +30,6 @@ namespace FN7Board
 bool AFNStudio::HexAtScreen(const FVector2D& ViewportPixel, double& OutLat, double& OutLon, FVector& OutWorldCenter, double& OutHexM) const
 {
 	using namespace FNPlanet;
-	using namespace FN7Board;
 	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	if (!PC || TableFace < 0 || TableK <= 0.0) return false;
 	FVector O, D;
@@ -46,21 +45,21 @@ bool AFNStudio::HexAtScreen(const FVector2D& ViewportPixel, double& OutLat, doub
 	double La = 0.0, Lo = 0.0;
 	for (int32 It = 0; It < 6; ++It)
 	{
-		Hit = O + D * ((ActionC.Z + Top - O.Z) / D.Z) - ActionC;
+		Hit = O + D * ((FN7Board::ActionC.Z + Top - O.Z) / D.Z) - FN7Board::ActionC;
 		const double Px = TableCx + Hit.X / TableK, Py = TableCy - Hit.Y / TableK;
 		int32 Q, R;
 		PlaneToHex(Px, Py, TableS, Q, R);
 		C = HexToPlane(Q, R, TableS);
 		const FVector3d V = PlaneToVec(TableFace, C.X, C.Y);
 		VecToLatLon(V, La, Lo);
-		Top = 0.4f + Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, La, Lo)) - TableLo) / TableRange);
+		Top = 0.4f + FN7Board::Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, La, Lo)) - TableLo) / TableRange);
 	}
-	if (Hit.X * Hit.X + Hit.Y * Hit.Y > ActionR * ActionR) return false;
+	if (Hit.X * Hit.X + Hit.Y * Hit.Y > FN7Board::ActionR * FN7Board::ActionR) return false;
 
 	OutLat = La;
 	OutLon = Lo;
 	OutHexM = TableS;
-	const FVector Local = ActionC + FVector((float)((C.X - TableCx) * TableK), (float)(-(C.Y - TableCy) * TableK), Top);
+	const FVector Local = FN7Board::ActionC + FVector((float)((C.X - TableCx) * TableK), (float)(-(C.Y - TableCy) * TableK), Top);
 	OutWorldCenter = GetActorTransform().TransformPosition(Local);
 	return true;
 }
@@ -68,9 +67,8 @@ bool AFNStudio::HexAtScreen(const FVector2D& ViewportPixel, double& OutLat, doub
 void AFNStudio::ShowAreaOfEffect(bool bShow, const FVector2D& ViewportPixel, double RadiusKm)
 {
 	using namespace FNPlanet;
-	using namespace FN7Board;
 
-	FOverlay& Ov = Overlays.FindOrAdd(this);
+	FN7Board::FOverlay& Ov = FN7Board::Overlays.FindOrAdd(this);
 	auto MakeSet = [this](const TCHAR* Name, const FLinearColor& Color) -> UInstancedStaticMeshComponent*
 	{
 		UInstancedStaticMeshComponent* C = NewObject<UInstancedStaticMeshComponent>(this, FName(Name));
@@ -112,8 +110,8 @@ void AFNStudio::ShowAreaOfEffect(bool bShow, const FVector2D& ViewportPixel, dou
 	const int32 Span = FMath::Clamp(FMath::CeilToInt(Reach / (TableS * 1.5)) + 1, 1, 40);
 	const float TileW = (float)(TableS * TableK) * 0.97f * 0.88f;   // a little inside the board hex, so its edge shows
 	int32 Lit = 0;
-	for (int32 Dq = -Span * 2; Dq <= Span * 2 && Lit < MaxLit; ++Dq)
-		for (int32 Dr = -Span; Dr <= Span && Lit < MaxLit; ++Dr)
+	for (int32 Dq = -Span * 2; Dq <= Span * 2 && Lit < FN7Board::MaxLit; ++Dq)
+		for (int32 Dr = -Span; Dr <= Span && Lit < FN7Board::MaxLit; ++Dr)
 		{
 			const FVector2D P = HexToPlane(Q0 + Dq, R0 + Dr, TableS);
 			const bool bCentre = Dq == 0 && Dr == 0;
@@ -122,8 +120,8 @@ void AFNStudio::ShowAreaOfEffect(bool bShow, const FVector2D& ViewportPixel, dou
 			const FVector3d V = PlaneToVec(TableFace, P.X, P.Y);
 			double PLa, PLo;
 			VecToLatLon(V, PLa, PLo);
-			const float Top = 0.4f + Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, PLa, PLo)) - TableLo) / TableRange);
-			const FVector Pos = ActionC + FVector((float)((P.X - TableCx) * TableK), (float)(-(P.Y - TableCy) * TableK), Top + (bCentre ? 0.9f : 0.45f));
+			const float Top = 0.4f + FN7Board::Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, PLa, PLo)) - TableLo) / TableRange);
+			const FVector Pos = FN7Board::ActionC + FVector((float)((P.X - TableCx) * TableK), (float)(-(P.Y - TableCy) * TableK), Top + (bCentre ? 0.9f : 0.45f));
 			const float Thick = bCentre ? 1.6f : 0.7f;
 			UInstancedStaticMeshComponent* Set = bCentre ? Target : Area;
 			for (int32 k = 0; k < 3; ++k)

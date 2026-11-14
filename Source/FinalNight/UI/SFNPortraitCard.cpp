@@ -60,9 +60,9 @@ void SFNPortraitCard::Construct(const FArguments& InArgs)
 	HourglassText = InArgs._HourglassText;
 	bPulse = InArgs._bPulse;
 
-	const float Pad = FN7Style::Space::S;
+	const float CardPad = FN7Style::Space::S;
 	const float GlowPad = 4.f;
-	ImageSide = FMath::Max(48.f, InArgs._CardWidth - 2.f * (Pad + GlowPad));
+	ImageSide = FMath::Max(48.f, InArgs._CardWidth - 2.f * (CardPad + GlowPad));
 
 	RoundedImage.DrawAs = ESlateBrushDrawType::RoundedBox;
 	RoundedImage.OutlineSettings = FSlateBrushOutlineSettings(FN7Style::Radius::Image);
@@ -85,7 +85,7 @@ void SFNPortraitCard::Construct(const FArguments& InArgs)
 				[
 					SNew(SBorder)
 					.BorderImage_Lambda([this]() { return FN7Style::Brush::CardFrame(Role.Get()); })
-					.Padding(Pad)
+					.Padding(CardPad)
 					[
 						SNew(SVerticalBox)
 
