@@ -36,10 +36,10 @@ namespace FNJson
 		return nullptr;
 	}
 	static TSharedRef<FJsonObject> Obj() { return MakeShared<FJsonObject>(); }
-	static TSharedPtr<FJsonValue> Str(const FString& S) { return MakeShared<FJsonValueString>(S); }
+	static TSharedPtr<FJsonValue> JStr(const FString& S) { return MakeShared<FJsonValueString>(S); }
 	static TSharedPtr<FJsonValue> Num(double N) { return MakeShared<FJsonValueNumber>(N); }
 	static TSharedPtr<FJsonValue> Val(const TSharedPtr<FJsonObject>& O) { return MakeShared<FJsonValueObject>(O); }
-	static TArray<TSharedPtr<FJsonValue>> LonLat(double Lon, double Lat) { return { Num(Lon), Num(Lat) }; }
+	static TArray<TSharedPtr<FJsonValue>> JLonLat(double Lon, double Lat) { return { Num(Lon), Num(Lat) }; }
 }
 using namespace FNJson;
 
@@ -423,7 +423,7 @@ void UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& T
 	// "lon,lat" goes as a [lon, lat] point; anything else is a ref or a name.
 	FString A, B;
 	if (Target.Split(TEXT(","), &A, &B) && A.TrimStartAndEnd().IsNumeric() && B.TrimStartAndEnd().IsNumeric())
-		C->SetArrayField(TEXT("target"), LonLat(FCString::Atod(*A.TrimStartAndEnd()), FCString::Atod(*B.TrimStartAndEnd())));
+		C->SetArrayField(TEXT("target"), JLonLat(FCString::Atod(*A.TrimStartAndEnd()), FCString::Atod(*B.TrimStartAndEnd())));
 	else
 		C->SetStringField(TEXT("target"), Target.TrimStartAndEnd());
 	F->SetObjectField(TEXT("cast"), C);
@@ -552,7 +552,7 @@ TSharedPtr<FJsonObject> UFNNetClient::DemoZone() const
 	const double Radius = FMath::Lerp(2600.0, 250.0, FMath::Clamp((DemoDay - 1) / FMath::Max(1.0, MatchRounds - 1.0), 0.0, 1.0));
 	TSharedRef<FJsonObject> Z = Obj();
 	Z->SetNumberField(TEXT("radius_km"), FMath::RoundToDouble(Radius));
-	Z->SetArrayField(TEXT("center"), LonLat(FNDemo::ZoneLon, FNDemo::ZoneLat));
+	Z->SetArrayField(TEXT("center"), JLonLat(FNDemo::ZoneLon, FNDemo::ZoneLat));
 	Z->SetStringField(TEXT("center_place"), TEXT("central Nevada"));
 	Z->SetStringField(TEXT("center_coords"), TEXT("38.0 N, 114.0 W"));
 	return Z;
@@ -566,7 +566,7 @@ TSharedPtr<FJsonObject> UFNNetClient::DemoSelfView() const
 	V->SetBoolField(TEXT("alive"), Me.bAlive);
 	V->SetNumberField(TEXT("health"), Me.Health);
 	V->SetStringField(TEXT("place"), bDemoDropped ? FNDemo::PlaceOf(Me.Lon, Me.Lat) : TEXT("on the battle bus"));
-	V->SetArrayField(TEXT("lonlat"), LonLat(Me.Lon, Me.Lat));
+	V->SetArrayField(TEXT("lonlat"), JLonLat(Me.Lon, Me.Lat));
 	V->SetStringField(TEXT("vehicle"), TEXT("on foot"));
 	V->SetNumberField(TEXT("duplicator_charges"), 3);
 	V->SetNumberField(TEXT("duplicators"), 1);
@@ -614,7 +614,7 @@ TSharedPtr<FJsonObject> UFNNetClient::DemoSelfView() const
 			const FDemoSeat& O = DemoSeats[i];
 			TSharedRef<FJsonObject> W = Obj();
 			W->SetStringField(TEXT("name"), O.Name); W->SetStringField(TEXT("kind"), TEXT("player"));
-			W->SetArrayField(TEXT("lonlat"), LonLat(O.Lon, O.Lat)); W->SetBoolField(TEXT("alive"), O.Health > 0);
+			W->SetArrayField(TEXT("lonlat"), JLonLat(O.Lon, O.Lat)); W->SetBoolField(TEXT("alive"), O.Health > 0);
 			World.Add(Val(W));
 		}
 		const double T = FMath::Clamp((DemoDay - 1) / FMath::Max(1.0, (double)MatchRounds), 0.0, 0.85);
@@ -624,7 +624,7 @@ TSharedPtr<FJsonObject> UFNNetClient::DemoSelfView() const
 			const double SLon = FNDemo::ZoneLon + R.FRandRange(-14.f, 14.f), SLat = FNDemo::ZoneLat + R.FRandRange(-9.f, 9.f);
 			TSharedRef<FJsonObject> W = Obj();
 			W->SetStringField(TEXT("name"), FNDemo::VillagerNames[k]); W->SetStringField(TEXT("kind"), TEXT("npc"));
-			W->SetArrayField(TEXT("lonlat"), LonLat(FMath::Lerp(SLon, FNDemo::ZoneLon, T), FMath::Lerp(SLat, FNDemo::ZoneLat, T)));
+			W->SetArrayField(TEXT("lonlat"), JLonLat(FMath::Lerp(SLon, FNDemo::ZoneLon, T), FMath::Lerp(SLat, FNDemo::ZoneLat, T)));
 			W->SetBoolField(TEXT("alive"), k >= DemoDay - 1);   // one villager falls each day
 			World.Add(Val(W));
 		}
@@ -824,7 +824,7 @@ void UFNNetClient::DemoBeginDay()
 		for (const FNDemo::FSpot& S : FNDemo::Spots)
 		{
 			TSharedRef<FJsonObject> O = Obj();
-			O->SetStringField(TEXT("id"), S.Id); O->SetStringField(TEXT("name"), S.Name); O->SetArrayField(TEXT("lonlat"), LonLat(S.Lon, S.Lat));
+			O->SetStringField(TEXT("id"), S.Id); O->SetStringField(TEXT("name"), S.Name); O->SetArrayField(TEXT("lonlat"), JLonLat(S.Lon, S.Lat));
 			SpotsJ.Add(Val(O));
 		}
 		Bus->SetArrayField(TEXT("spots"), SpotsJ);
@@ -964,7 +964,7 @@ void UFNNetClient::DemoReveal(const FString& Headline, const FString& Outcome, c
 	DemoEpisodeDamage = EpDamage;
 	TSharedRef<FJsonObject> Ep = Obj();
 	Ep->SetStringField(TEXT("id"), DemoEpisodeId); Ep->SetStringField(TEXT("victim"), EpVictim); Ep->SetNumberField(TEXT("damage"), EpDamage);
-	Ep->SetStringField(TEXT("description"), EpDesc); Ep->SetArrayField(TEXT("witnesses"), { Str(DisplayName) });
+	Ep->SetStringField(TEXT("description"), EpDesc); Ep->SetArrayField(TEXT("witnesses"), { JStr(DisplayName) });
 	Priv->SetArrayField(TEXT("episodes"), { Val(Ep) });
 	const bool bOut = DemoSeats[0].Health <= 0;
 	Priv->SetBoolField(TEXT("eliminated"), bOut);
