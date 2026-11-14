@@ -360,7 +360,8 @@ void AFNStudio::Tick(float DeltaSeconds)
 			const FVector C2 = FVector::CrossProduct(F, B2);
 			const FMatrix Lm(A, B, C, FVector::ZeroVector), Wm(F, B2, C2, FVector::ZeroVector);
 			const FQuat Target(Lm.GetTransposed() * Wm);
-			BoardRoot->SetWorldRotation(FQuat::Slerp(BoardRoot->GetComponentQuat(), Target, FMath::Min(1.f, DeltaSeconds * 1.8f)));
+			// Slerp (the short way, never Euler angles) at a rate that's the same at 15 fps and 120 fps.
+			BoardRoot->SetWorldRotation(FQuat::Slerp(BoardRoot->GetComponentQuat(), Target, 1.f - FMath::Exp(-1.8f * DeltaSeconds)));
 		}
 		else
 		{

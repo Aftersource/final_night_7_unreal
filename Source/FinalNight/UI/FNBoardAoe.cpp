@@ -353,6 +353,7 @@ void AFNStudio::CenterBoardAndGlobe(double Lat, double Lon)
 	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
 	bUserPicked = true;
 	FocusDir = PickDir;          // the globe turns this point toward you (UpdateGlobe's slerp)
+	bHasFocus = true;            // also for a viewer or before your demigod is placed (else the globe only idles)
 	ManualUntil = -1.f;          // even if you spun it by hand a moment ago
 	ZoomAnimT = -1.f;
 	if (MapPivot) { MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); }
@@ -379,6 +380,7 @@ void AFNStudio::RestoreViewSpot(double Lat, double Lon, bool bPicked)
 void AFNStudio::SetGlobeFocus(double Lat, double Lon)
 {
 	FocusDir = BoardDir(Lon, FMath::Clamp(Lat, -89.9, 89.9)).GetSafeNormal();
+	bHasFocus = true;
 }
 
 void AFNStudio::PreviewFocus(double Lat, double Lon, int32 Level)
