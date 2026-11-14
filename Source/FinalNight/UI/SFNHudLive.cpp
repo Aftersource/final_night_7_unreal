@@ -141,6 +141,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) { N->bWatchOnly = false; N->bSeatAsked = true; N->TakeSeat(); } })
 			.OnLobby_Lambda([this]() { SetLobbyOpen(true); })
 			.OnResetView_Lambda([this]() { ResetView(); })
+			.OnCardDoubleClick_Lambda([this](const FString& Ref) { OnDemigodDoubleClick(Ref); })
 			.OnCardDrag_Lambda([this](const FString& Ref, const FVector2D& Screen) -> TSharedPtr<FDragDropOperation>
 			{
 				const FString Why = WhyNotSummon(Ref);
@@ -186,6 +187,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	{
 		TWeakPtr<SFNHudLive> WeakSelf = StaticCastSharedRef<SFNHudLive>(AsShared());
 		RingInput->SetIsMine([WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() && Self->WhyNotSummon(Ref).IsEmpty(); });
+		RingInput->SetOnFigureDoubleClick([WeakSelf](const FString& Ref) { if (const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin()) Self->OnDemigodDoubleClick(Ref); });
 		RingInput->SetSummonCheck(
 			[WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() ? Self->WhyNotSummon(Ref) : FString(); },
 			[WeakSelf](const FString& Text) { if (const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin()) Self->Toast(Text); });
@@ -515,6 +517,21 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		}
 		const FString Caption = FN7HudJson::Str(Pub, TEXT("previous_caption"));
 		if (!Caption.IsEmpty()) AddNews(LOCTEXT("Story", "STORY"), Caption);
+		// Summons that landed this beat (rules 0.8.0): the same event comes in summons[], events[] and dm_events[].
+		{
+			const int32 Beat = (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round);
+			const TArray<TSharedPtr<FJsonValue>>* Dice = FN7HudJson::Arr(Pub, TEXT("dice"));
+			for (const TCHAR* Key : { TEXT("summons"), TEXT("events"), TEXT("dm_events") })
+				if (const TArray<TSharedPtr<FJsonValue>>* L = FN7HudJson::Arr(Pub, Key))
+					for (const TSharedPtr<FJsonValue>& V : *L)
+					{
+						const TSharedPtr<FJsonObject> E = V.IsValid() ? V->AsObject() : nullptr;
+						if (!E.IsValid()) continue;
+						const bool bSummoned = FN7HudJson::Str(E, TEXT("kind")) == TEXT("summoned") || FN7HudJson::Str(E, TEXT("event")) == TEXT("summoned")
+							|| (FCString::Strcmp(Key, TEXT("summons")) == 0 && FN7HudJson::Has(E, TEXT("demigod")));
+						if (bSummoned) HandleSummoned(E, Dice, Beat);
+					}
+		}
 	}
 	else if (T == TEXT("round.private"))
 	{
@@ -533,8 +550,10 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("phase.event"))
 	{
-		// Time slowed: when it is you, the Slowed event carries the bill's terms (rules 0.7.0).
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
+		// A summon accepted (rules 0.8.0): the piece lifts and dissolves at its origin, for everyone.
+		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("summoning")) { HandleSummoning(Pub); return; }
+		// Time slowed: when it is you, the Slowed event carries the bill's terms (rules 0.7.0).
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("slowed") && (int32)FN7HudJson::Num(Pub, TEXT("by_seat"), -2) == MySeat && MySeat >= 0)
 		{
 			bSlowBill = FN7HudJson::Has(Pub, TEXT("debt_per_second"));
@@ -561,7 +580,24 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		if (!bAccepted)
 		{
 			const FString Reason = FN7HudJson::Str(D, TEXT("reason"));
-			AddNews(LOCTEXT("Refused", "REFUSED"), Reason == TEXT("cut") ? TEXT("Too slow: the window closed before your orders arrived.") : Reason);
+			static const TMap<FString, FString> SummonWhy = {
+				{ TEXT("not_yours"), TEXT("That's not your demigod.") },
+				{ TEXT("fallen"), TEXT("That demigod has fallen.") },
+				{ TEXT("cooldown"), TEXT("Once a beat: that demigod was just summoned.") },
+				{ TEXT("bad_target"), TEXT("It can't be summoned there.") },
+				{ TEXT("summon_disabled"), TEXT("Summoning is off in this room.") } };
+			const bool bPending = !PendingSummonRef.IsEmpty() && FPlatformTime::Seconds() - PendingSummonAt < 8.0;
+			if (bPending && (SummonWhy.Contains(Reason) || (D.IsValid() && D->HasField(TEXT("instant")))))
+			{
+				// Your summon was refused: the piece comes back with a red shake, and why.
+				const FString* Why = SummonWhy.Find(Reason);
+				UE_LOG(LogTemp, Display, TEXT("FN7 summon refused: %s %s"), *PendingSummonRef, *Reason);
+				if (AFNTableGods* Tg = AFNTableGods::GetAny(FindStudio() ? FindStudio()->GetWorld() : nullptr)) Tg->CancelSummon(PendingSummonRef);
+				PendingSummonRef.Reset();
+				Toast(Why ? *Why : FString::Printf(TEXT("Summon refused: %s"), *Reason));
+				AddNews(LOCTEXT("Refused", "REFUSED"), Why ? *Why : Reason);
+			}
+			else AddNews(LOCTEXT("Refused", "REFUSED"), Reason == TEXT("cut") ? TEXT("Too slow: the window closed before your orders arrived.") : Reason);
 		}
 	}
 	else if (T == TEXT("error"))
@@ -745,8 +781,15 @@ void SFNHudLive::ReadDemigods(const TSharedPtr<FJsonObject>& PV)
 		if (const TSharedPtr<FJsonObject> Dio = FN7HudJson::Obj(G, TEXT("diorama_image")))
 		{
 			S.DioramaHash = FN7HudJson::Str(Dio, TEXT("hash"));
-			const FString Url = FN7HudJson::Str(Dio, TEXT("status")) == TEXT("ready") ? FN7HudJson::Str(Dio, TEXT("url")) : FString();
+			const FString Status = FN7HudJson::Str(Dio, TEXT("status"));
+			const FString Url = Status == TEXT("ready") ? FN7HudJson::Str(Dio, TEXT("url")) : FString();
 			if (!S.DioramaHash.IsEmpty() && !Url.IsEmpty()) RequestPortrait(S.DioramaHash, Url);
+			FString& Last = LastDioHash.FindOrAdd(S.Ref);
+			if (!S.DioramaHash.IsEmpty() && Last != S.DioramaHash)
+			{
+				UE_LOG(LogTemp, Display, TEXT("FN7 media: %s \"%s\" diorama %s -> %s (%s)"), *S.Ref, *S.Name, Last.IsEmpty() ? TEXT("none") : *Last.Left(10), *S.DioramaHash.Left(10), *Status);
+				Last = S.DioramaHash;
+			}
 		}
 		if (S.Seat >= 0 && S.Seat == MySeat)
 		{
@@ -913,8 +956,16 @@ void SFNHudLive::Publish()
 	// Your cards lead with the diorama (the dioramas should lead), the portrait as a small inset.
 	for (int32 i = 0; i < Model.Mine.Num(); ++i)
 	{
-		UTexture2D* Portrait = MinePortraitHash.IsValidIndex(i) ? MediaTexture(MinePortraitHash[i]) : nullptr;
-		UTexture2D* Dio = MineDioramaHash.IsValidIndex(i) ? MediaTexture(MineDioramaHash[i], !Model.Mine[i].bAlive) : nullptr;
+		FString PH = MinePortraitHash.IsValidIndex(i) ? MinePortraitHash[i] : FString();
+		FString DH = MineDioramaHash.IsValidIndex(i) ? MineDioramaHash[i] : FString();
+		for (const FSeatInfo& S : Seats)
+			if (S.Ref == Model.Mine[i].Ref)
+			{
+				if (!S.DioramaHash.IsEmpty() && Portraits.Contains(S.DioramaHash)) DH = S.DioramaHash;
+				if (!S.PortraitHash.IsEmpty() && Portraits.Contains(S.PortraitHash)) PH = S.PortraitHash;
+			}
+		UTexture2D* Portrait = MediaTexture(PH);
+		UTexture2D* Dio = MediaTexture(DH, !Model.Mine[i].bAlive);
 		Model.Mine[i].PortraitTexture = Dio ? Dio : Portrait;
 		Model.Mine[i].InsetTexture = Dio ? Portrait : nullptr;
 	}
@@ -1232,12 +1283,164 @@ void SFNHudLive::OnSummonDropped(const FString& Ref, const FVector2D& ScreenPosi
 	if (T) T->SetFigureHeld(Ref, false);
 	if (Where == 0) return;   // let go anywhere else: it goes back
 	if (N) N->Summon(Round, Ref, Lo, La);
-	if (T) T->SetLocalPos(Ref, La, Lo);
+	// The piece lifts and dissolves at its origin at once; it lands when the server resolves the summon (`summoned`).
+	if (T)
+	{
+		double FromLa = 0.0, FromLo = 0.0;
+		bool bFrom = T->GetBoardPos(Ref, FromLa, FromLo);
+		for (const FSeatInfo& S : Seats) if (!bFrom && S.Ref == Ref && S.bHasPos) { FromLa = S.Lat; FromLo = S.Lon; bFrom = true; }
+		if (bFrom) T->PlaySummoning(Ref, FromLa, FromLo, AuraOf(Ref));
+	}
+	PendingSummonRef = Ref;
+	PendingSummonAt = FPlatformTime::Seconds();
+	UE_LOG(LogTemp, Display, TEXT("FN7 summon sent: %s -> %.4f, %.4f (%s)"), *Ref, La, Lo, Where == 2 ? TEXT("globe") : TEXT("board"));
 	FString Name = Ref;
 	for (const FSeatInfo& S : Seats) if (S.Ref == Ref && !S.Name.IsEmpty()) Name = S.Name;
 	for (const FFNHudDemigod& D : Model.Mine) if (Name == Ref && !D.Name.IsEmpty() && ((Ref.EndsWith(TEXT("0")) && D.Side != TEXT("right")) || (Ref.EndsWith(TEXT("1")) && D.Side == TEXT("right")))) Name = D.Name.ToString();
 	AddNews(LOCTEXT("Summon", "SUMMON"), FString::Printf(TEXT("%s summoned to %.2f%s %.2f%s (sent)"), *Name, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
 	Publish();
+}
+
+FLinearColor SFNHudLive::AuraOf(const FString& Ref) const
+{
+	for (const FSeatInfo& S : Seats) if (S.Ref == Ref && S.bHasAura) return S.Aura;
+	return MineRefs.Contains(Ref) || PreviewMine.Contains(Ref) ? Model.YourAura : FLinearColor(1.f, 0.85f, 0.4f);
+}
+
+FString SFNHudLive::NameOf(const FString& Ref) const
+{
+	for (const FSeatInfo& S : Seats) if (S.Ref == Ref && !S.Name.IsEmpty()) return S.Name;
+	for (const FFNHudDemigod& D : Model.Mine) if (D.Ref == Ref && !D.Name.IsEmpty()) return D.Name.ToString();
+	return Ref;
+}
+
+/** [lon, lat] from an array, or from an object's `pos` (the summoned event's from/to). */
+static bool FN7LonLat(const TSharedPtr<FJsonObject>& O, const TCHAR* Key, double& OutLat, double& OutLon)
+{
+	if (!O.IsValid()) return false;
+	const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
+	if (!O->TryGetArrayField(Key, A))
+	{
+		const TSharedPtr<FJsonObject>* Sub = nullptr;
+		if (O->TryGetObjectField(Key, Sub) && Sub && Sub->IsValid()) (*Sub)->TryGetArrayField(TEXT("pos"), A);
+	}
+	if (!A || A->Num() < 2) return false;
+	OutLon = (*A)[0]->AsNumber();
+	OutLat = (*A)[1]->AsNumber();
+	return true;
+}
+
+void SFNHudLive::HandleSummoning(const TSharedPtr<FJsonObject>& Pub)
+{
+	const FString Ref = FN7HudJson::Str(Pub, TEXT("demigod"));
+	AFNStudio* St = FindStudio();
+	AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr);
+	if (Ref.IsEmpty() || !T) return;
+	double La = 0.0, Lo = 0.0;
+	bool bFrom = FN7LonLat(Pub, TEXT("from"), La, Lo) || T->GetBoardPos(Ref, La, Lo);
+	UE_LOG(LogTemp, Display, TEXT("FN7 summoning: %s from %.4f, %.4f%s"), *Ref, La, Lo, Ref == PendingSummonRef ? TEXT(" (yours, accepted)") : TEXT(""));
+	if (bFrom) T->PlaySummoning(Ref, La, Lo, AuraOf(Ref));
+	if (Ref == PendingSummonRef) PendingSummonRef.Reset();   // accepted: no refusal is coming
+}
+
+void SFNHudLive::HandleSummoned(const TSharedPtr<FJsonObject>& E, const TArray<TSharedPtr<FJsonValue>>* Dice, int32 Beat)
+{
+	const FString Ref = FN7HudJson::Str(E, TEXT("demigod"));
+	double ToLa = 0.0, ToLo = 0.0, FromLa = 0.0, FromLo = 0.0;
+	if (Ref.IsEmpty() || !(FN7LonLat(E, TEXT("to"), ToLa, ToLo) || FN7LonLat(E, TEXT("at"), ToLa, ToLo))) return;
+	const FString Key = FString::Printf(TEXT("%s:%d:%.3f,%.3f"), *Ref, Beat, ToLo, ToLa);
+	if (SeenSummons.Contains(Key)) return;
+	SeenSummons.Add(Key);
+	AFNStudio* St = FindStudio();
+	AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr);
+	if (!St || !T) return;
+	if (!FN7LonLat(E, TEXT("from"), FromLa, FromLo)) T->GetBoardPos(Ref, FromLa, FromLo);
+	const float Lost = (float)FN7HudJson::Num(E, TEXT("health_lost"), 0.0);
+	int32 Roll = (int32)FN7HudJson::Num(E, TEXT("roll"), 0.0);
+	if (Roll <= 0 && Dice)
+		for (const TSharedPtr<FJsonValue>& V : *Dice)
+		{
+			const TSharedPtr<FJsonObject> R = V.IsValid() ? V->AsObject() : nullptr;
+			if (R.IsValid() && FN7HudJson::Str(R, TEXT("who")) == Ref && FN7HudJson::Str(R, TEXT("reason")) == TEXT("a summoning")) { Roll = (int32)FN7HudJson::Num(R, TEXT("roll"), 0.0); break; }
+		}
+	// Yours: the board swoops to where it lands (when that isn't on the board already), so you see it arrive.
+	const bool bMine = IsMyDemigod(Ref);
+	FVector Probe;
+	const bool bOnBoard = St->BoardPointFor(ToLa, ToLo, Probe);
+	if (bMine && !bOnBoard) St->FocusBoard(ToLa, ToLo, 3);
+	const FLinearColor Aura = AuraOf(Ref);
+	T->PlaySummoned(Ref, FromLa, FromLo, ToLa, ToLo, Lost, Roll, Aura);
+	if (Ref == PendingSummonRef) PendingSummonRef.Reset();
+	FString Deed = FN7HudJson::Str(E, TEXT("deed"));
+	if (Deed.IsEmpty()) Deed = FN7HudJson::Str(E, TEXT("text"));
+	const FString Name = NameOf(Ref);
+	UE_LOG(LogTemp, Display, TEXT("FN7 summoned: %s -> %.4f, %.4f lost=%.1f roll=%d %s%s"), *Ref, ToLa, ToLo, Lost, Roll, bOnBoard ? TEXT("on the board") : TEXT("off the board"), bMine && !bOnBoard ? TEXT(", swooped") : TEXT(""));
+	FString Title = FString::Printf(TEXT("%s IS SUMMONED"), *Name.ToUpper());
+	if (Roll > 0) Title += FString::Printf(TEXT("   -   d20: %d"), Roll);
+	if (Lost > 0.f) Title += FString::Printf(TEXT("   -   %g health"), -FMath::RoundToFloat(Lost * 10.f) / 10.f);
+	ShowBanner(FText::FromString(Title), FText::FromString(Deed.IsEmpty() ? FString::Printf(TEXT("%s arrives."), *Name) : Deed), Aura, 0.8, 4.5);
+	AddNews(LOCTEXT("SummonedTag", "SUMMON"), Deed.IsEmpty() ? FString::Printf(TEXT("%s is summoned."), *Name) : Deed);
+}
+
+void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
+{
+	// Chris asked that a double click on a demigod without dragging should zoom to it. One level closer each time.
+	AFNStudio* St = FindStudio();
+	AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr);
+	double La = 0.0, Lo = 0.0;
+	bool bPos = T && T->GetBoardPos(Ref, La, Lo);
+	for (const FSeatInfo& S : Seats) if (!bPos && S.Ref == Ref && S.bHasPos && S.bAlive) { La = S.Lat; Lo = S.Lon; bPos = true; }
+	const bool bMine = IsMyDemigod(Ref);
+	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: %s %s %s"), *Ref, bMine ? TEXT("(yours)") : TEXT("(rival)"), bPos ? TEXT("-> zoom") : TEXT("(not on the map)"));
+	if (!St || !bPos) { Toast(TEXT("That demigod isn't on the map.")); return; }
+	St->FocusBoard(La, Lo, -1);
+	if (T && bMine)
+	{
+		if (!SelectedRef.IsEmpty() && SelectedRef != Ref) T->SetFigureHeld(SelectedRef, false);
+		SelectedRef = Ref;
+		SelectedUntil = FPlatformTime::Seconds() + 2.0;
+		T->SetFigureHeld(Ref, true);
+	}
+}
+
+void SFNHudLive::ShowBanner(const FText& Title, const FText& Text, const FLinearColor& Color, double Delay, double Secs)
+{
+	NextBannerTitle = Title;
+	NextBanner = Text;
+	NextBannerColor = Color;
+	BannerAt = FPlatformTime::Seconds() + Delay;
+	BannerUntil = BannerAt + Secs;
+}
+
+void SFNHudLive::PreviewSummon(int32 Step)
+{
+	AFNStudio* St = FindStudio();
+	AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr);
+	if (!T) return;
+	const FString Ref = Step == 0 ? TEXT("dg:0") : TEXT("dg:1");
+	double La = 46.9, Lo = 8.2;
+	T->GetBoardPos(Ref, La, Lo);
+	T->PlaySummoning(Ref, La, Lo, FLinearColor::FromSRGBColor(FColor(0xE6, 0x9F, 0x00)));
+	TSharedPtr<FJsonObject> E = MakeShared<FJsonObject>();
+	E->SetStringField(TEXT("event"), TEXT("summoned"));
+	E->SetStringField(TEXT("demigod"), Ref);
+	auto Pos = [](double Lon, double Lat) { TArray<TSharedPtr<FJsonValue>> A; A.Add(MakeShared<FJsonValueNumber>(Lon)); A.Add(MakeShared<FJsonValueNumber>(Lat)); return A; };
+	TSharedPtr<FJsonObject> From = MakeShared<FJsonObject>(), To = MakeShared<FJsonObject>();
+	From->SetArrayField(TEXT("pos"), Pos(Lo, La));
+	To->SetArrayField(TEXT("pos"), Step == 0 ? Pos(11.8, 45.6) : Pos(6.6, 46.0));
+	E->SetObjectField(TEXT("from"), From);
+	E->SetObjectField(TEXT("to"), To);
+	E->SetNumberField(TEXT("health_lost"), Step == 0 ? 2.0 : 1.0);
+	E->SetNumberField(TEXT("roll"), Step == 0 ? 7 : 17);
+	E->SetStringField(TEXT("deed"), Step == 0
+		? TEXT("Mid-go to Northern Italy, Chris's Left Hand was folded into a paper airplane by an impatient god and bounced twice off a tram before it stuck the landing.")
+		: TEXT("Chris's Right Hand stepped through a sulphur-scented rift and came out the other side holding someone else's umbrella."));
+	TWeakPtr<SFNHudLive> Weak = StaticCastSharedRef<SFNHudLive>(AsShared());
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7PreviewSummoned"), 0.2f, [Weak, E, Step](float)
+	{
+		if (const TSharedPtr<SFNHudLive> Self = Weak.Pin()) Self->HandleSummoned(E, nullptr, 900 + Step);
+		return false;
+	});
 }
 
 int32 SFNHudLive::RingTarget(const FVector2D& ScreenPosition, double& OutLat, double& OutLon, FVector& OutWorld, FVector2D& OutPixel) const
@@ -1329,7 +1532,7 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 				const bool bMega = Where == 2;
 				RN->CastAt(Round, Power, Lo, La, bMega ? TEXT("mega") : TEXT("mini"));
 				RSt->FlashAt(Lo, La);
-				RSt->FocusBoard(La, Lo, bMega ? 3 : 2);   // the board zooms to where it struck: regions for a mega, villages for a mini
+				// No view hop (it should be used on the cell on the table, not hop the table view around ... it is a drop).
 				SetArmed(FString());
 				AddNews(bMega ? LOCTEXT("Mega", "MEGA") : LOCTEXT("Mini", "MINI"),
 					FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
@@ -1405,6 +1608,29 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 		}
 	}
 	if (ToastUntil > 0.0 && FPlatformTime::Seconds() > ToastUntil) { ToastUntil = 0.0; Model.Status = FText::GetEmpty(); Publish(); }
+	{
+		const double Now = FPlatformTime::Seconds();
+		if (SelectedUntil > 0.0 && Now > SelectedUntil)
+		{
+			SelectedUntil = 0.0;
+			if (AFNTableGods* Tg = AFNTableGods::GetAny(FindStudio() ? FindStudio()->GetWorld() : nullptr)) Tg->SetFigureHeld(SelectedRef, false);
+		}
+		if (BannerAt > 0.0 && Now >= BannerAt)
+		{
+			BannerAt = 0.0;
+			Model.BannerTitle = NextBannerTitle;
+			Model.Banner = NextBanner;
+			Model.BannerColor = NextBannerColor;
+			Publish();
+		}
+		else if (BannerUntil > 0.0 && BannerAt <= 0.0 && Now > BannerUntil)
+		{
+			BannerUntil = 0.0;
+			Model.Banner = FText::GetEmpty();
+			Model.BannerTitle = FText::GetEmpty();
+			Publish();
+		}
+	}
 	// TAKE ANOTHER DEMIGOD unanswered for a few seconds: say when the next chance comes.
 	if (bOut && bTakeAsked && FPlatformTime::Seconds() - TakeAskedAt > 6.0)
 	{
@@ -1536,16 +1762,15 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 			if (bLobby || bFell || bWill || bPreview) FN7HudMount::Preview(bLobby, bFell, bWill);
 			if (bSummon)
 			{
-				// Test: your Left Hand held (lifted, glowing) from just before the second shot, and summoned across the board.
-				TWeakObjectPtr<AFNPlayerController> WeakPC(PC);
-				FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudSummon"), 15.2f, [WeakPC](float)
+				// Test: the summon sequence, timed so shot 2 catches the big diorama card and shot 3 the landing, -N and d20.
+				FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudSummon"), 14.75f, [](float)
 				{
-					AFNPlayerController* P = WeakPC.Get();
-					if (AFNTableGods* T = P ? AFNTableGods::GetAny(P->GetWorld()) : nullptr)
-					{
-						T->SetFigureHeld(TEXT("dg:0"), true);
-						T->SetLocalPos(TEXT("dg:0"), 45.6, 11.8);
-					}
+					if (TSharedPtr<SFNHudLive> H = StaticCastSharedPtr<SFNHudLive>(FN7HudMount::GMountLive)) H->PreviewSummon(0);
+					return false;
+				});
+				FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudSummon2"), 21.4f, [](float)
+				{
+					if (TSharedPtr<SFNHudLive> H = StaticCastSharedPtr<SFNHudLive>(FN7HudMount::GMountLive)) H->PreviewSummon(1);
 					return false;
 				});
 			}

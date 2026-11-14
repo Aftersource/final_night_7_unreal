@@ -77,6 +77,9 @@ struct FFNHudModel
 	FText ComposeHint;      // "Write what you'll do today..."
 	FText Timer;            // "0:05"
 	FText Status;           // one line under the header: connection, waiting for host, match over
+	FText BannerTitle;      // a big moment over the board (a summon's deed), top centre, a few seconds
+	FText Banner;
+	FLinearColor BannerColor = FLinearColor::White;
 	bool bViewer = false;   // watching the house game without a seat
 	int32 AliveOf = 0;      // demigods in the match (the "7/8 ALIVE" denominator); 0 = unknown
 	bool bReplay = false;   // the house is replaying a recorded match
@@ -99,6 +102,7 @@ DECLARE_DELEGATE(FOnFNHudLobby);
 DECLARE_DELEGATE(FOnFNHudResetView);
 /** A drag started on one of your demigod cards: return the drag operation (or null when it can't be summoned). */
 DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<class FDragDropOperation>, FOnFNHudCardDrag, const FString& /*Ref*/, const FVector2D& /*Screen*/);
+DECLARE_DELEGATE_OneParam(FOnFNHudCardDouble, const FString& /*Ref*/);
 
 /**
  * The FN7 HUD, screen map v2: four corners around a completely clear centre (the hex board and the globe).
@@ -125,6 +129,8 @@ public:
 		SLATE_EVENT(FOnFNHudResetView, OnResetView)
 		/** Dragging one of your two demigod cards summons it. */
 		SLATE_EVENT(FOnFNHudCardDrag, OnCardDrag)
+		/** Double-clicking one of your demigod cards zooms the board to it. */
+		SLATE_EVENT(FOnFNHudCardDouble, OnCardDoubleClick)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -151,6 +157,7 @@ private:
 	FOnFNHudLobby OnLobby;
 	FOnFNHudResetView OnResetView;
 	FOnFNHudCardDrag OnCardDrag;
+	FOnFNHudCardDouble OnCardDoubleClick;
 	bool bTypingSignalled = false;
 
 	TSharedPtr<SBox> HeaderHolder, NewsHolder, YouHolder, PowersHolder;

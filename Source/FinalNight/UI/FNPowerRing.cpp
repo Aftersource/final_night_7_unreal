@@ -701,12 +701,9 @@ FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
 	const FString Why = Ref.IsEmpty() ? FString() : (WhyNot ? WhyNot(Ref) : (IsMine && IsMine(Ref) ? FString() : FString(TEXT("not yours"))));
 	UE_LOG(LogTemp, Display, TEXT("FN7 summon press: figure=%s %s"), Ref.IsEmpty() ? TEXT("none") : *Ref, Ref.IsEmpty() ? TEXT("") : (Why.IsEmpty() ? TEXT("-> drag") : *(TEXT("-> ") + Why)));
 	if (Ref.IsEmpty()) return FReply::Unhandled();   // not a demigod: the game gets the click
-	if (!Why.IsEmpty())
-	{
-		if (Toast) Toast(Why);
-		return FReply::Handled();
-	}
+	// Captured either way: a drag summons it (or says why not), a double-click zooms to it, a click does nothing.
 	PressedRef = Ref;
+	PressedWhy = Why;
 	return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
 }
 
@@ -721,12 +718,29 @@ FReply SFNPowerRingInput::OnMouseButtonUp(const FGeometry&, const FPointerEvent&
 	return FReply::Handled();
 }
 
+FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPointerEvent& E)
+{
+	if (E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
+	FVector2D Px;
+	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
+	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
+	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s"), Ref.IsEmpty() ? TEXT("none") : *Ref);
+	if (Ref.IsEmpty()) return FReply::Unhandled();
+	PressedRef.Reset();
+	PressedWhy.Reset();
+	if (OnFigureDouble) OnFigureDouble(Ref);
+	return FReply::Handled();
+}
+
 FReply SFNPowerRingInput::OnDragDetected(const FGeometry&, const FPointerEvent& E)
 {
 	if (!PressedRef.IsEmpty())
 	{
 		const FString Ref = PressedRef;
+		const FString Why = PressedWhy;
 		PressedRef.Reset();
+		PressedWhy.Reset();
+		if (!Why.IsEmpty()) { if (Toast) Toast(Why); return FReply::Handled(); }   // a rival's, a fallen one: say why
 		if (AFNTableGods* T = AFNTableGods::GetAny(Studio.IsValid() ? Studio->GetWorld() : nullptr)) T->SetFigureHeld(Ref, true);
 		return FReply::Handled().BeginDragDrop(FFNSummonDragDrop::New(Ref, E.GetScreenSpacePosition()));
 	}
@@ -749,10 +763,12 @@ FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E
 	bHoverPouch = bCan && R->PouchAtPixel(Px);
 	HoverHex = (bCan && !bHoverPouch) ? R->HexAtPixel(Px) : -1;
 	bHoverMine = false;
-	if (bCan && !bHoverPouch && HoverHex < 0 && IsMine)
+	bHoverFigure = false;
+	if (bCan && !bHoverPouch && HoverHex < 0)
 	{
 		const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
-		bHoverMine = !Ref.IsEmpty() && IsMine(Ref);
+		bHoverFigure = !Ref.IsEmpty();
+		bHoverMine = bHoverFigure && IsMine && IsMine(Ref);
 	}
 	if (R) { R->SetHover(HoverHex); R->SetPouchHover(bHoverPouch); }
 	if (Was != HoverHex || bWasPouch != bHoverPouch) Invalidate(EInvalidateWidgetReason::Paint);
@@ -769,6 +785,7 @@ void SFNPowerRingInput::OnMouseLeave(const FPointerEvent&)
 FCursorReply SFNPowerRingInput::OnCursorQuery(const FGeometry&, const FPointerEvent&) const
 {
 	if (HoverHex >= 0 || bHoverMine) return FCursorReply::Cursor(EMouseCursor::GrabHand);
+	if (bHoverFigure) return FCursorReply::Cursor(EMouseCursor::Hand);
 	return bHoverPouch ? FCursorReply::Cursor(EMouseCursor::Hand) : FCursorReply::Unhandled();
 }
 

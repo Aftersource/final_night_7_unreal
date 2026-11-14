@@ -163,11 +163,14 @@ public:
 	void SetIsMine(TFunction<bool(const FString&)> InIsMine) { IsMine = MoveTemp(InIsMine); }
 	/** Why a demigod can't be summoned ("" = it can): a press on it then shows the reason instead of dragging. */
 	void SetSummonCheck(TFunction<FString(const FString&)> InWhyNot, TFunction<void(const FString&)> InToast) { WhyNot = MoveTemp(InWhyNot); Toast = MoveTemp(InToast); }
+	/** A double-click on any demigod's box or board piece (yours: zoom to it; a rival's: zoom, later challenge). */
+	void SetOnFigureDoubleClick(TFunction<void(const FString&)> InDouble) { OnFigureDouble = MoveTemp(InDouble); }
 
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
 		FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -182,8 +185,11 @@ private:
 	int32 Pressed = -1;
 	int32 HoverHex = -1;
 	bool bHoverPouch = false;
-	FString PressedRef;          // one of your demigods, pressed
+	FString PressedRef;          // a demigod pressed (dragging it summons it when it's yours)
+	FString PressedWhy;          // why it can't be summoned ("" = it can)
 	bool bHoverMine = false;
+	bool bHoverFigure = false;
+	TFunction<void(const FString&)> OnFigureDouble;
 	TFunction<bool(const FString&)> IsMine;
 	TFunction<FString(const FString&)> WhyNot;
 	TFunction<void(const FString&)> Toast;

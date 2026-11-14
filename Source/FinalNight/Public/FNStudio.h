@@ -100,7 +100,7 @@ public:
 	void HideClassicSeats();
 	/** The kit's WILL scroll replaces the table's 3D WILL bar: hide it (and keep it from catching clicks). */
 	void HideWillBlock();
-	/** Point the table board at a lat/lon at a zoom level (0 people, 1 houses, 2 villages, 3 regions): a cast zooms there. */
+	/** Point the table board at a lat/lon at a zoom level (0 people, 1 houses, 2 villages, 3 regions; -1 = one closer). */
 	void FocusBoard(double Lat, double Lon, int32 Level);
 	/** The plate (fault) lines on the globe and the board: 0 hidden .. 1 glowing. The kit fades them in only while a mega
 	 *  is in hand (FFNPowerDragDrop::OnMegaArmed). */
