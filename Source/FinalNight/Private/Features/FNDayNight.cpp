@@ -1,6 +1,7 @@
 #include "Features/FNDayNight.h"
 #include "FNStudio.h"
 #include "Components/LightComponent.h"
+#include "Components/PostProcessComponent.h"
 #include "Dom/JsonObject.h"
 
 namespace FNDayNightImpl
@@ -10,7 +11,7 @@ namespace FNDayNightImpl
 	{
 		if (N == FName(TEXT("BoardKey"))) return 1;
 		if (N == FName(TEXT("Moon"))) return 2;
-		if (N == FName(TEXT("TabletLight"))) return 3;
+		if (N == FName(TEXT("TabletLight")) || N == FName(TEXT("Projector"))) return 3;
 		return 0;
 	}
 	static FLinearColor TintOf(const FString& Phase)
@@ -32,6 +33,11 @@ AFNDayNight::AFNDayNight()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	Grade = CreateDefaultSubobject<UPostProcessComponent>(TEXT("NightGrade"));
+	Grade->SetupAttachment(RootComponent);
+	Grade->bUnbound = true;
+	Grade->Priority = -1.f;     // under any volume the kit or the studio adds
+	Grade->BlendWeight = 0.f;   // nothing until the server says what time it is
 }
 
 void AFNDayNight::Bind(AFNStudio* InStudio)
@@ -42,7 +48,8 @@ void AFNDayNight::Bind(AFNStudio* InStudio)
 
 void AFNDayNight::FindLamps()
 {
-	Lamps.Reset();
+	// Lamps can appear later (the table's Projector is made when the map is built): keep the ones we have, add new ones.
+	Lamps.RemoveAll([](const FLamp& P) { return !P.Comp.IsValid(); });
 	AFNStudio* St = Studio.Get();
 	if (!St) return;
 	TArray<ULightComponent*> All;
@@ -50,7 +57,7 @@ void AFNDayNight::FindLamps()
 	for (ULightComponent* L : All)
 	{
 		const int32 LampRole = L ? FNDayNightImpl::RoleOf(L->GetFName()) : 0;
-		if (!LampRole) continue;
+		if (!LampRole || Lamps.ContainsByPredicate([L](const FLamp& P) { return P.Comp.Get() == L; })) continue;
 		FLamp& P = Lamps.AddDefaulted_GetRef();
 		P.Comp = L; P.BaseIntensity = L->Intensity; P.BaseColor = L->GetLightColor(); P.Role = LampRole;
 	}
@@ -81,7 +88,7 @@ void AFNDayNight::SetTarget(const FString& InPhase, float InLight)
 {
 	InLight = FMath::Clamp(InLight, 0.f, 1.f);
 	if (InPhase == Phase && FMath::IsNearlyEqual(InLight, ToLight, 0.01f)) return;
-	if (Lamps.Num() == 0) FindLamps();
+	FindLamps();
 	// Start the blend from wherever the look is right now.
 	const float A = FMath::SmoothStep(0.f, 1.f, Mix);
 	FromLight = FMath::Lerp(FromLight, ToLight, A);
@@ -105,6 +112,20 @@ void AFNDayNight::Tick(float DeltaSeconds)
 
 void AFNDayNight::Push(float L, const FLinearColor& Tint)
 {
+	if (Grade)
+	{
+		// Day: no grade. Night (light 0.15): a cool tint, about one stop darker, two-thirds saturation.
+		const float Night = 1.f - L;
+		FPostProcessSettings& P = Grade->Settings;
+		P.bOverride_SceneColorTint = true;
+		P.SceneColorTint = FLinearColor::LerpUsingHSV(FLinearColor::White, Tint, 0.6f);
+		P.bOverride_ColorSaturation = true;
+		P.ColorSaturation = FVector4(1.f - 0.35f * Night, 1.f - 0.35f * Night, 1.f - 0.35f * Night, 1.f);
+		P.bOverride_ColorGain = true;
+		const float Gain = 1.f - 0.5f * Night;
+		P.ColorGain = FVector4(Gain, Gain, Gain, 1.f);
+		Grade->BlendWeight = 1.f;
+	}
 	for (const FLamp& P : Lamps)
 	{
 		ULightComponent* C = P.Comp.Get();
