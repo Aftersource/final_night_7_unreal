@@ -2,6 +2,8 @@
 
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
@@ -131,6 +133,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 			Model.ArenaLine = FText::Format(LOCTEXT("Arena", "Time's circle: {0} km around {1}. Stay inside."),
 				FText::AsNumber((int32)FN7HudJson::Num(Arena, TEXT("radius_km"))), FText::FromString(FN7HudJson::Str(Arena, TEXT("city"))));
 		ReadSeatView(FN7HudJson::Obj(D, TEXT("private")));
+		if (Seats.Num() == 0) FetchGlobe();   // the PublicView only comes at the first commit: ask the globe query now
 		Model.Status = FText::GetEmpty();
 	}
 	else if (T == TEXT("round.private_state"))
@@ -297,6 +300,33 @@ void SFNHudLive::AddNews(const FText& Tag, const FString& Text)
 	N.Text = FText::FromString(Text.Len() > 220 ? Text.Left(217) + TEXT("...") : Text);
 	Model.News.Insert(N, 0);
 	if (Model.News.Num() > 6) Model.News.SetNum(6);
+}
+
+void SFNHudLive::FetchGlobe()
+{
+	UFNNetClient* N = Net.Get();
+	const FString Room = Model.Room.ToString();
+	if (!N || Room.IsEmpty() || bGlobePending) return;
+	bGlobePending = true;
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(N->MediaUrl(FString::Printf(TEXT("/api/rooms/%s/query/globe?limit=1"), *Room)));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetTimeout(15.f);
+	TWeakPtr<SFNHudLive> Weak = StaticCastSharedRef<SFNHudLive>(AsShared());
+	Req->OnProcessRequestComplete().BindLambda([Weak](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		TSharedPtr<SFNHudLive> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		Self->bGlobePending = false;
+		if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) return;
+		TSharedPtr<FJsonObject> Globe;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+		if (!FJsonSerializer::Deserialize(Reader, Globe) || !Globe.IsValid()) return;
+		if (Self->Seats.Num() > 0) return;   // a commit got there first
+		Self->ReadDemigods(Globe);
+		Self->Publish();
+	});
+	Req->ProcessRequest();
 }
 
 void SFNHudLive::RequestPortrait(const FString& Hash, const FString& Url)

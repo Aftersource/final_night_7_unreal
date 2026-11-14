@@ -60,6 +60,8 @@ private:
 	void ReadPowers(const TArray<TSharedPtr<class FJsonValue>>& Powers);
 	void AddNews(const FText& Tag, const FString& Text);
 	void RequestPortrait(const FString& Hash, const FString& Url);
+	void FetchGlobe();
+	bool bGlobePending = false;
 	void Publish();
 
 	void OnTyping();
