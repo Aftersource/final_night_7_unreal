@@ -1,0 +1,125 @@
+{
+ "slug": "mannequin",
+ "kind": "shared figure",
+ "name": "the duel mannequin",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "mesh (T-pose)",
+   "provider": "Meshy",
+   "operation": "text-to-3d preview",
+   "params": {
+    "pose_mode": "t-pose",
+    "target_formats": "glb,fbx"
+   },
+   "prompt": "A classic wooden artist's figure-drawing mannequin, full body humanoid, pale beech wood with visible grain, smooth tapered limb segments joined by round wooden ball joints at the neck, shoulders, elbows, wrists, waist, hips, knees and ankles, a smooth egg-shaped head with no face, simple mitten paddle hands, wedge feet, slim athletic proportions, arms and legs clearly separated from the body, standing upright, no base, no stand, no rod, game character",
+   "task_id": "01a1dbb7-a45f-700a-8a6e-5b62834a37cd",
+   "credits": 20
+  },
+  {
+   "step": 2,
+   "asset": "wood texture (PBR, 4K)",
+   "provider": "Meshy",
+   "operation": "text-to-3d refine",
+   "texture_prompt": "pale natural beech wood with fine visible grain and a soft satin varnish, slightly darker turned-wood ball joints, clean, no paint, no face",
+   "task_id": "01a1dbb8-b8d5-77a7-977a-a952ea491aa5",
+   "credits": 10
+  },
+  {
+   "step": 3,
+   "asset": "rig",
+   "provider": "Meshy",
+   "operation": "rigging",
+   "params": {
+    "height_meters": 1.7,
+    "skeleton_template": "ue5_mannequin"
+   },
+   "task_id": "01a1dbb9-fcfd-719d-9b0a-28abc0cd1af4",
+   "credits": 5,
+   "file": {
+    "path": "mannequin/mannequin_rigged.fbx",
+    "sha256": "4a689d9e86d263e1e8914a13e4b034f9ccf768d2aa00eb2c9ed2f7f3e5e8d7d5",
+    "bytes": 29427276
+   }
+  },
+  {
+   "step": 4,
+   "asset": "skins (retexture on the original UVs, PBR 4K, committed at 2K)",
+   "provider": "Meshy",
+   "operation": "retexture",
+   "params": {
+    "enable_original_uv": true,
+    "enable_pbr": true,
+    "texture_resolution": "4k"
+   },
+   "credits_each": 10,
+   "skins": {
+    "obsidian": {
+     "task_id": "01a1dbba-0ef2-738c-b98b-cdbf99410d84",
+     "prompt": "polished black volcanic obsidian glass with faint purple inner glow and razor-sharp glossy reflections, knapped facets, darker matte ball joints"
+    },
+    "gold": {
+     "task_id": "01a1dbba-194a-7151-8586-812ee912071a",
+     "prompt": "solid burnished antique gold, hammered and engraved with fine ornamental filigree, darker bronze ball joints, rich metallic"
+    },
+    "dragonscale": {
+     "task_id": "01a1dbba-24e0-7467-a52c-07fa4c61e660",
+     "prompt": "overlapping iridescent dragon scales in deep emerald and crimson with bronze edges, armoured reptile hide, horned ridge plates at the joints"
+    },
+    "butterfly": {
+     "task_id": "01a1dbba-2ffd-77ae-ba60-f1cc9f8a9f0f",
+     "prompt": "covered in iridescent butterfly wing scales, blue morpho shimmer shading to violet and orange monarch wing patterns with black veins, delicate, luminous"
+    }
+   }
+  },
+  {
+   "step": 5,
+   "asset": "35 clips",
+   "provider": "Meshy",
+   "operation": "rig's bundled walk/run + 33 animation-library clips (animate, 3 credits each)",
+   "credits": 99,
+   "clip_action_ids": {
+    "idle_guard": 89,
+    "strike_side": 97,
+    "strike_slash": 219,
+    "lunge": 240,
+    "heavy_charged": 242,
+    "heavy_hammer": 128,
+    "jump_attack": 86,
+    "combo_triple": 105,
+    "parry_high": 147,
+    "parry_back": 148,
+    "block": 138,
+    "block_cross": 149,
+    "shield_push": 220,
+    "evade_stand": 156,
+    "evade_roll": 158,
+    "evade_spin": 384,
+    "counter": 93,
+    "kick": 206,
+    "throw_shoulder": 421,
+    "grapple_throw_down": 389,
+    "stagger_back": 178,
+    "stagger_waist": 171,
+    "airborne_hit": 7,
+    "downed": 187,
+    "rise": 344,
+    "defeat": 189,
+    "invoke": 125,
+    "command": 129,
+    "ground_slam": 127,
+    "taunt": 88,
+    "victory": 412,
+    "bow": 41,
+    "kneel": 365
+   },
+   "task_ids": "__production_steps/meshy_jobs.log (local, git-ignored)",
+   "file": {
+    "path": "mannequin/mannequin_all_clips.glb",
+    "sha256": "4dea2c75ff4d672e1422768a69dd7177206ba920cbd65fc2a232611b75c10b54",
+    "bytes": 14279560
+   }
+  }
+ ],
+ "total_credits": 174
+}

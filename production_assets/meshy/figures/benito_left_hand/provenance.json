@@ -1,0 +1,70 @@
+{
+ "slug": "benito_left_hand",
+ "kind": "demigod",
+ "name": "Benito's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "e0cebd646e5ec5f807c879720e93d9149393af39ac2aae9e194284c16df0a895",
+   "file": {
+    "path": "figures/benito_left_hand/portrait.png",
+    "sha256": "ef191df6f3faf24e6f7ec9a9f25f8486a285ea3b203a35b3a13a43be313bbfd2",
+    "bytes": 1518339
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/benito_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a round, sturdy demigod with a hawk nose and heavy brows, a tuxedo with a torn sleeve and shin guards in magenta and sky blue, a coiled serpent emblem on the chest, standing in a wide triumphant stance, raising a dented sword high in one hand, the other fist on the hip, chin up, coat tails flying. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "cost": "not recorded per call (the API response's usage was not kept); about $0.05 by the repo's price estimate",
+   "file": {
+    "path": "figures/benito_left_hand/heroic.png",
+    "sha256": "acb1b15d9958579ae36482b89cefb0110f3b1f633043ca81349e539b889f2752",
+    "bytes": 2415085
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/benito_left_hand/heroic.png",
+   "task_id": "01a1dc5b-3b55-7484-9921-7a1ba88eb055",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/benito_left_hand/benito_left_hand_statue.glb",
+     "sha256": "83b918161246b36c668d4db01e4559731e1da74c12bd74631b38755676ae7589",
+     "bytes": 24127652
+    },
+    {
+     "path": "figures/benito_left_hand/preview.png",
+     "sha256": "117faccea1a4cd355ed55dbe39853e26afef37f027bd6350ded6acfaf94dee18",
+     "bytes": 102439
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

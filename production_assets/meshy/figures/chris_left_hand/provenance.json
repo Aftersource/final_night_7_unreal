@@ -1,0 +1,88 @@
+{
+ "slug": "chris_left_hand",
+ "kind": "demigod",
+ "name": "Chris's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "8ec91c546cae6c2f658dd15ab2c51c1dce560743367d2b6235a85d0bd1d253c4",
+   "file": {
+    "path": "figures/chris_left_hand/portrait.png",
+    "sha256": "9c8fd0a9fbb0c8d63033c701accb0af7e825f2046497cdd3c48eb72b802d4af9",
+    "bytes": 1435011
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/chris_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a wiry, long-limbed demigod with silver braids and a serene face, ornate plate armor over a hooded cloak in violet and jet black, standing tall with one foot forward on a low rock, one open hand raised to the sky gathering light, the other arm swept back, cloak caught mid-billow. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "cost": "not recorded per call (the API response's usage was not kept); about $0.05 by the repo's price estimate",
+   "file": {
+    "path": "figures/chris_left_hand/heroic.png",
+    "sha256": "d1c97e89827a196bb119da29c58fca51131e22ef47718173c45b6ac04969fe4f",
+    "bytes": 2340061
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/chris_left_hand/heroic.png",
+   "task_id": "01a1dc59-9087-77f1-b365-e64fbf5e001f",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/chris_left_hand/chris_left_hand_statue.glb",
+     "sha256": "c358e92dbd22eff3a9d5eeff70873941893a6eff0f41a121e475a613fe7ab87f",
+     "bytes": 43081148
+    },
+    {
+     "path": "figures/chris_left_hand/preview.png",
+     "sha256": "b02516c8ffaff4d3c38a183eb02b943c9eff6a9a82c1f0dd2c9760e8ae42fe53",
+     "bytes": 145229
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  },
+  {
+   "step": "2b",
+   "asset": "A-pose reference image (for a rigged figure; no model made from it yet)",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/chris_left_hand/portrait.png"
+   ],
+   "prompt": "Character turnaround sheet for a 3D model, a single full-body figure of this same character, standing upright in a relaxed A-pose facing the camera: arms held straight and away from the body at 45 degrees, legs slightly apart, feet flat, hands open, whole body visible from head to toe with space around it. A wiry, long-limbed demigod with silver braids and a serene face, ornate plate armor over a hoodie in violet and jet black, as a stylized hand-painted tabletop miniature with chunky readable shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no shadows on the background, no base, no props, no weapon, no text, no other figures.",
+   "file": {
+    "path": "figures/chris_left_hand/apose.png",
+    "sha256": "190142f8de7c5748832a7ce0fb3bd2bb2b8b10f0fee4dd6695a3ac6417c68db4",
+    "bytes": 2639739
+   }
+  }
+ ]
+}
