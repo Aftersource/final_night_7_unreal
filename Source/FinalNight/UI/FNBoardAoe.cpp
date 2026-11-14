@@ -169,6 +169,19 @@ void AFNStudio::HideClassicSeats()
 {
 	// Hidden-in-game, not invisible: UpdateSeats flips the beads' visibility every tick, and fighting it with
 	// SetVisibility each frame rebuilt their render state twice a frame. bHiddenInGame wins and nobody touches it.
+	// The studio's own demigod markers on the board (an aura pillar, a light column, a base ring, a label) stand at the
+	// same lat/lon as the kit's raised diorama cards and cut right through them (Chris noted poles in front of the
+	// portraits"): while the kit's pieces stand, the card is the only thing at a demigod's spot.
+	auto Hide = [](UPrimitiveComponent* C)
+	{
+		if (!C) return;
+		if (!C->bHiddenInGame) C->SetHiddenInGame(true);
+		if (C->GetCollisionEnabled() != ECollisionEnabled::NoCollision) C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	};
+	for (UStaticMeshComponent* C : HeroMarks) Hide(C);
+	for (UStaticMeshComponent* C : HeroBeams) Hide(C);
+	for (UStaticMeshComponent* C : HeroRings) Hide(C);
+	for (UTextRenderComponent* C : HeroLabels) Hide(C);
 	for (FSeatSlot& S : SeatSlots)
 	{
 		if (S.Fig) S.Fig->SetHiddenInGame(true, true);
