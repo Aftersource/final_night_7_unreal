@@ -1021,7 +1021,10 @@ void AFNTableGods::SetGods(const TArray<FFNTableGod>& Gods, int32 MySeat)
 				if (Dg.bHasPos && Dg.bAlive) { BoardInfo.Add(Key, Dg); BoardAura.Add(Key, G.Aura); }
 				continue;
 			}
-			const float Deg = G.Demigods.Num() == 1 ? Angle : Angle + (Dg.Side == TEXT("right") ? -Off : Off);
+			float Deg = G.Demigods.Num() == 1 ? Angle : Angle + (Dg.Side == TEXT("right") ? -Off : Off);
+			// The god at the right of the globe (slot 3, 305 deg): both boxes 2 deg further from the globe, which hid them a
+			// bit (shift its first one 2 degrees and its second one 2 degrees too).
+			if (Slot == 3) Deg += 2.f;
 			TObjectPtr<AFNDemigodFigure>& Fig = Figures.FindOrAdd(Key);
 			if (!Fig) Fig = W->SpawnActor<AFNDemigodFigure>(Local(Deg, GodFigR, GodTableTop), FRotator(0.f, StudioYaw + Deg + 180.f, 0.f), P);
 			if (Fig)

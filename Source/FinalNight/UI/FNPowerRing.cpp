@@ -191,11 +191,13 @@ FVector AFNPowerRing::PouchWorld() const
 	if (!Rim(C, R, TableRot)) return GetActorLocation();
 	const AFNStudio* St = Studio.Get();
 	const float S = St ? (float)St->GetActorScale3D().X : 1.f;
-	const double ArcR = R + (RingRimGap + 8.f) * S;
+	// Just past the arc's far end, beside player 3's diorama boxes. The pouch goes right here, just past the other
+	// player's dioramas"). Plump (holding the hexes) it sits a little further along and nearer the board, off the god's
+	// box; empty it settles back beside the first hex, which it would otherwise cover.
+	const float Full = FMath::Clamp(PouchFull, 0.f, 1.f);
+	const double ArcR = R + FMath::Lerp(RingRimGap + 8.f, RingRimGap - 1.f, Full) * S;
 	const double StepDeg = FMath::RadiansToDegrees(((RingHexR * 1.7320508f + RingGap) * S) / (R + RingRimGap * S));
-	// The near end of the arc, toward you (Chris noted the pouch was blocking the portrait, so it must sit over the target area: at the far end
-	// it stood in front of the gods' diorama boxes).
-	const double A = FMath::DegreesToRadians(RingArcStart + 0.5 * StepDeg + 7.0);
+	const double A = FMath::DegreesToRadians(RingArcStart - (RingPerRow - 0.5) * StepDeg - RingPouchBeyond + FMath::Lerp(5.0, 12.0, (double)Full));
 	return C + TableRot.RotateVector(FVector((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), 0.f));
 }
 
