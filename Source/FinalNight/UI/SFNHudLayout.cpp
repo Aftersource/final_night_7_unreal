@@ -933,10 +933,10 @@ void SFNHudLayout::HandleTextChanged(const FText& Text)
 	}
 }
 
-void SFNHudLayout::HandleTextCommitted(const FText&, ETextCommit::Type)
+void SFNHudLayout::HandleTextCommitted(const FText&, ETextCommit::Type CommitType)
 {
-	using namespace FN7Style;
-	using namespace FN7HudParts;
+	// Enter in the will sends it (Enter in the will should just send the will, not add a newline).
+	if (CommitType == ETextCommit::OnEnter) HandleSend();
 }
 
 FReply SFNHudLayout::HandleSend()

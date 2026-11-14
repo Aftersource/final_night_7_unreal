@@ -14,6 +14,7 @@ void SFNTextBox::Construct(const FArguments& InArgs)
 			.Text(InArgs._Text)
 			.HintText(InArgs._HintText)
 			.AutoWrapText(true)
+			.ModiferKeyForNewLine(EModifierKey::Shift)   // Enter commits (sends); Shift+Enter is a new line (Chris)
 			.OnTextChanged(InArgs._OnTextChanged)
 			.OnTextCommitted(InArgs._OnTextCommitted);
 	}
