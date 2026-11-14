@@ -455,7 +455,7 @@ TSharedRef<SWidget> SFNHudLive::MakeOutCard()
 	const FLinearColor OutInk(0.1f, 0.06f, 0.02f);
 	return SNew(SBox)
 		.WidthOverride(520.f)
-		.Visibility_Lambda([this]() { return (bOut && !bOutDismissed && !bLobbyOpen && bInRoom) ? EVisibility::Visible : EVisibility::Collapsed; })
+		.Visibility_Lambda([this]() { return ((bOut || bWiped) && !bOutDismissed && !bLobbyOpen && bInRoom) ? EVisibility::Visible : EVisibility::Collapsed; })
 		[
 			SNew(SBorder)
 			.BorderImage(Brush::Card())
@@ -464,11 +464,11 @@ TSharedRef<SWidget> SFNHudLive::MakeOutCard()
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight()
 				[
-					SNew(STextBlock).TextStyle(&Type::Title()).Text_Lambda([this]() { return FText::Format(LOCTEXT("YouFell", "You fell at beat {0}."), OutBeat); })
+					SNew(STextBlock).TextStyle(&Type::Title()).Text_Lambda([this]() { return bOut ? FText::Format(LOCTEXT("YouFell", "You fell at beat {0}."), OutBeat) : LOCTEXT("BothFell", "Both of your demigods have fallen."); })
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
 				[
-					SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true).Text_Lambda([this]() { return FText::FromString(OutReason); })
+					SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true).Text_Lambda([this]() { return bOut ? FText::FromString(OutReason) : LOCTEXT("PleaHow", "Your WILL still works: plead to Death (\"my demigods come back to life\"). Death names a price in sparks, or a quest."); })
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
 				[
@@ -482,6 +482,26 @@ TSharedRef<SWidget> SFNHudLive::MakeOutCard()
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 					[
 						SNew(SBox).HeightOverride(40.f)
+						.Visibility_Lambda([this]() { return (bWiped && !bOut) ? EVisibility::Visible : EVisibility::Collapsed; })
+						[
+							SNew(SButton)
+							.ButtonStyle(&AccentButton())
+							.VAlign(VAlign_Center)
+							.OnClicked_Lambda([this]()
+							{
+								bOutDismissed = true;
+								if (Layout.IsValid()) Layout->FocusWill();   // the plea goes in the WILL
+								return FReply::Handled();
+							})
+							[
+								SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(OutInk).Text(LOCTEXT("Plead", "PLEAD TO DEATH"))
+							]
+						]
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+					[
+						SNew(SBox).HeightOverride(40.f)
+						.Visibility_Lambda([this]() { return bOut ? EVisibility::Visible : EVisibility::Collapsed; })
 						[
 							SNew(SButton)
 							.ButtonStyle(&AccentButton())
@@ -741,6 +761,39 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 				const FString Said = FN7HudJson::Str(H->AsObject(), TEXT("said"));
 				if (!Said.IsEmpty()) AddNews(LOCTEXT("Hands", "HANDS"), Said);
 			}
+		// Rules 0.9.0: every will's answer, part by part, where the player looks (healing and arming currently do nothing):
+		// the result always; why it fell short and what would work, when the part says.
+		if (const TArray<TSharedPtr<FJsonValue>>* Wills = FN7HudJson::Arr(Priv, TEXT("wills")))
+		{
+			const FText WillTag = LOCTEXT("WillTag", "WILL");
+			for (const TSharedPtr<FJsonValue>& Wv : *Wills)
+			{
+				const TSharedPtr<FJsonObject> Wo = Wv.IsValid() ? Wv->AsObject() : nullptr;
+				if (!Wo.IsValid()) continue;
+				const TArray<TSharedPtr<FJsonValue>>* Parts = FN7HudJson::Arr(Wo, TEXT("parts"));
+				int32 Shown = 0;
+				if (Parts)
+					for (const TSharedPtr<FJsonValue>& Pv : *Parts)
+					{
+						const TSharedPtr<FJsonObject> Part = Pv.IsValid() ? Pv->AsObject() : nullptr;
+						const FString Result = FN7HudJson::Str(Part, TEXT("result"));
+						if (Result.IsEmpty()) continue;
+						FString Line = Result;
+						const FString Why = FN7HudJson::Str(Part, TEXT("why")), Next = FN7HudJson::Str(Part, TEXT("next"));
+						if (!Why.IsEmpty()) Line += TEXT(". ") + Why;
+						if (!Next.IsEmpty()) Line += TEXT(". Next: ") + Next;
+						AddNews(WillTag, Line);
+						if (++Shown >= 4) break;
+					}
+				if (Shown == 0)
+				{
+					const FString Reason = FN7HudJson::Str(Wo, TEXT("reason"));
+					if (!Reason.IsEmpty()) AddNews(WillTag, Reason);
+				}
+				UE_LOG(LogTemp, Display, TEXT("FN7 will: \"%s\" -> %s (%d parts)"), *FN7HudJson::Str(Wo, TEXT("text")).Left(60),
+					*FN7HudJson::Str(Wo, TEXT("verdict")), Parts ? Parts->Num() : 0);
+			}
+		}
 	}
 	else if (T == TEXT("window.opened"))
 	{
@@ -952,6 +1005,26 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 		MineRefs.Reset();
 		MineAlive.Reset();
 		for (const FFNHudDemigod& Dg : Model.Mine) if (!Dg.Ref.IsEmpty()) { MineRefs.Add(Dg.Ref); MineAlive.Add(Dg.Ref, Dg.bAlive); }
+		// Rules 0.9.0: a wipe sends no seat.eliminated; your demigods say it, and the WILL stays open for a plea.
+		{
+			bool bAnyUp = false;
+			for (const TPair<FString, bool>& P : MineAlive) bAnyUp |= P.Value;
+			const bool bNowWiped = MineAlive.Num() > 0 && !bAnyUp;
+			if (bNowWiped && !bWiped)
+			{
+				bWiped = true;
+				bOutDismissed = false;
+				OutBeat = Model.Beat;
+				AddNews(LOCTEXT("WipedTag", "FALLEN"), TEXT("Both of your demigods have fallen. Plead to Death in your WILL to bring them back."));
+				UE_LOG(LogTemp, Display, TEXT("FN7 wiped: both demigods down at beat %d (the WILL stays open)"), Model.Beat);
+			}
+			else if (!bNowWiped && bWiped)
+			{
+				bWiped = false;
+				AddNews(LOCTEXT("BackTag", "BACK"), TEXT("A demigod of yours stands again."));
+				UE_LOG(LogTemp, Display, TEXT("FN7 wiped: a demigod stands again"));
+			}
+		}
 		if (!FN7HudJson::Has(View, TEXT("seat")))
 			for (const TSharedPtr<FJsonValue>& V : *Hands)
 				if (const TSharedPtr<FJsonObject> G = V.IsValid() ? V->AsObject() : nullptr)
@@ -1891,6 +1964,7 @@ void SFNHudLive::NewMatch(const FString& Id)
 	UE_LOG(LogTemp, Display, TEXT("FN7 match: %s -> %s (summon state reset)"), MatchId.IsEmpty() ? TEXT("none") : *MatchId, *Id);
 	MatchId = Id;
 	Duels.Reset();
+	bWiped = false;
 	MineRefs.Reset();
 	MineAlive.Reset();
 	LastMineLog.Reset();
