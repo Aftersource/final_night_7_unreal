@@ -26,30 +26,30 @@
 
 namespace FN7Ring
 {
-	static const TCHAR* Cube = TEXT("/Engine/BasicShapes/Cube.Cube");
-	static const TCHAR* Cyl = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
-	static const TCHAR* Sph = TEXT("/Engine/BasicShapes/Sphere.Sphere");
-	static const TCHAR* Cone = TEXT("/Engine/BasicShapes/Cone.Cone");
-	static const TCHAR* Plane = TEXT("/Engine/BasicShapes/Plane.Plane");
+	static const TCHAR* RingCube = TEXT("/Engine/BasicShapes/RingCube.RingCube");
+	static const TCHAR* RingCyl = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
+	static const TCHAR* RingSph = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+	static const TCHAR* RingCone = TEXT("/Engine/BasicShapes/RingCone.RingCone");
+	static const TCHAR* RingPlane = TEXT("/Engine/BasicShapes/RingPlane.RingPlane");
 
-	// Sizes in table cm (scaled with the table): a hex of circumradius HexR, HexH thick, arcs just outside the board rim.
+	// Sizes in table cm (scaled with the table): a hex of circumradius RingHexR, RingHexH thick, arcs just outside the board rim.
 	// Measured on the real camera: the board's near-right edge runs off the screen and the table's WILL bar sits there,
 	// so the arc climbs the board's RIGHT side from just right of centre toward the back, two rows deep.
-	static constexpr float HexR = 10.5f;
-	static constexpr float HexH = 3.4f;
-	static constexpr float RimGap = 15.f;      // from the board's rim to the inner row's centre line
-	static constexpr float Gap = 3.5f;         // between neighbouring hexes
-	static constexpr float ArcStart = 12.f;    // degrees from +X (table right) toward +Y (the near side, the camera)
-	static constexpr int32 PerRow = 6;
-	static constexpr float PouchBeyond = 9.f;  // the pouch sits this many degrees past the inner row's far end
+	static constexpr float RingHexR = 10.5f;
+	static constexpr float RingHexH = 3.4f;
+	static constexpr float RingRimGap = 15.f;      // from the board's rim to the inner row's centre line
+	static constexpr float RingGap = 3.5f;         // between neighbouring hexes
+	static constexpr float RingArcStart = 12.f;    // degrees from +X (table right) toward +Y (the near side, the camera)
+	static constexpr int32 RingPerRow = 6;
+	static constexpr float RingPouchBeyond = 9.f;  // the pouch sits this many degrees past the inner row's far end
 
-	static const FLinearColor Wood(0.30f, 0.17f, 0.07f);
-	static const FLinearColor WoodEdge(0.15f, 0.085f, 0.035f);
-	static const FLinearColor WoodDim(0.16f, 0.15f, 0.14f);
-	static const FLinearColor Leather(0.23f, 0.11f, 0.05f);
-	static const FLinearColor Brass(0.62f, 0.44f, 0.16f);
+	static const FLinearColor RingWood(0.30f, 0.17f, 0.07f);
+	static const FLinearColor RingWoodEdge(0.15f, 0.085f, 0.035f);
+	static const FLinearColor RingWoodDim(0.16f, 0.15f, 0.14f);
+	static const FLinearColor RingLeather(0.23f, 0.11f, 0.05f);
+	static const FLinearColor RingBrass(0.62f, 0.44f, 0.16f);
 
-	static float EaseOutBack(float T)
+	static float RingEaseOutBack(float T)
 	{
 		const float C1 = 1.4f, C3 = C1 + 1.f;
 		const float U = T - 1.f;
@@ -120,7 +120,7 @@ bool AFNPowerRing::Rim(FVector& Center, double& Radius, FRotator& TableRot) cons
 float AFNPowerRing::WorldHexR() const
 {
 	const AFNStudio* St = Studio.Get();
-	return FN7Ring::HexR * (St ? (float)St->GetActorScale3D().X : 1.f);
+	return FN7Ring::RingHexR * (St ? (float)St->GetActorScale3D().X : 1.f);
 }
 
 FVector AFNPowerRing::SlotWorld(int32 Index, int32 Count, FQuat& OutRot) const
@@ -132,12 +132,12 @@ FVector AFNPowerRing::SlotWorld(int32 Index, int32 Count, FQuat& OutRot) const
 	if (!Rim(C, R, TableRot)) { OutRot = FQuat::Identity; return GetActorLocation(); }
 	const AFNStudio* St = Studio.Get();
 	const float S = St ? (float)St->GetActorScale3D().X : 1.f;
-	const int32 Row = Index / PerRow, Col = Index % PerRow;
-	const double ArcR = R + (RimGap + Row * HexR * 1.8f) * S;
-	const double StepDeg = FMath::RadiansToDegrees(((HexR * 1.7320508f + Gap) * S) / ArcR);
-	const double Deg = ArcStart - (Col + 0.5 * Row) * StepDeg;
+	const int32 Row = Index / RingPerRow, Col = Index % RingPerRow;
+	const double ArcR = R + (RingRimGap + Row * RingHexR * 1.8f) * S;
+	const double StepDeg = FMath::RadiansToDegrees(((RingHexR * 1.7320508f + RingGap) * S) / ArcR);
+	const double Deg = RingArcStart - (Col + 0.5 * Row) * StepDeg;
 	const double A = FMath::DegreesToRadians(Deg);
-	const FVector Local((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), HexH * 0.5f * S);
+	const FVector Local((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), RingHexH * 0.5f * S);
 	OutRot = (TableRot.Quaternion() * FRotator(0.f, (float)Deg, 0.f).Quaternion());
 	return C + TableRot.RotateVector(Local);
 }
@@ -151,9 +151,9 @@ FVector AFNPowerRing::PouchWorld() const
 	if (!Rim(C, R, TableRot)) return GetActorLocation();
 	const AFNStudio* St = Studio.Get();
 	const float S = St ? (float)St->GetActorScale3D().X : 1.f;
-	const double ArcR = R + (RimGap + 1.f) * S;
-	const double StepDeg = FMath::RadiansToDegrees(((HexR * 1.7320508f + Gap) * S) / (R + RimGap * S));
-	const double A = FMath::DegreesToRadians(ArcStart - (PerRow - 0.5) * StepDeg - PouchBeyond);
+	const double ArcR = R + (RingRimGap + 1.f) * S;
+	const double StepDeg = FMath::RadiansToDegrees(((RingHexR * 1.7320508f + RingGap) * S) / (R + RingRimGap * S));
+	const double A = FMath::DegreesToRadians(RingArcStart - (RingPerRow - 0.5) * StepDeg - RingPouchBeyond);
 	return C + TableRot.RotateVector(FVector((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), 0.f));
 }
 
@@ -167,10 +167,10 @@ void AFNPowerRing::BuildPouch()
 	Pouch->RegisterComponent();
 	Parts.Add(Pouch);
 	// A small leather pouch: the belly, a gathered neck, a brass tie, a flared mouth.
-	PouchParts.Add(Part(Pouch, Sph, FVector(0, 0, 6.f), FVector(0.17f, 0.15f, 0.13f), FRotator::ZeroRotator, Leather));
-	PouchParts.Add(Part(Pouch, Cyl, FVector(0, 0, 12.5f), FVector(0.075f, 0.075f, 0.04f), FRotator::ZeroRotator, Leather * 0.85f));
-	PouchParts.Add(Part(Pouch, Cyl, FVector(0, 0, 13.2f), FVector(0.085f, 0.085f, 0.012f), FRotator::ZeroRotator, Brass));
-	PouchParts.Add(Part(Pouch, Cone, FVector(0, 0, 16.5f), FVector(0.11f, 0.11f, 0.05f), FRotator(180.f, 0.f, 0.f), Leather * 1.1f));
+	PouchParts.Add(Part(Pouch, RingSph, FVector(0, 0, 6.f), FVector(0.17f, 0.15f, 0.13f), FRotator::ZeroRotator, RingLeather));
+	PouchParts.Add(Part(Pouch, RingCyl, FVector(0, 0, 12.5f), FVector(0.075f, 0.075f, 0.04f), FRotator::ZeroRotator, RingLeather * 0.85f));
+	PouchParts.Add(Part(Pouch, RingCyl, FVector(0, 0, 13.2f), FVector(0.085f, 0.085f, 0.012f), FRotator::ZeroRotator, RingBrass));
+	PouchParts.Add(Part(Pouch, RingCone, FVector(0, 0, 16.5f), FVector(0.11f, 0.11f, 0.05f), FRotator(180.f, 0.f, 0.f), RingLeather * 1.1f));
 	PouchCount = NewObject<UTextRenderComponent>(this);
 	PouchCount->SetupAttachment(Pouch);
 	PouchCount->SetRelativeLocation(FVector(0, 0, 24.f));
@@ -219,11 +219,11 @@ void AFNPowerRing::SetPowers(const TArray<FString>& Slugs, const TArray<FText>& 
 		// The carved hex: three boxes at 0/60/120 degrees make the hexagon; a darker, slightly wider underside reads as a bevel.
 		for (int32 k = 0; k < 3; ++k)
 		{
-			H.Wood.Add(Part(H.Root, Cube, FVector(0, 0, 0.35f), FVector(HexR * 1.7320508f / 100.f, HexR / 100.f, (HexH - 0.7f) / 100.f), FRotator(0.f, 60.f * k, 0.f), Wood));
-			H.Wood.Add(Part(H.Root, Cube, FVector(0, 0, -HexH * 0.5f + 0.35f), FVector((HexR + 0.6f) * 1.7320508f / 100.f, (HexR + 0.6f) / 100.f, 0.7f / 100.f), FRotator(0.f, 60.f * k, 0.f), WoodEdge));
+			H.Wood.Add(Part(H.Root, RingCube, FVector(0, 0, 0.35f), FVector(RingHexR * 1.7320508f / 100.f, RingHexR / 100.f, (RingHexH - 0.7f) / 100.f), FRotator(0.f, 60.f * k, 0.f), RingWood));
+			H.Wood.Add(Part(H.Root, RingCube, FVector(0, 0, -RingHexH * 0.5f + 0.35f), FVector((RingHexR + 0.6f) * 1.7320508f / 100.f, (RingHexR + 0.6f) / 100.f, 0.7f / 100.f), FRotator(0.f, 60.f * k, 0.f), RingWoodEdge));
 		}
 		// The inked plaque on top (the power's icon), image top away from the camera.
-		H.Plaque = Part(H.Root, Plane, FVector(0, 0, HexH * 0.5f + 0.06f), FVector(0.125f, 0.125f, 1.f), FRotator(0.f, 90.f, 0.f), FLinearColor::White);
+		H.Plaque = Part(H.Root, RingPlane, FVector(0, 0, RingHexH * 0.5f + 0.06f), FVector(0.125f, 0.125f, 1.f), FRotator(0.f, 90.f, 0.f), FLinearColor::White);
 		if (ImageMat)
 			if (UTexture2D* Icon = IconTexture(H.Slug))
 			{
@@ -246,7 +246,7 @@ void AFNPowerRing::SetPurse(int32 InBolts, int32 InSparks)
 	const bool bOn = IsEnabled();
 	for (FHex& H : Hexes)
 		for (int32 k = 0; k < H.Wood.Num(); ++k)
-			SetColor(H.Wood[k], bOn ? (k % 2 == 0 ? FN7Ring::Wood : FN7Ring::WoodEdge) : FN7Ring::WoodDim * (k % 2 == 0 ? 1.f : 0.6f));
+			SetColor(H.Wood[k], bOn ? (k % 2 == 0 ? FN7Ring::RingWood : FN7Ring::RingWoodEdge) : FN7Ring::RingWoodDim * (k % 2 == 0 ? 1.f : 0.6f));
 	if (PouchCount) PouchCount->SetText(FText::FromString(Bolts == 1 ? TEXT("1 BOLT") : FString::Printf(TEXT("%d BOLTS"), FMath::Max(0, Bolts))));
 }
 
@@ -322,7 +322,7 @@ void AFNPowerRing::Tick(float Dt)
 
 		FQuat SlotRot;
 		const FVector Slot = SlotWorld(i, N, SlotRot);
-		const float E = EaseOutBack(T);
+		const float E = RingEaseOutBack(T);
 		FVector Target = FMath::Lerp(PouchPos + FVector(0, 0, 10.f * S), Slot, E) + FVector(0, 0, FMath::Sin(PI * FMath::Clamp(T, 0.f, 1.f)) * 16.f * S);
 		const FQuat Tumble(H.SpinAxis, (1.f - FMath::Clamp(T, 0.f, 1.f)) * PI * 3.f);
 		FQuat TargetRot = Tumble * SlotRot;
@@ -391,9 +391,9 @@ UTexture2D* AFNPowerRing::IconTexture(const FString& Slug)
 		for (int32 i = 1; i < Stroke.Num(); ++i)
 			Segs.Add(TPair<FVector2f, FVector2f>(Stroke[i - 1] / 24.f * Span + FVector2f(Margin), Stroke[i] / 24.f * Span + FVector2f(Margin)));
 	const float Half = 4.4f;   // half the ink width, px
-	const FLinearColor Paper = FLinearColor::FromSRGBColor(FColor(236, 222, 186));
-	const FLinearColor PaperEdge = FLinearColor::FromSRGBColor(FColor(205, 182, 135));
-	const FLinearColor Ink = FLinearColor::FromSRGBColor(FColor(42, 26, 13));
+	const FLinearColor PlaquePaper = FLinearColor::FromSRGBColor(FColor(236, 222, 186));
+	const FLinearColor PlaquePaperEdge = FLinearColor::FromSRGBColor(FColor(205, 182, 135));
+	const FLinearColor PlaqueInk = FLinearColor::FromSRGBColor(FColor(42, 26, 13));
 	TArray<FColor> Px;
 	Px.SetNumUninitialized(Size * Size);
 	for (int32 y = 0; y < Size; ++y)
@@ -409,11 +409,11 @@ UTexture2D* AFNPowerRing::IconTexture(const FString& Slug)
 				D = FMath::Min(D, FVector2f::Distance(P, S.Key + AB * T));
 			}
 			const float Edge = (float)FMath::Min(FMath::Min(x, y), FMath::Min(Size - 1 - x, Size - 1 - y));
-			FLinearColor C = FMath::Lerp(PaperEdge, Paper, FMath::Clamp(Edge / 22.f, 0.f, 1.f));
+			FLinearColor C = FMath::Lerp(PlaquePaperEdge, PlaquePaper, FMath::Clamp(Edge / 22.f, 0.f, 1.f));
 			C += FLinearColor(0.02f, 0.015f, 0.01f) * FMath::PerlinNoise2D(FVector2D(x * 0.09f, y * 0.09f));
-			if (Edge < 4.f) C = Ink * 0.8f + C * 0.2f;   // the plaque's rim
+			if (Edge < 4.f) C = PlaqueInk * 0.8f + C * 0.2f;   // the plaque's rim
 			const float A = FMath::Clamp(Half + 0.6f - D, 0.f, 1.f);
-			C = FMath::Lerp(C, Ink, A);
+			C = FMath::Lerp(C, PlaqueInk, A);
 			Px[y * Size + x] = C.ToFColor(true);
 		}
 	UTexture2D* Tex = UTexture2D::CreateTransient(Size, Size, PF_B8G8R8A8);
