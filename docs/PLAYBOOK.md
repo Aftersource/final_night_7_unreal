@@ -2,7 +2,6 @@
 
 > Copy of `Aftersource/final_night_7/docs/PLAYBOOK.md` (the source of truth), kept in sync by the backend session.
 
-
 Read this whole file before acting, and again after every compaction. It is how the two teams work together.
 
 ## 1. The team
@@ -144,6 +143,24 @@ to the backend first. Interfaces between layers change only by agreement, announ
 | Unreal 3D table and studio | Benito's side (`benito/*`) | `FNStudio*`, `FNPlanet.h`, `FNLandMask.h`, `FNSeatPawn.*`, procedural minifigs | reads net structs |
 | Unreal game flow and config | Benito's side (`benito/*`) | `FNGameMode.*`, `FNPlayerController.*`, `Config/DefaultGame.ini` | |
 | Shared docs | backend | `docs/PLAYBOOK.md`, `docs/style-refs/approved/` | |
+
+**Play 11: unattended mode (Benito or Chris asleep or away).** The work never stops for a human who isn't there.
+Each agent runs this loop on its own, without waiting for approvals that its human has pre-granted:
+1. Every ~20 minutes, or on any backend announcement: `git fetch`; rebase your own branch on `origin/main`.
+2. Build, using the same build command as always (Windows: Win64 Development; Mac: FinalNightEditor Mac
+   Development -NoHotReload). A build failure is fixed at once if it's in your layer, otherwise reported
+   (Play 1).
+3. Connect check against STABLE: join the house (`room.join {house:true}`) as a viewer or a player, take at least one
+   beat, and check the portraits and images load. Leave cleanly.
+4. Take the next item for your owner from `docs/BACKLOG.md` (the Unreal repo; the backend keeps it ordered). Build it,
+   prove it with a screenshot under `docs/proof/` on your branch, push the branch, and report
+   `<branch> <hash> <message> <files> <proof path>`.
+5. Every 60 minutes, send a heartbeat to the backend: what's done, what you're on, anything blocked.
+6. Never: wait idle for a human, force-push, touch another layer's files, deploy, spend money, or change secrets.
+   If blocked on another owner, take the next backlog item instead.
+**Human setup needed once** (each human, on their own machine): pre-approve the loop's commands for that agent
+(git fetch/pull/rebase/commit/push of its own `<owner>/*` branches, the build command, launching the client) in
+Claude Code's permission settings, and leave the session running.
 
 Benito's agents never write to `final_night_7` (requests via Play 2). The backend never writes Unreal source; it
 merges, builds and verifies only.
