@@ -1103,6 +1103,13 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 			else if (bDevCreate) Net->CreateRoom();
 			else Net->JoinHouse(Net->bWatchOnly);   // keep a WATCH choice across reconnects
 		}
+		else if (Net.IsValid() && (Net->bWatchOnly || Net->bViewer) && Join.IsEmpty())
+		{
+			// A WATCHER's resume: the engine drops a viewer when its socket closes (by design), so after the auth.ok of a
+			// resume a viewer must join again at once (backend, 2026-11-14 17:05).
+			UE_LOG(LogTemp, Warning, TEXT("FN7 resume as a viewer: joining the house again"));
+			Net->JoinHouse(Net->bWatchOnly);   // keep the choice: WATCH stays a viewer, JOIN may take a seat again
+		}
 		else if (Net.IsValid())
 		{
 			// A resume (we already had a room). The server should re-send room.snapshot + match.snapshot; the sync check
