@@ -22,7 +22,7 @@ namespace FNSeats
 	static const FLinearColor Shadow(0.006f, 0.006f, 0.009f);
 	static const FLinearColor HumanAura(1.f, 0.72f, 0.25f);
 	static const FLinearColor AiAura(0.2f, 0.85f, 1.f);
-	static const FLinearColor Brass(0.55f, 0.38f, 0.12f);
+	static const FLinearColor SeatBrass(0.55f, 0.38f, 0.12f);
 	static const FLinearColor Fallen(0.12f, 0.12f, 0.12f);
 	static const TCHAR* Cyl = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	static const TCHAR* Sph = TEXT("/Engine/BasicShapes/Sphere.Sphere");
@@ -93,7 +93,7 @@ void AFNStudio::BuildSeats()
 		S.Fig->SetMobility(EComponentMobility::Movable);
 		S.Fig->SetRelativeLocation(Dir(FigAngle(k)) * FigR + FVector(0, 0, 80));   // table top is at 80 cm
 		S.Fig->RegisterComponent();
-		S.FigBase = Keep(Quiet(Shape(Cyl, N(TEXT("FigBase")), FVector(0, 0, 1.25f), FVector(0.13f, 0.13f, 0.025f), Brass, S.Fig)));
+		S.FigBase = Keep(Quiet(Shape(Cyl, N(TEXT("FigBase")), FVector(0, 0, 1.25f), FVector(0.13f, 0.13f, 0.025f), SeatBrass, S.Fig)));
 		S.FigBody = Keep(Clickable(Shape(Cyl, N(TEXT("FigBody")), FVector(0, 0, 10.5f), FVector(0.07f, 0.07f, 0.16f), FLinearColor::White, S.Fig)));
 		S.FigHead = Keep(Clickable(Shape(Sph, N(TEXT("FigHead")), FVector(0, 0, 22.5f), FVector(0.08f), FLinearColor::White, S.Fig)));
 		S.Standee = Keep(Clickable(Shape(Pln, N(TEXT("Standee")), FVector(0, 0, 15.5f), FVector(0.2f, 0.26f, 1.f), FLinearColor::White, S.Fig)));
@@ -151,7 +151,7 @@ void AFNStudio::ShowSeats(const TArray<FFNSeatInfo>& Seats)
 		}
 		SetCol(S.FigBody, Col);
 		SetCol(S.FigHead, Col * 1.15f);
-		SetCol(S.FigBase, I.bMine ? FLinearColor(0.9f, 0.9f, 0.85f) : Brass);   // mine stands on a white base
+		SetCol(S.FigBase, I.bMine ? FLinearColor(0.9f, 0.9f, 0.85f) : SeatBrass);   // mine stands on a white base
 		S.Fig->SetRelativeRotation(FRotator(0.f, 0.f, I.bAlive ? 0.f : 80.f));    // the fallen lie on the table
 		S.FigLabel->SetText(FText::FromString(I.bMine ? I.Name + TEXT(" (you)") : I.Name));
 		S.FigLabel->SetTextRenderColor(Col.ToFColor(true));
