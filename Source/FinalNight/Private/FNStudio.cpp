@@ -64,6 +64,9 @@ AFNStudio::AFNStudio()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Mat(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	if (Mat.Succeeded()) BaseMat = Mat.Object;
+	// hard reference so it gets cooked: the 3D-widget material has a texture slot ("SlateUI") for portraits/dioramas
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Img(TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
+	if (Img.Succeeded()) ImageMat = Img.Object;
 }
 
 FVector AFNStudio::GetSeatLocation() const { return GetActorLocation() + FVector(0.f, 340.f, 190.f); }
@@ -353,6 +356,7 @@ void AFNStudio::Tick(float DeltaSeconds)
 	}
 	UpdateLabels();
 	UpdateTable(DeltaSeconds);
+	UpdateSeats(DeltaSeconds);
 	// lightning strike: a flickering white bolt standing out of the Globe plus a burst of light
 	if (BoltT >= 0.f && BoltMesh)
 	{

@@ -25,6 +25,19 @@ struct FFNPiece
 	int32 Color = 1;
 };
 
+class UTexture2D;
+
+/** One seat at the table (sent by the widget every beat and on room.updated). */
+struct FFNSeatInfo
+{
+	FString Ref, Name;
+	int32 Seat = -1;
+	bool bHuman = false, bConnected = true, bMine = false, bAlive = true;
+	FLinearColor Color = FLinearColor::White;
+	UTexture2D* Portrait = nullptr;
+	UTexture2D* Diorama = nullptr;
+};
+
 /** Sounds the table can make. All of them are synthesised in code (no audio files). */
 enum class EFNSfx : uint8 { Click, Boom, Chime, Snuff, Quill, Impact, Swarm, Roar, Whoosh };
 
@@ -81,6 +94,9 @@ public:
 	void ShowWorld(const TArray<FFNPiece>& Pieces);
 	/** Your little settlement grows with the things you build, find and keep. */
 	void ShowBuilt(const TArray<FString>& Things);
+	/** 4 seats round the table: mine faces the camera, the others clockwise. Other seats show a silhouette
+	 *  (gold halo = human, cyan orbiting cubes = AI); every seat has a minifig (or its diorama standee) on the table. */
+	void ShowSeats(const TArray<FFNSeatInfo>& Seats);
 	void ShowRibbons(const TArray<FFNEpisode>& Choices);
 	void ChooseRibbon(int32 Index);
 	void ClearRibbons();
@@ -182,6 +198,29 @@ private:
 	float DragMoved = 0.f, ManualUntil = -1.f;
 	// every scene shown, by planet cell (also appended to Saved/GlobeScenes.txt)
 	TMap<FString, int32> SceneVisits;
+
+	// --- the seats (FNStudioSeats.cpp) ---
+	struct FSeatSlot
+	{
+		USceneComponent* Body = nullptr;          // the silhouette behind the table (other seats only)
+		UStaticMeshComponent* Face = nullptr;     // portrait plane over the head
+		TArray<UStaticMeshComponent*> Aura;       // halo beads (human) or orbiting cubes (AI)
+		UPointLightComponent* Glow = nullptr;
+		UTextRenderComponent* Label = nullptr;
+		USceneComponent* Fig = nullptr;           // the minifig on the table
+		UStaticMeshComponent* FigBody = nullptr;
+		UStaticMeshComponent* FigHead = nullptr;
+		UStaticMeshComponent* FigBase = nullptr;
+		UStaticMeshComponent* Standee = nullptr;  // diorama image
+		UTextRenderComponent* FigLabel = nullptr;
+		FFNSeatInfo Info;
+		bool bUsed = false;
+	};
+	void BuildSeats();
+	void UpdateSeats(float Dt);
+	TArray<FSeatSlot> SeatSlots;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> SeatParts;   // keeps every seat component alive for GC
+	UPROPERTY() TObjectPtr<UMaterialInterface> ImageMat;          // engine pass-through material with a texture slot
 
 	// --- sound (a tiny software synth feeding one procedural voice) ---
 	struct FVoice { const TArray<float>* Samples = nullptr; int32 Pos = 0; int32 Delay = 0; float Gain = 1.f; };
