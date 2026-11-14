@@ -54,6 +54,7 @@ double UFNNetClient::NowServerMs() const { return EpochMs() + ClockOffsetMs; }
 void UFNNetClient::Start()
 {
 	bStopping = false;
+	UE_LOG(LogFNNet, Warning, TEXT("Start: bDemoMode=%d ServerUrl='%s' (from %s)"), bDemoMode ? 1 : 0, *ServerUrl, *GetClass()->GetConfigName());
 	if (bDemoMode)
 	{
 		OnStatus.Broadcast(TEXT("Connected to the demo Theatre"));
@@ -94,12 +95,22 @@ void UFNNetClient::Stop()
 void UFNNetClient::Connect()
 {
 	FModuleManager::LoadModuleChecked<FWebSocketsModule>(TEXT("WebSockets"));
-	OnStatus.Broadcast(FString::Printf(TEXT("Connecting to %s"), *ServerUrl));
-	// Final Night 7: the access key goes on every request as ?key= (never logged).
-	FString Url = ServerUrl;
+	// The server address must be ws:// or wss://. If the config value arrives empty or mangled (quotes, spaces,
+	// a lost scheme), fall back to the Final Night 7 STABLE server rather than failing with "Bad protocol ''".
+	static const TCHAR* Fn7StableUrl = TEXT("wss://balladic-graeme-garbledly.ngrok-free.dev/ws");
+	FString Base = ServerUrl.TrimStartAndEnd().TrimQuotes();
+	if (!Base.StartsWith(TEXT("ws://")) && !Base.StartsWith(TEXT("wss://")))
+	{
+		UE_LOG(LogFNNet, Warning, TEXT("ServerUrl '%s' is not a ws:// or wss:// address; using %s"), *Base, Fn7StableUrl);
+		Base = Fn7StableUrl;
+	}
+	OnStatus.Broadcast(FString::Printf(TEXT("Connecting to %s"), *Base));
+	// Final Night 7: the access key goes on every request as ?key= (never logged in full).
+	FString Url = Base;
 	const FString Key = ResolveAccessKey();
 	if (!Key.IsEmpty() && !Url.Contains(TEXT("?key=")) && !Url.Contains(TEXT("&key="))) Url += (Url.Contains(TEXT("?")) ? TEXT("&key=") : TEXT("?key=")) + Key;
-	Socket = FWebSocketsModule::Get().CreateWebSocket(Url);
+	UE_LOG(LogFNNet, Warning, TEXT("Connecting: %s (key %s, %d chars)"), *Base, Key.IsEmpty() ? TEXT("MISSING") : TEXT("present"), Key.Len());
+	Socket = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT(""));
 	TWeakObjectPtr<UFNNetClient> Weak(this);
 	Socket->OnConnected().AddLambda([Weak]() { if (Weak.IsValid()) { Weak->bConnected = true; Weak->OnStatus.Broadcast(TEXT("Connected")); } });
 	Socket->OnConnectionError().AddLambda([Weak](const FString& Err)

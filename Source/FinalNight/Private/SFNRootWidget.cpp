@@ -749,6 +749,24 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		AddBanner(TEXT("The match has begun. Click the WILL panel and start typing: time slows while you write."), Gold);
 		return true;
 	}
+	// One click to play: connected -> create a room -> ready + start (no hero cards in Final Night 7).
+	if (T == TEXT("auth.ok"))
+	{
+		SetState(EState::Connected);
+		Status = TEXT("FINAL NIGHT 7  -  connected to the Theatre as ") + Str(D, TEXT("display_name"));
+		if (St) St->ShowEaselText(TEXT("FINAL NIGHT 7"), TEXT("Connected to Chris's Theatre server.\n\nSetting the table: four demigods on the real Earth. The match starts by itself."));
+		if (Net.IsValid() && RoomCode.IsEmpty()) Net->CreateRoom();
+		return true;
+	}
+	if (T == TEXT("room.snapshot") && Str(D, TEXT("state")) == TEXT("open") && Net.IsValid())
+	{
+		RoomCode = Str(D, TEXT("code"));
+		SetState(EState::InRoom);
+		Status = TEXT("FINAL NIGHT 7  -  room ") + RoomCode;
+		Net->SetReady(true);
+		Net->StartMatch();   // we are the host; the server's AI plays the other demigods
+		return true;
+	}
 	if (T == TEXT("phase.changed") && State == EState::Writing)
 	{
 		// Flow beats keep running while you type (your slow window holds your orders): stay in the box.

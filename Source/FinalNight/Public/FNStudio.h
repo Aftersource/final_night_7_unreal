@@ -71,6 +71,8 @@ public:
 	/** Globe: where you are, the safe zone ring, and (day 1) the battle bus drop cities. */
 	void ShowSelfOnGlobe(double Lon, double Lat, bool bAlive);
 	void ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm);
+	/** A lightning bolt strikes the Globe at this point (about half a second). */
+	void FlashAt(double Lon, double Lat);
 	void ShowDropSpots(const TArray<FFNPiece>& Spots);
 	/** The board: every piece we know about (you, players, villagers, the fallen). */
 	void ShowWorld(const TArray<FFNPiece>& Pieces);
@@ -148,6 +150,11 @@ private:
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> FxBits;
 	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> FxMats;
 	UPROPERTY() TObjectPtr<UPointLightComponent> FlashLight;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Halos;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> BoltMesh;
+	UPROPERTY() TObjectPtr<UPointLightComponent> BoltLight;
+	float BoltT = -1.f;
+	FVector BoltDir = FVector::UpVector;
 
 	// --- sound (a tiny software synth feeding one procedural voice) ---
 	struct FVoice { const TArray<float>* Samples = nullptr; int32 Pos = 0; int32 Delay = 0; float Gain = 1.f; };
@@ -190,7 +197,7 @@ private:
 	double ZoneAng = PI;
 	FVector FocusDir = FVector::ZeroVector;
 	bool bHasFocus = false;
-	FVector FxCenter = FVector(0.f, -10.f, 125.f);
+	FVector FxCenter = FVector(0.f, -10.f, 172.f);
 	static constexpr float BoardR = 52.f;
 
 	// dice

@@ -43,6 +43,10 @@ namespace FNTable
 	static const FColor Cyan(34, 255, 255);     // #22FFFF
 	static const FColor Pale(225, 218, 205);
 	static const FColor Ink(40, 22, 10);
+	// The Globe floats ~3 ft (90 cm) above the table top (z 80), 30% bigger than the old one
+	static const FVector GlobeC(0.f, -10.f, 172.f);
+	static constexpr float GlobeScale = 1.3f;
+	static const FLinearColor ArenaRed(1.f, 0.06f, 0.03f);
 }
 using namespace FNTable;
 
@@ -166,11 +170,16 @@ void AFNStudio::BeginPlay()
 	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("TableLeg"), FVector(0, 0, 36), FVector(1.0f, 1.0f, 0.75f), Wood);
 
 	// Centrex: the Globe of Destiny, a little tile world (think Polytopia, on a globe) on a brass stand
-	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("CentrexStand"), FVector(0, -10, 84), FVector(0.55f, 0.55f, 0.18f), Brass);
+	// a low brass plinth and a thin shaft of light holding the Globe up in the air
+	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("CentrexStand"), FVector(0, -10, 82), FVector(0.6f, 0.6f, 0.04f), Brass);
+	Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("GlobeShaft"), FVector(0, -10, 92), FVector(0.03f, 0.03f, 0.2f), Opal)->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Light(TEXT("ShaftGlow"), FVector(0, -10, 95), 6.f, FLinearColor(0.4f, 0.9f, 1.f), 160.f);
 	GlobePivot = NewObject<USceneComponent>(this, TEXT("GlobePivot"));
 	GlobePivot->SetupAttachment(RootComponent);
-	GlobePivot->SetRelativeLocation(FVector(0, -10, 125));
+	GlobePivot->SetRelativeLocation(GlobeC);
+	GlobePivot->SetRelativeScale3D(FVector(GlobeScale));
 	GlobePivot->RegisterComponent();
+	FxCenter = GlobeC;
 	BoardRoot = NewObject<USceneComponent>(this, TEXT("BoardRoot"));
 	BoardRoot->SetupAttachment(GlobePivot);
 	BoardRoot->SetMobility(EComponentMobility::Movable);
@@ -178,13 +187,14 @@ void AFNStudio::BeginPlay()
 	GlobeMesh = Shape(TEXT("/Engine/BasicShapes/Sphere.Sphere"), TEXT("Globe"), FVector::ZeroVector, FVector((BoardR - 0.5f) / 50.f), FLinearColor(0.01f, 0.03f, 0.06f), BoardRoot);
 	Tag(GlobeMesh, Globe);
 	BuildBoard();
-	GlobeLight = Light(TEXT("GlobeLight"), FVector(0, 80, 175), 14.f, FLinearColor(0.75f, 0.9f, 1.f), 420.f);
+	GlobeLight = Light(TEXT("GlobeLight"), FVector(0, 90, 225), 14.f, FLinearColor(0.75f, 0.9f, 1.f), 420.f);
 	Spot(TEXT("BoardKey"), FVector(-60, 160, 330), FRotator(-52, -70, 0), 9.f, FLinearColor(1.f, 0.88f, 0.7f));
 
 	// Globe guard: a shell of opal shards that blitzes until you join, and seals when your WILL is locked
 	GuardPivot = NewObject<USceneComponent>(this, TEXT("GuardPivot"));
 	GuardPivot->SetupAttachment(RootComponent);
-	GuardPivot->SetRelativeLocation(FVector(0, -10, 125));
+	GuardPivot->SetRelativeLocation(GlobeC);
+	GuardPivot->SetRelativeScale3D(FVector(GlobeScale));
 	GuardPivot->RegisterComponent();
 	for (int32 i = 0; i < 24; ++i)
 	{
@@ -199,12 +209,13 @@ void AFNStudio::BeginPlay()
 	}
 
 	// Table easel (the tablet): welcome message and round primers
-	Box(TEXT("TabletFrame"), FVector(0, -250, 250), FVector(316, 8, 186), Brass);
-	Box(TEXT("Tablet"), FVector(0, -246, 250), FVector(302, 4, 172), Tablet);
-	Box(TEXT("TabletLegL"), FVector(-130, -255, 120), FVector(8, 8, 90), Brass);
-	Box(TEXT("TabletLegR"), FVector(130, -255, 120), FVector(8, 8, 90), Brass);
-	EaselHeader = Text(TEXT("EaselHeader"), FVector(0, -243, 322), FaceSeat, 9.f, Gold, FString());
-	EaselBody = Text(TEXT("EaselBody"), FVector(0, -243, 240), FaceSeat, 5.2f, Pale, FString());
+	// raised 60 cm so the floating Globe doesn't hide the writing
+	Box(TEXT("TabletFrame"), FVector(0, -250, 310), FVector(316, 8, 186), Brass);
+	Box(TEXT("Tablet"), FVector(0, -246, 310), FVector(302, 4, 172), Tablet);
+	Box(TEXT("TabletLegL"), FVector(-130, -255, 110), FVector(8, 8, 220), Brass);
+	Box(TEXT("TabletLegR"), FVector(130, -255, 110), FVector(8, 8, 220), Brass);
+	EaselHeader = Text(TEXT("EaselHeader"), FVector(0, -243, 382), FaceSeat, 9.f, Gold, FString());
+	EaselBody = Text(TEXT("EaselBody"), FVector(0, -243, 300), FaceSeat, 5.2f, Pale, FString());
 	ShowEaselText(FString(), TEXT("Connect to Network and click the Globe to Begin"));
 	EaselBody->SetTextRenderColor(Cyan);
 
@@ -336,6 +347,21 @@ void AFNStudio::Tick(float DeltaSeconds)
 		else BoardRoot->AddWorldRotation(FRotator(0.f, (6.f + 80.f * FatesAmt) * DeltaSeconds, 0.f));
 	}
 	UpdateLabels();
+	// lightning strike: a flickering white bolt standing out of the Globe plus a burst of light
+	if (BoltT >= 0.f && BoltMesh)
+	{
+		BoltT += DeltaSeconds;
+		const float A = FMath::Max(0.f, 1.f - BoltT / 0.5f);
+		const bool bLit = A > 0.f && FMath::Sin(Time * 95.f) > -0.4f;
+		const FVector Jit = FVector(FMath::PerlinNoise1D(Time * 40.f), FMath::PerlinNoise1D(Time * 37.f + 3.f), 0.f) * 0.15f;
+		const FVector D = (BoltDir + Jit - BoltDir * FVector::DotProduct(Jit, BoltDir)).GetSafeNormal();
+		BoltMesh->SetRelativeLocation(D * (BoardR + 8.f));
+		BoltMesh->SetRelativeRotation(FRotationMatrix::MakeFromZ(D).Rotator());
+		BoltMesh->SetVisibility(bLit);
+		BoltLight->SetRelativeLocation(BoltDir * (BoardR + 6.f));
+		BoltLight->SetIntensity(bLit ? 90.f * A : 0.f);
+		if (A <= 0.f) BoltT = -1.f;
+	}
 	if (GlobeLight) GlobeLight->SetIntensity(12.f + 4.f * FMath::Sin(Time * 1.7f) + FatesAmt * (22.f + 10.f * FMath::Sin(Time * 11.f)));
 	if (GuardPivot) GuardPivot->AddRelativeRotation(FRotator(0.f, -14.f * DeltaSeconds, 0.f));
 	for (int32 i = 0; i < Candles.Num(); ++i)
@@ -379,8 +405,9 @@ void AFNStudio::Tick(float DeltaSeconds)
 	else CutZoom = FMath::FInterpTo(CutZoom, 0.f, DeltaSeconds, 1.f);
 	if (GlobePivot && FxKind != 3)
 	{
-		GlobePivot->SetRelativeLocation(FVector(0.f, -10.f, 125.f + 6.f * CutZoom));
-		GlobePivot->SetRelativeScale3D(FVector(1.f + 0.06f * CutZoom));
+		// a slow bob so it reads as floating
+		GlobePivot->SetRelativeLocation(GlobeC + FVector(0.f, 0.f, 6.f * CutZoom + 1.5f * FMath::Sin(Time * 1.1f)));
+		GlobePivot->SetRelativeScale3D(FVector(GlobeScale * (1.f + 0.06f * CutZoom)));
 		if (GlobeLight && CutZoom > 0.01f) GlobeLight->SetIntensity(GlobeLight->Intensity + 6.f * CutZoom);
 	}
 	PumpAudio();
@@ -482,7 +509,7 @@ FVector AFNStudio::LonLatToGlobe(double Lon, double Lat, float R)
 
 FVector AFNStudio::BoardToActor(const FVector& LocalDir, float Radius) const
 {
-	if (!BoardRoot) return FVector(0.f, -10.f, 125.f);
+	if (!BoardRoot) return GlobeC;
 	return GetActorTransform().InverseTransformPosition(BoardRoot->GetComponentTransform().TransformPosition(LocalDir * Radius));
 }
 
@@ -603,15 +630,15 @@ void AFNStudio::ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm)
 	{
 		for (int32 i = 0; i < 64; ++i)
 		{
-			UStaticMeshComponent* M = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Zone%d"), i)), FVector::ZeroVector, FVector(0.007f, 0.007f, 0.05f), Opal, BoardRoot);
+			UStaticMeshComponent* M = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Zone%d"), i)), FVector::ZeroVector, FVector(0.014f, 0.014f, 0.08f), ArenaRed, BoardRoot);
 			M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			M->SetCastShadow(false);
 			ZoneMarkers.Add(M);
 		}
-		ZoneLabel = Text(TEXT("ZoneLabel"), FVector::ZeroVector, FRotator::ZeroRotator, 3.6f, Cyan, FString());
+		ZoneLabel = Text(TEXT("ZoneLabel"), FVector::ZeroVector, FRotator::ZeroRotator, 3.6f, FColor(255, 60, 40), FString());
 	}
-	// A fence of light at angular radius (km / earth radius) around the zone centre
-	ZoneAng = FMath::Min(RadiusKm / 6371.0, PI * 0.95);
+	// A red fence at angular radius (km / earth radius) around the arena centre; past 90 deg it wraps the far side
+	ZoneAng = FMath::Min(RadiusKm / 6371.0, PI);
 	const FVector C = BoardDir(Lon, Lat).GetSafeNormal();
 	ZoneDir = RadiusKm < 20000.0 ? C : FVector::ZeroVector;
 	const FVector Up = FMath::Abs(C.Z) > 0.95f ? FVector(1, 0, 0) : FVector(0, 0, 1);
@@ -625,8 +652,25 @@ void AFNStudio::ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm)
 		ZoneMarkers[i]->SetRelativeRotation(FRotationMatrix::MakeFromZ(D).Rotator());
 		ZoneMarkers[i]->SetVisibility(RadiusKm < 20000.0);
 	}
-	if (ZoneLabel) ZoneLabel->SetText(FText::FromString(RadiusKm < 20000.0 ? FString::Printf(TEXT("SAFE ZONE  %d km"), (int32)RadiusKm) : FString()));
+	if (ZoneLabel) ZoneLabel->SetText(FText::FromString(RadiusKm < 20000.0 ? FString::Printf(TEXT("ARENA  %d km"), (int32)RadiusKm) : FString()));
 	PaintTiles();
+}
+
+void AFNStudio::FlashAt(double Lon, double Lat)
+{
+	if (!BoardRoot) return;
+	if (!BoltMesh)
+	{
+		BoltMesh = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), TEXT("Bolt"), FVector::ZeroVector, FVector(0.02f, 0.02f, 0.16f), FLinearColor(0.9f, 0.95f, 1.f), BoardRoot);
+		BoltMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		BoltMesh->SetCastShadow(false);
+		BoltLight = Light(TEXT("BoltLight"), FVector::ZeroVector, 0.f, FLinearColor(0.75f, 0.85f, 1.f), 260.f);
+		BoltLight->AttachToComponent(BoardRoot, FAttachmentTransformRules::KeepRelativeTransform);
+	}
+	// shortcut: one bolt reused, so a second strike within 0.5 s moves it; add a pool if casts overlap a lot
+	BoltDir = BoardDir(Lon, Lat).GetSafeNormal();
+	BoltT = 0.f;
+	PlaySfx(EFNSfx::Impact, 0.5f);
 }
 
 void AFNStudio::ShowDropSpots(const TArray<FFNPiece>& Spots)
@@ -655,6 +699,11 @@ void AFNStudio::ShowWorld(const TArray<FFNPiece>& Pieces)
 		UStaticMeshComponent* P1 = Shape(TEXT("/Engine/BasicShapes/Cone.Cone"), FName(*FString::Printf(TEXT("PieceBody%d"), i)), FVector(0, 0, 3.0f), FVector(0.022f, 0.022f, 0.045f), Brass, R);
 		UStaticMeshComponent* P2 = Shape(TEXT("/Engine/BasicShapes/Sphere.Sphere"), FName(*FString::Printf(TEXT("PieceHead%d"), i)), FVector(0, 0, 5.6f), FVector(0.02f), Brass, R);
 		for (UStaticMeshComponent* P : { P0, P1, P2 }) { P->SetCollisionEnabled(ECollisionEnabled::NoCollision); PieceParts.Add(P); }
+		// white halo disc under the piece: only shown for your own demigod
+		UStaticMeshComponent* H = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("PieceHalo%d"), i)), FVector(0, 0, 0.1f), FVector(0.075f, 0.075f, 0.004f), FLinearColor(1.f, 1.f, 1.f), R);
+		H->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		H->SetCastShadow(false);
+		Halos.Add(H);
 		PieceLabels.Add(Text(FName(*FString::Printf(TEXT("PieceLabel%d"), i)), FVector::ZeroVector, FRotator::ZeroRotator, 3.f, Pale, FString()));
 	}
 	PieceDirs.SetNum(PieceRoots.Num());
@@ -666,6 +715,7 @@ void AFNStudio::ShowWorld(const TArray<FFNPiece>& Pieces)
 		PieceLabels[i]->SetVisibility(bOn);
 		PieceKinds[i] = bOn ? All[i].Kind : -1;
 		if (bOn) PlacePiece(i, All[i]);
+		Halos[i]->SetVisibility(bOn && All[i].Kind == 0);
 	}
 	if (All.Num() > 0 && PieceRoots.Num() > 0)
 		UE_LOG(LogTemp, Display, TEXT("FNBoard: %d pieces; first '%s' kind %d at %s (visible %d)"), All.Num(), *All[0].Name, All[0].Kind, *PieceRoots[0]->GetComponentLocation().ToString(), PieceRoots[0]->IsVisible() ? 1 : 0);
@@ -683,7 +733,7 @@ void AFNStudio::PlacePiece(int32 i, const FFNPiece& P)
 	switch (P.Kind)
 	{
 	case 0: Scale = 3.0f; Col = FLinearColor(1.f, 0.72f, 0.12f); LabelCol = Gold; Label = P.Name.IsEmpty() ? FString(TEXT("YOU")) : P.Name; LabelSize = 6.f; break;
-	case 2: Scale = 1.4f; Col = FLinearColor(0.50f, 0.47f, 0.42f); Label.Reset(); break;
+	case 2: Scale = 1.6f; Col = FLinearColor(0.50f, 0.47f, 0.42f); LabelCol = Pale; LabelSize = 3.f; break;   // AI demigod: named, smaller
 	case 3: Scale = 1.8f; Col = FLinearColor(0.10f, 0.08f, 0.08f); LabelCol = FColor(150, 40, 30); Label = TEXT("fallen: ") + P.Name;
 		Rot = (FRotationMatrix::MakeFromZX(D, East).ToQuat() * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(80.f))).Rotator(); break;
 	case 4: Scale = 1.8f; Col = FLinearColor(0.9f, 0.75f, 0.25f); LabelCol = FColor(255, 221, 54); LabelSize = 2.4f; break;
@@ -1032,7 +1082,7 @@ FRotator AFNStudio::GetShake() const
 
 void AFNStudio::ResetFxBit(int32 i)
 {
-	const FVector GC(0.f, -10.f, 125.f);
+	const FVector GC = GlobeC;
 	if (FxKind == 1)
 	{
 		const FVector N = (FxCenter - GC).GetSafeNormal();
@@ -1062,7 +1112,7 @@ void AFNStudio::PlayHazard(const FString& HazardIn)
 	FxKind = H.Contains(TEXT("meteor")) ? 1 : H.Contains(TEXT("locust")) ? 2 : H.Contains(TEXT("dino")) ? 3 : 4;
 	FxT = 0.f; FxDur = FxKind == 1 ? 4.5f : FxKind == 2 ? 5.f : FxKind == 3 ? 3.2f : 1.5f;
 	StompsDone = 0; FlashAmt = 1.f; ShakeAmt = 2.5f;
-	FxCenter = bHasFocus ? BoardToActor(FocusDir, BoardR + 3.f) : FVector(0.f, -10.f, 125.f + BoardR);
+	FxCenter = bHasFocus ? BoardToActor(FocusDir, BoardR + 3.f) : GlobeC + FVector(0.f, 0.f, BoardR * GlobeScale);
 	FLinearColor Col(0.9f, 0.15f, 0.08f), FlashCol(1.f, 0.25f, 0.1f);
 	int32 Count = 0;
 	switch (FxKind)
@@ -1091,7 +1141,7 @@ void AFNStudio::UpdateFx(float Dt)
 
 	FxT += Dt;
 	const bool bEnding = FxT > FxDur;
-	const FVector GC(0.f, -10.f, 125.f);
+	const FVector GC = GlobeC;
 	for (int32 i = 0; i < FxBits.Num(); ++i)
 	{
 		UStaticMeshComponent* B = FxBits[i];
@@ -1099,7 +1149,7 @@ void AFNStudio::UpdateFx(float Dt)
 		if (FxKind == 1)
 		{
 			FxPos[i] += FxVel[i] * Dt;
-			if (FVector::Dist(FxPos[i], GC) < BoardR + 3.f || FVector::Dist(FxPos[i], FxCenter) < 3.f)
+			if (FVector::Dist(FxPos[i], GC) < BoardR * GlobeScale + 3.f || FVector::Dist(FxPos[i], FxCenter) < 3.f)
 			{
 				if (Time - LastImpact > 0.15f) { PlaySfx(EFNSfx::Impact, Rng.FRandRange(0.35f, 0.6f)); LastImpact = Time; }
 				FlashAmt = FMath::Max(FlashAmt, 0.7f); ShakeAmt = FMath::Max(ShakeAmt, 1.2f);
@@ -1141,12 +1191,12 @@ void AFNStudio::UpdateFx(float Dt)
 			}
 		}
 		if (GlobePivot)
-			GlobePivot->SetRelativeLocation(FVector(0, -10, 125) + FVector(FMath::PerlinNoise1D(Time * 30.f), FMath::PerlinNoise1D(Time * 27.f + 5.f), 0.f) * ShakeAmt * 1.5f);
+			GlobePivot->SetRelativeLocation(GlobeC + FVector(FMath::PerlinNoise1D(Time * 30.f), FMath::PerlinNoise1D(Time * 27.f + 5.f), 0.f) * ShakeAmt * 1.5f);
 	}
 	if (FxT > FxDur + 1.5f)
 	{
 		for (UStaticMeshComponent* B : FxBits) B->SetVisibility(false);
-		if (GlobePivot) GlobePivot->SetRelativeLocation(FVector(0, -10, 125));
+		if (GlobePivot) GlobePivot->SetRelativeLocation(GlobeC);
 		FxKind = 0;
 	}
 }
