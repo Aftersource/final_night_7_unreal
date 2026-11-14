@@ -4,6 +4,7 @@
 #include "Features/FNDayNight.h"
 #include "Features/FNEncounters.h"
 #include "Features/FNSettlements.h"
+#include "Features/FNPieceStory.h"
 #include "../UI/SFNHudLive.h"   // FN7HudMount::IsMounted(): hide this classic HUD when the style-kit HUD is up
 
 #include "Widgets/SBoxPanel.h"
@@ -1038,6 +1039,9 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	// Benito's features 1 + 7: settlements and roads read game.globe / region / node
 	if (T == TEXT("game.globe") || T == TEXT("game.region") || T == TEXT("game.node"))
 		if (AFNSettlements* Se = Settlements()) Se->Apply(D);
+	// Benito's feature 2: the piece carries its story (demigods[].story on game.globe / region)
+	if (T == TEXT("game.globe") || T == TEXT("game.region"))
+		if (AFNPieceStory* Ps = PieceStory()) Ps->Apply(D);
 	AFNStudio* St = Studio.Get();
 	// Chris's rule: JOINING = TAKING A SEAT. If the house made us a viewer (it is replaying) and we didn't choose WATCH, ask once.
 	if (T == TEXT("match.ended") && Net.IsValid()) Net->bSeatAsked = false;   // a new match: JOIN may ask for a seat again
@@ -1164,6 +1168,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		Alive = (int32)Numb(Pub, TEXT("alive"), Alive);
 		QueueOutcomeDice(Pub);
 		if (AFNDayNight* Dn = DayNight()) Dn->Apply(Pub);
+		if (AFNPieceStory* Ps = PieceStory()) Ps->Apply(Pub);
 		if (const TArray<TSharedPtr<FJsonValue>>* Dm = Arr(Pub, TEXT("dm_events")))   // the DM's decisions this beat (rules 0.8.0), one line each
 		{
 			AFNDayNight* Dn = DayNight();
@@ -1973,4 +1978,18 @@ AFNSettlements* SFNRootWidget::Settlements()
 	}
 	SettlementsActor = Se;
 	return Se;
+}
+
+AFNPieceStory* SFNRootWidget::PieceStory()
+{
+	if (AFNPieceStory* Ps = PieceStoryActor.Get()) return Ps;
+	AFNStudio* St = Studio.Get();
+	UWorld* W = St ? St->GetWorld() : nullptr;
+	if (!W) return nullptr;
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AFNPieceStory* Ps = W->SpawnActor<AFNPieceStory>(AFNPieceStory::StaticClass(), FTransform::Identity, P);
+	if (Ps) Ps->Bind(St);
+	PieceStoryActor = Ps;
+	return Ps;
 }
