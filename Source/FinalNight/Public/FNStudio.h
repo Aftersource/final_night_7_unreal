@@ -107,6 +107,10 @@ public:
 	void SetFaultLinesAlpha(float Alpha);
 	/** Double-click a demigod: the table map centred on it at its CURRENT zoom, and the globe turned to face it. */
 	void CenterBoardAndGlobe(double Lat, double Lon);
+	/** View changes animate (Chris asked for zoom to expand and contract smoothly): call every frame (the kit's table tick). */
+	void TickViewAnim(float Dt);
+	/** After a rebuild centred on a point: start the board from how it looked (OldLocal drawn, scale From) and ease it in. */
+	void BeginViewAnim(bool bHaveOld, const FVector& OldLocal, const FVector& NewLocal, float ScaleFrom);
 	/** Keep the globe facing a point (re-asserted by the HUD while a centring holds). */
 	void SetGlobeFocus(double Lat, double Lon);
 	/** The table's zoom level now: 0 people (3 m hexes), 1 houses (30 m), 2 villages (3 km), 3 regions (120 km). */

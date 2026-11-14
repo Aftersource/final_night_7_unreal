@@ -53,7 +53,8 @@ void SFNScroll::Construct(const FArguments& InArgs)
 				SNew(SOverlay)
 				+ SOverlay::Slot()
 				[
-					SNew(SImage).Image(FN7Wood::FabricBrush())
+					// The cloth never sizes the scroll (its texture is 640 px tall): only the inscription does.
+					SNew(SImage).Image(FN7Wood::FabricBrush()).DesiredSizeOverride(FVector2D(8.f, 8.f))
 				]
 				+ SOverlay::Slot().VAlign(VAlign_Top).Padding(ContentPadding)
 				[

@@ -193,7 +193,9 @@ FVector AFNPowerRing::PouchWorld() const
 	const float S = St ? (float)St->GetActorScale3D().X : 1.f;
 	const double ArcR = R + (RingRimGap + 8.f) * S;
 	const double StepDeg = FMath::RadiansToDegrees(((RingHexR * 1.7320508f + RingGap) * S) / (R + RingRimGap * S));
-	const double A = FMath::DegreesToRadians(RingArcStart - (RingPerRow - 0.5) * StepDeg - RingPouchBeyond);
+	// The near end of the arc, toward you (Chris noted the pouch was blocking the portrait, so it must sit over the target area: at the far end
+	// it stood in front of the gods' diorama boxes).
+	const double A = FMath::DegreesToRadians(RingArcStart + 0.5 * StepDeg + 7.0);
 	return C + TableRot.RotateVector(FVector((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), 0.f));
 }
 

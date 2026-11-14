@@ -1071,7 +1071,7 @@ void AFNTableGods::Tick(float Dt)
 	Super::Tick(Dt);
 	TickFx(Dt);
 	AFNStudio* St = Studio.Get();
-	if (St) St->HideWillBlock();   // the kit's WILL scroll replaces the 3D WILL bar: hidden always, lobby included
+	if (St) { St->HideWillBlock(); St->TickViewAnim(Dt); }   // the WILL bar stays hidden; view changes animate
 	if (!St || !bHasGods || !bShown) return;
 	St->HideClassicSeats();
 	// The small boxes on the board follow the map as it zooms and pans.
