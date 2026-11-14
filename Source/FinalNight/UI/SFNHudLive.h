@@ -96,6 +96,17 @@ private:
 	TMap<FString, FDuelInfo> Duels;
 	void HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock);
 	void HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub);
+	// Every challenge moves every view (everyone centers on the fight): flash, banner, glide. The glide waits
+	// while you type or drag; the view you had comes back when that duel ends (unless you moved it yourself).
+	double FlashStart = -1.0;
+	bool bGlidePending = false;
+	double GlideLat = 0.0, GlideLon = 0.0;
+	FString GlideDuel;
+	bool bHaveSavedView = false, bSavedPicked = false;
+	double SavedLat = 0.0, SavedLon = 0.0, FightLat = 0.0, FightLon = 0.0, RestoreAt = 0.0;
+	FString ViewDuel;
+	bool IsBusyForGlide() const;
+	void TickDuelView();
 	// The challenge confirm box (asks the player to confirm the challenge, showing {expected life loss from teleporting}).
 	bool bConfirmOpen = false, bConfirmTeleport = false;
 	FString ConfirmMine, ConfirmTarget, ConfirmLevel;
