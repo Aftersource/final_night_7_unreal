@@ -1604,10 +1604,11 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 	GlobeHoldUntil = FPlatformTime::Seconds() + 30.0;
 	if (!bMine)
 	{
-		// A rival: one of YOUR living demigods within this zoom level's hex of it = a CHALLENGE (contract v1.1: the
-		// server checks great-circle distance <= the level's hex size). The one you selected last goes first.
-		static const double HexKm[4] = { 0.003, 0.03, 3.0, 120.0 };
-		static const TCHAR* LevelName[4] = { TEXT("people"), TEXT("houses"), TEXT("villages"), TEXT("regions") };
+		// A rival: one of YOUR living demigods within a REGION hex (120 km) of it = a CHALLENGE, at ANY zoom (Chris,
+		// Challenge range was reported as too far: a zoom-dependent range made it 3 m at people zoom). The zoom only
+		// frames the fight. The one you selected last goes first.
+		static const double HexKm[4] = { 120.0, 120.0, 120.0, 120.0 };
+		static const TCHAR* LevelName[4] = { TEXT("regions"), TEXT("regions"), TEXT("regions"), TEXT("regions") };
 		const int32 Lv = FMath::Clamp(St->GetMapLevel(), 0, 3);
 		auto Km = [](double A1, double O1, double A2, double O2)
 		{
@@ -1625,7 +1626,7 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		if (Mine.IsEmpty())
 		{
 			UE_LOG(LogTemp, Display, TEXT("FN7 challenge: %s too far at %s (%.3f km hex)"), *Ref, LevelName[Lv], HexKm[Lv]);
-			Toast(FString::Printf(TEXT("Too far to challenge %s: get one of yours into its hex (at this zoom: %s)."), *NameOf(Ref), *FString(LevelName[Lv])));
+			Toast(FString::Printf(TEXT("Too far to challenge %s: bring one of yours within 120 km of it."), *NameOf(Ref)));
 			return;
 		}
 		if (UFNNetClient* N = Net.Get()) N->Challenge(Round, Mine, Ref, LevelName[Lv]);
