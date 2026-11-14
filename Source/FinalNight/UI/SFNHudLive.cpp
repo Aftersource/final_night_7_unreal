@@ -792,7 +792,7 @@ void SFNHudLive::OnSend(const FString& Text)
 		if (ArmedSlug.IsEmpty()) ArmedSlug = ArmedPower;
 		N->CastPower(Round, ArmedSlug, Text, ArmedTier.IsEmpty() ? FString(TEXT("mini")) : ArmedTier);
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %s"), *ArmedPower, *Text));
-		ArmedPower.Reset();
+		SetArmed(FString());
 		Publish();
 		return;
 	}
@@ -896,20 +896,34 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 		const FString Tier = (Op.IsValid() && !Op->Tier.IsEmpty()) ? Op->Tier : FString(TEXT("mini"));
 		N->CastAt(Round, Power, Lo, La, Tier);
 		St->FlashAt(Lo, La);
-		ArmedPower.Reset();
+		SetArmed(FString());
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
 		Publish();
 		return;
 	}
-	ArmedPower = Power;
+	{
+		const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();   // still set while OnDroppedOnWorld runs
+		SetArmed((Op.IsValid() && !Op->Tier.IsEmpty()) ? Power + TEXT(":") + Op->Tier : Power);
+	}
 	AddNews(LOCTEXT("Armed", "ARMED"), FString::Printf(TEXT("%s: drop it on a board hex, or write its target and SEND."), *Power));
 	Publish();
 }
 
 void SFNHudLive::OnPower(const FString& Slug)
 {
-	ArmedPower = ArmedPower == Slug ? FString() : Slug;
+	SetArmed(ArmedPower == Slug ? FString() : Slug);
 	Publish();
+}
+
+void SFNHudLive::SetArmed(const FString& Key)
+{
+	if (Key == ArmedPower) return;
+	FString OldSlug, OldTier, NewSlug, NewTier;
+	if (!ArmedPower.Split(TEXT(":"), &OldSlug, &OldTier)) OldSlug = ArmedPower;
+	if (!Key.Split(TEXT(":"), &NewSlug, &NewTier)) NewSlug = Key;
+	if (OldTier == TEXT("mega")) FFNPowerDragDrop::OnMegaArmed().Broadcast(false, OldSlug);
+	ArmedPower = Key;
+	if (NewTier == TEXT("mega")) FFNPowerDragDrop::OnMegaArmed().Broadcast(true, NewSlug);
 }
 
 FText SFNHudLive::GetTimer() const

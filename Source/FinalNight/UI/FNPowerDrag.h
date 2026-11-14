@@ -51,6 +51,13 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPowerDragEnded, const FString& /*Power*/);
 	static FOnPowerDragEnded& OnDragEnded();
 
+	/**
+	 * A MEGA power is armed or in the hand (true) / no longer (false): fires on a mega tile's click-to-arm and disarm,
+	 * on a mega drag's start, and on its drop or cancel. The globe and the board fade their fault lines in and out on it.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMegaArmed, bool /*bArmed*/, const FString& /*Power*/);
+	static FOnMegaArmed& OnMegaArmed();
+
 	/** Where the last drop landed (screen space) and when, so the token can settle there. */
 	static bool GetLastDrop(FVector2D& OutScreenPosition, double& OutTime, FString& OutPower);
 };

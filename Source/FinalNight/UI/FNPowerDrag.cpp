@@ -18,6 +18,7 @@ TSharedRef<FFNPowerDragDrop> FFNPowerDragDrop::New(const FString& InPower, const
 	Op->ScreenPosition = InScreenPosition;
 	Op->Construct();
 	FN7PowerDragState::Active = Op;
+	if (InTier == TEXT("mega")) OnMegaArmed().Broadcast(true, InPower);
 	return Op;
 }
 
@@ -46,7 +47,14 @@ void FFNPowerDragDrop::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEv
 	if (!bDropWasHandled) OnDroppedOnWorld().Broadcast(Power, ScreenPosition);
 	FN7PowerDragState::Active.Reset();
 	OnDragEnded().Broadcast(Power);
+	if (Tier == TEXT("mega")) OnMegaArmed().Broadcast(false, Power);   // dropped or cancelled
 	FDragDropOperation::OnDrop(bDropWasHandled, MouseEvent);
+}
+
+FFNPowerDragDrop::FOnMegaArmed& FFNPowerDragDrop::OnMegaArmed()
+{
+	static FOnMegaArmed Delegate;
+	return Delegate;
 }
 
 FFNPowerDragDrop::FOnSnapToBoard& FFNPowerDragDrop::SnapToBoard()
