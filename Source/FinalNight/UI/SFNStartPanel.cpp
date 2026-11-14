@@ -637,6 +637,7 @@ void SFNStartPanel::JoinOther(const FString& Code)
 	OnChoice.ExecuteIfBound(true);
 	N->bWatchOnly = false;
 	N->bSeatAsked = false;
+	if (bInGame.Get()) N->LeaveRoom();   // leave the room we are in, then join the other one
 	N->JoinRoom(Code);
 	Progress = FString::Printf(TEXT("Joining %s..."), *Code);
 	OnBack.ExecuteIfBound();
