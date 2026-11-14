@@ -102,7 +102,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnSend(this, &SFNHudLive::OnSend)
 			.OnTypingStarted(this, &SFNHudLive::OnTyping)
 			.OnPower(this, &SFNHudLive::OnPower)
-			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) N->TakeSeat(); })
+			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) { N->bWatchOnly = false; N->bSeatAsked = true; N->TakeSeat(); } })
 			.OnLobby_Lambda([this]() { SetLobbyOpen(true); })
 		]
 		// Out of the match: a small card under the header, never over the board's centre.
@@ -116,7 +116,6 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			SAssignNew(StartPanel, SFNStartPanel)
 			.Net(Net.Get())
 			.bInGame_Lambda([this]() { return bInRoom; })
-			.OnChoice_Lambda([this](bool bTakeSeat) { bWantSeat = bTakeSeat; bSeatAsked = false; })
 			.OnBack_Lambda([this]() { SetLobbyOpen(false); })
 			.Visibility_Lambda([this]() { return (!bInRoom || bLobbyOpen) ? EVisibility::Visible : EVisibility::Collapsed; })
 		]
@@ -288,15 +287,31 @@ void SFNHudLive::HandleStatus(const FString& Status)
 
 void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 {
-	// JOIN = TAKE A SEAT: joined as a viewer (the house is replaying, or between seats), ask for a seat once.
-	if ((T == TEXT("room.snapshot") || T == TEXT("match.snapshot") || T == TEXT("room.updated")) && bWantSeat && !bSeatAsked)
+	// JOIN = TAKE A SEAT: joined as a viewer (the house is replaying, or between seats), ask for a seat once. The net's
+	// bWatchOnly (WATCH) and bSeatAsked (the shared once-only guard; the root resets it at match.ended) decide.
+	if (T == TEXT("room.snapshot") || T == TEXT("match.snapshot") || T == TEXT("room.updated"))
 		if (UFNNetClient* N = Net.Get())
-			if (N->bViewer)
+			if (N->bViewer && !N->bWatchOnly && !N->bSeatAsked)
 			{
-				bSeatAsked = true;
+				N->bSeatAsked = true;
 				N->TakeSeat();
 				Model.Status = LOCTEXT("TakingSeat", "Taking a seat...");
 			}
+	// TAKE ANOTHER DEMIGOD answered: the house moved us to the lowest active bot seat (from the next round).
+	if (T == TEXT("seat.retaken"))
+	{
+		const bool bMine = FN7HudJson::Str(D, TEXT("display_name")) == Model.YouName.ToString() || (int32)FN7HudJson::Num(D, TEXT("from_seat"), -2) == MySeat;
+		if (bMine)
+		{
+			MySeat = (int32)FN7HudJson::Num(D, TEXT("to_seat"), MySeat);
+			bOut = false;
+			bTakeAsked = false;
+			OutNote.Reset();
+			Model.Status = LOCTEXT("Retaken", "You take over a new demigod from the next beat.");
+			Publish();
+			return;
+		}
+	}
 	if (T == TEXT("seat.joined"))
 	{
 		Model.Status = FText::GetEmpty();
@@ -466,7 +481,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("match.ended"))
 	{
-		bSeatAsked = false;   // still a viewer next match: JOIN asks again
+		if (UFNNetClient* N = Net.Get()) N->bSeatAsked = false;   // still a viewer next match: JOIN asks again
 		const TSharedPtr<FJsonObject> Summary = FN7HudJson::Obj(D, TEXT("summary"));
 		FString Champ;
 		if (const TArray<TSharedPtr<FJsonValue>>* C = FN7HudJson::Arr(Summary, TEXT("champions")))
@@ -666,11 +681,11 @@ void SFNHudLive::OnSend(const FString& Text)
 	if (!N) return;
 	if (!ArmedPower.IsEmpty())
 	{
-		// ArmedPower is "slug" or "slug:tier"; the cast call carries no tier yet (UFNNetClient needs a Tier argument).
+		// ArmedPower is "slug" or "slug:tier" (mega spends a bolt, mini a spark; a server without tiers takes mini).
 		FString ArmedSlug = ArmedPower, ArmedTier;
 		ArmedPower.Split(TEXT(":"), &ArmedSlug, &ArmedTier);
 		if (ArmedSlug.IsEmpty()) ArmedSlug = ArmedPower;
-		N->CastPower(Round, ArmedSlug, Text);
+		N->CastPower(Round, ArmedSlug, Text, ArmedTier.IsEmpty() ? FString(TEXT("mini")) : ArmedTier);
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %s"), *ArmedPower, *Text));
 		ArmedPower.Reset();
 		Publish();
@@ -772,7 +787,9 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 	FVector World;
 	if (N && St && FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) && St->HexAtScreen(Pixel, La, Lo, World, HexM))
 	{
-		N->CastAt(Round, Power, Lo, La);
+		const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();   // still set while OnDroppedOnWorld runs
+		const FString Tier = (Op.IsValid() && !Op->Tier.IsEmpty()) ? Op->Tier : FString(TEXT("mini"));
+		N->CastAt(Round, Power, Lo, La, Tier);
 		St->FlashAt(Lo, La);
 		ArmedPower.Reset();
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));

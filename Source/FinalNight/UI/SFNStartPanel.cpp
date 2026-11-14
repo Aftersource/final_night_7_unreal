@@ -67,7 +67,7 @@ namespace FN7Lobby
 		{
 			if (!Where.IsValid()) continue;
 			double V = 0.0;
-			for (const TCHAR* K : { TEXT("next_match_in_s"), TEXT("next_match_in"), TEXT("starts_in_s"), TEXT("next_in_s") })
+			for (const TCHAR* K : { TEXT("next_match_in_s"), TEXT("replay_ends_in_s"), TEXT("next_match_in"), TEXT("starts_in_s") })
 				if (Where->TryGetNumberField(K, V)) return FMath::Max(0.0, V);
 			for (const TCHAR* K : { TEXT("next_match_at"), TEXT("next_match_at_ms"), TEXT("next_start_ms"), TEXT("starts_at") })
 				if (Where->TryGetNumberField(K, V) && V > 1.0e12) return FMath::Max(0.0, (V - NowMs) / 1000.0);
@@ -584,7 +584,12 @@ FReply SFNStartPanel::OnSecondary()
 	{
 		// TAKE A SEAT (only shown while watching).
 		OnChoice.ExecuteIfBound(true);
-		if (UFNNetClient* N = Net.Get()) N->TakeSeat();
+		if (UFNNetClient* N = Net.Get())
+		{
+			N->bWatchOnly = false;
+			N->bSeatAsked = true;
+			N->TakeSeat();
+		}
 		OnBack.ExecuteIfBound();
 		return FReply::Handled();
 	}
@@ -596,7 +601,8 @@ FReply SFNStartPanel::Enter(bool bTakeSeat)
 	UFNNetClient* N = Net.Get();
 	if (!N || bJoining) return FReply::Handled();
 	OnChoice.ExecuteIfBound(bTakeSeat);
-	N->bJoinAsViewer = !bTakeSeat;
+	N->bWatchOnly = !bTakeSeat;   // the root's auth.ok join uses it: JoinHouse(Net->bWatchOnly)
+	N->bSeatAsked = false;
 
 	const FString Name = NameBox.IsValid() ? NameBox->GetText().ToString().TrimStartAndEnd().Left(24) : FString();
 	if (!Name.IsEmpty()) FFileHelper::SaveStringToFile(Name + TEXT("\n"), *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DisplayName.txt")));
@@ -629,8 +635,8 @@ void SFNStartPanel::JoinOther(const FString& Code)
 	UFNNetClient* N = Net.Get();
 	if (!N || Code.IsEmpty()) return;
 	OnChoice.ExecuteIfBound(true);
-	N->bJoinAsViewer = false;
-	if (bInGame.Get()) N->LeaveRoom();
+	N->bWatchOnly = false;
+	N->bSeatAsked = false;
 	N->JoinRoom(Code);
 	Progress = FString::Printf(TEXT("Joining %s..."), *Code);
 	OnBack.ExecuteIfBound();
