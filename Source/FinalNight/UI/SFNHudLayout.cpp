@@ -257,69 +257,61 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 {
 	using namespace FN7Style;
 	using namespace FN7HudParts;
+	// The header is a slim cloth scroll between two turned rods, the will scroll's style (it should be scroll-like, the same
+	// STYLE"): ink on linen, the buttons inscribed in red ink.
+	const FLinearColor InkC = FN7Wood::Ink(), Red = FN7Wood::RedInk();
+	auto InkStat = [&](const FText& Key, const FText& Value) -> TSharedRef<SWidget>
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(InkC * 0.75f).Text(Key)
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).TextStyle(&Type::Body()).Font(Type::Font(13, TEXT("Bold"))).ColorAndOpacity(InkC).Text(Value)
+			];
+	};
+	auto InkButton = [&](const FText& Label, const FText& Tip, TFunction<void()> OnClick) -> TSharedRef<SWidget>
+	{
+		return SNew(SButton)
+			.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
+			.ContentPadding(FMargin(Space::S, 2.f))
+			.ToolTipText(Tip)
+			.OnClicked_Lambda([OnClick]() { OnClick(); return FReply::Handled(); })
+			[
+				SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(12, TEXT("Bold"))).ColorAndOpacity(Red).Text(Label)
+			];
+	};
 	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
-		[
-			SNew(SBox).WidthOverride(4.f).HeightOverride(18.f)[SNew(SImage).Image(Brush::AccentRule())]
-		]
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
 		[
-			SNew(STextBlock).TextStyle(&Type::Title()).Font(Type::Font(15, TEXT("Bold"))).Text(LOCTEXT("Game", "FINAL NIGHT 7"))
+			SNew(STextBlock).TextStyle(&Type::Title()).Font(Type::Font(15, TEXT("Bold"))).ColorAndOpacity(Red).Text(LOCTEXT("Game", "FINAL NIGHT 7"))
 		];
-
 	auto Add = [&Row](TSharedRef<SWidget> W)
 	{
 		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)[W];
 	};
-	if (!Model.Room.IsEmpty())
-	{
-		Add(Divider(true));
-		Add(Stat(LOCTEXT("Room", "ROOM"), Model.Room));
-	}
+	if (!Model.Room.IsEmpty()) Add(InkStat(LOCTEXT("Room", "ROOM"), Model.Room));
 	if (Model.BeatsTotal > 0)
 	{
-		Add(Stat(LOCTEXT("Beat", "BEAT"), FText::Format(LOCTEXT("BeatFmt", "{0}/{1}"), Model.Beat, Model.BeatsTotal)));
-		Add(Stat(LOCTEXT("Alive", "ALIVE"), Model.AliveOf > 0 ? FText::Format(LOCTEXT("AliveOf", "{0}/{1}"), Model.Alive, Model.AliveOf) : FText::AsNumber(Model.Alive)));
+		Add(InkStat(LOCTEXT("Beat", "BEAT"), FText::Format(LOCTEXT("BeatFmt", "{0}/{1}"), Model.Beat, Model.BeatsTotal)));
+		Add(InkStat(LOCTEXT("Alive", "ALIVE"), Model.AliveOf > 0 ? FText::Format(LOCTEXT("AliveOf", "{0}/{1}"), Model.Alive, Model.AliveOf) : FText::AsNumber(Model.Alive)));
 	}
-	if (!Model.Entropy.IsEmpty())
-	{
-		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
-		[
-			SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("Entropy", "ENTROPY"))
-		];
-		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)[Chip(Brush::Pill(EFNSeatRole::AI), Model.Entropy, Color::AIAura())];
-	}
-	if (Model.bReplay) Add(Chip(Brush::Pill(EFNSeatRole::Fallen), LOCTEXT("Replay", "REPLAY"), Color::TextDim()));
+	if (!Model.Entropy.IsEmpty()) Add(InkStat(LOCTEXT("Entropy", "ENTROPY"), Model.Entropy));
+	if (Model.bReplay) Add(InkStat(FText::GetEmpty(), LOCTEXT("Replay", "REPLAY")));
+	Add(InkButton(LOCTEXT("LobbyPill", "LOBBY"), LOCTEXT("LobbyTip", "The lobby (Esc)"), [this]() { OnLobby.ExecuteIfBound(); }));
+	Row->AddSlot().AutoWidth().VAlign(VAlign_Center)
+	[
+		InkButton(LOCTEXT("ResetPill", "RESET VIEW"), LOCTEXT("ResetTip", "Reset the view: the board, the camera and the panels (R or Home)"), [this]() { OnResetView.ExecuteIfBound(); })
+	];
 
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+			SNew(SFNScroll).bStartOpen(true).RodHeight(16.f).ContentPadding(FMargin(22.f, 6.f, 22.f, 4.f))
 			[
-				SNew(SBorder).BorderImage(Brush::Panel()).Padding(FMargin(Space::M, Space::S))[Row]
-			]
-			// LOBBY: its own small box, as on the screen map (Esc does the same).
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
-			[
-				SNew(SButton)
-				.ButtonStyle(&PillButton())
-				.ToolTipText(LOCTEXT("LobbyTip", "The lobby (Esc)"))
-				.OnClicked_Lambda([this]() { OnLobby.ExecuteIfBound(); return FReply::Handled(); })
-				[
-					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(Color::Accent()).Text(LOCTEXT("LobbyPill", "LOBBY"))
-				]
-			]
-			// RESET VIEW: the board, the camera and the panels back to the start.
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
-			[
-				SNew(SButton)
-				.ButtonStyle(&PillButton())
-				.ToolTipText(LOCTEXT("ResetTip", "Reset the view: the board, the camera and the panels (R or Home)"))
-				.OnClicked_Lambda([this]() { OnResetView.ExecuteIfBound(); return FReply::Handled(); })
-				[
-					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(Color::Text()).Text(LOCTEXT("ResetPill", "RESET VIEW"))
-				]
+				Row
 			]
 		]
 		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(Space::XS, Space::S, 0.f, 0.f)
@@ -351,11 +343,11 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 			[
-				SNew(STextBlock).TextStyle(&Type::Title()).Font(Type::Font(15, TEXT("Bold"))).Text(LOCTEXT("World", "WORLD"))
+				SNew(STextBlock).TextStyle(&Type::Title()).Font(Type::Font(15, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(LOCTEXT("World", "WORLD"))
 			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
 			[
-				SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim())
+				SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(FN7Wood::Ink() * 0.75f)
 				.Text(bNewsCollapsed ? FText::Format(LOCTEXT("NewsFolded", "{0}  +"), Model.News.Num()) : LOCTEXT("NewsOpen", "-"))
 			]
 		];
@@ -367,7 +359,11 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 		for (int32 i = 0; i < Model.News.Num(); ++i)
 		{
 			const FFNHudNews& N = Model.News[i];
-			List->AddSlot().AutoHeight().Padding(0.f, i == 0 ? Space::S : 0.f, 0.f, 0.f)[i > 0 ? Divider(false) : SNullWidget::NullWidget];
+			List->AddSlot().AutoHeight().Padding(0.f, i == 0 ? Space::S : 0.f, 0.f, 0.f)
+			[
+				i > 0 ? StaticCastSharedRef<SWidget>(SNew(SBox).HeightOverride(1.f)[SNew(SImage).Image(Brush::Segment(FN7Wood::Ink())).ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.25f))])
+					: SNullWidget::NullWidget
+			];
 			List->AddSlot().AutoHeight().Padding(0.f, i > 0 ? Space::S : 0.f, 0.f, 0.f)
 			[
 				SNew(SHorizontalBox)
@@ -377,15 +373,16 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 				]
 				+ SHorizontalBox::Slot().FillWidth(1.f)
 				[
-					SNew(STextBlock).TextStyle(&Type::Body()).Font(Type::Font(12)).AutoWrapText(true).Text(N.Text)
+					SNew(STextBlock).TextStyle(&Type::Body()).Font(Type::Font(12)).ColorAndOpacity(FN7Wood::Ink()).AutoWrapText(true).Text(N.Text)
 				]
 			];
 		}
 	}
+	// A cloth scroll between two turned rods, in the Will scroll's style (Chris asked for it to look like a scroll).
 	return SNew(SBox)
-		.WidthOverride(bNewsCollapsed ? 180.f : 360.f)
+		.WidthOverride(bNewsCollapsed ? 200.f : 380.f)
 		[
-			SNew(SBorder).BorderImage(Brush::Panel()).Padding(FMargin(Space::M))[List]
+			SNew(SFNScroll).bStartOpen(true).RodHeight(24.f).ContentPadding(FMargin(22.f, 12.f, 22.f, 10.f))[List]
 		];
 }
 
@@ -574,8 +571,8 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 	}
 
 	return SNew(SBorder)
-		.BorderImage(Brush::Panel())
-		.Padding(FMargin(Space::M))
+		.BorderImage(FN7Wood::StoneBrush())   // a carved stone tablet (these should use a stone tablet background)
+		.Padding(FMargin(Space::L + 6.f))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, Space::S)
@@ -641,7 +638,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 		.WidthOverride(440.f)
 		[
 			SNew(SBorder)
-			.BorderImage(Brush::Panel())
+			.BorderImage(FN7Wood::StoneBrush())
 			.Padding(FMargin(Space::L, Space::M))
 			[
 				SNew(SVerticalBox)

@@ -38,4 +38,8 @@ namespace FN7Wood
 
 	/** Red-brown ink for headings inscribed on the scroll. */
 	FINALNIGHT_API const FLinearColor& RedInk();
+
+	/** A carved stone tablet: dark mottled slate with specks and hairline cracks, a chiselled bevel lit from the top
+	 *  left and a carved groove inside it, rounded corners (9-slice: the bevel and groove stay crisp at any size). */
+	FINALNIGHT_API const FSlateBrush* StoneBrush();
 }
