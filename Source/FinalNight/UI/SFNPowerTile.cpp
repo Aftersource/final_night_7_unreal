@@ -225,12 +225,14 @@ void SFNPowerTile::Construct(const FArguments& InArgs)
 	const FText Name = InArgs._Name;
 	const int32 Cost = InArgs._Cost;
 
+	// Small tiles (the compact panel) engrave a smaller name so it fits.
+	const int32 LabelSize = TileSize < 64.f ? 7 : 9;
 	FTextBlockStyle Engraved = FN7Style::Type::Label();
-	Engraved.SetFont(FN7Style::Type::Font(9, TEXT("Bold")));
+	Engraved.SetFont(FN7Style::Type::Font(LabelSize, TEXT("Bold")));
 	Engraved.SetShadowOffset(FVector2D(0.f, 1.f));
 	Engraved.SetShadowColorAndOpacity(FLinearColor(1.f, 0.96f, 0.86f, 0.5f));
-	static TMap<uint32, FTextBlockStyle> StyleCache;   // one stable style object for every tile
-	FTextBlockStyle& LabelStyle = StyleCache.FindOrAdd(0, Engraved);
+	static TMap<uint32, FTextBlockStyle> StyleCache;   // one stable style object per label size
+	FTextBlockStyle& LabelStyle = StyleCache.FindOrAdd((uint32)LabelSize, Engraved);
 
 	ChildSlot
 	[
@@ -256,7 +258,7 @@ void SFNPowerTile::Construct(const FArguments& InArgs)
 				})
 				.RenderTransform_Lambda([this]() { return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FVector2f(12.f * DropAlpha, -2.f * HoverAlpha))); })
 				.ColorAndOpacity_Lambda([this]() { return FLinearColor(1.f, 1.f, 1.f, IsBeingDragged() ? 0.4f : 1.f); })
-				.Padding(FMargin(6.f, 9.f, 6.f, 8.f))
+				.Padding(TileSize < 64.f ? FMargin(3.f, 6.f, 3.f, 5.f) : FMargin(6.f, 9.f, 6.f, 8.f))
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot().FillHeight(1.f).HAlign(HAlign_Center).VAlign(VAlign_Center)

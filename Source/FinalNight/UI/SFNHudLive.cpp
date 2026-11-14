@@ -70,16 +70,28 @@ namespace FN7HudJson
 	}
 }
 
-/** Esc (no modifiers) opens and closes the lobby while we are in a room. */
+/** True when keyboard focus is in the game viewport or the HUD over it (not in an editor panel). */
+static bool FN7GameHasFocus()
+{
+	UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+	TSharedPtr<SViewport> VP = VC ? VC->GetGameViewportWidget() : nullptr;
+	return VP.IsValid() && (VP->HasKeyboardFocus() || VP->HasFocusedDescendants());
+}
+
+/** Esc (no modifiers) opens and closes the lobby, Enter opens the WILL, while we are in a room and the game has focus. */
 class FFN7LobbyKeys : public IInputProcessor
 {
 public:
 	TFunction<bool()> OnEscape;
+	TFunction<bool()> OnEnter;
 	virtual void Tick(const float, FSlateApplication&, TSharedRef<ICursor>) override {}
 	virtual bool HandleKeyDownEvent(FSlateApplication&, const FKeyEvent& E) override
 	{
-		if (E.GetKey() != EKeys::Escape || E.IsShiftDown() || E.IsControlDown() || E.IsAltDown() || E.IsCommandDown()) return false;
-		return OnEscape ? OnEscape() : false;
+		if (E.IsShiftDown() || E.IsControlDown() || E.IsAltDown() || E.IsCommandDown() || E.IsRepeat()) return false;
+		if (!FN7GameHasFocus()) return false;
+		if (E.GetKey() == EKeys::Escape) return OnEscape ? OnEscape() : false;
+		if (E.GetKey() == EKeys::Enter) return OnEnter ? OnEnter() : false;
+		return false;
 	}
 };
 
@@ -145,7 +157,16 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		{
 			TSharedPtr<SFNHudLive> Self = Weak.Pin();
 			if (!Self.IsValid() || !Self->bInRoom) return false;
+			// Writing: Esc rolls the WILL back up (the text stays). Otherwise it opens or closes the lobby.
+			if (!Self->bLobbyOpen && Self->Layout.IsValid() && Self->Layout->IsWillOpen()) { Self->Layout->RollUpWill(); return true; }
 			Self->SetLobbyOpen(!Self->bLobbyOpen);
+			return true;
+		};
+		Keys->OnEnter = [Weak]()
+		{
+			TSharedPtr<SFNHudLive> Self = Weak.Pin();
+			if (!Self.IsValid() || !Self->bInRoom || Self->bLobbyOpen || !Self->Layout.IsValid() || Self->Layout->IsWillOpen() || Self->Model.bViewer) return false;
+			Self->Layout->FocusWill();
 			return true;
 		};
 		LobbyKeys = Keys;
@@ -153,10 +174,23 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	}
 }
 
-void SFNHudLive::DebugPreview(bool bLobby, bool bFell)
+void SFNHudLive::DebugPreview(bool bLobby, bool bFell, bool bWill)
 {
 	Model = SFNHudLayout::SampleModel();
 	bInRoom = true;
+	if (bWill)
+	{
+		// You hold slowed time and are writing: the scroll open, the gold edge, the live bill.
+		MySeat = 0;
+		WindowSeat = 0;
+		bSlowBill = true;
+		UFNNetClient* N = Net.Get();
+		SlowOpenedMs = (N ? N->NowServerMs() : 0.0) - 8000.0;
+		DebtBase = 1.0;
+		DebtPerS = 0.15;
+		DebtCap = 6.0;
+		BoltPaid = 1;
+	}
 	if (bFell)
 	{
 		bOut = true;
@@ -166,6 +200,7 @@ void SFNHudLive::DebugPreview(bool bLobby, bool bFell)
 		OutNote.Reset();
 	}
 	if (Layout.IsValid()) Layout->SetModel(Model);   // the sample seats as they are (Publish would rebuild them from the live list)
+	if (bWill && Layout.IsValid()) Layout->FocusWill();
 	SetLobbyOpen(bLobby);
 }
 
@@ -423,8 +458,25 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		WindowSeat = (int32)FN7HudJson::Num(D, TEXT("by_seat"), -1);
 		DeadlineMs = FN7HudJson::Num(D, TEXT("deadline"), 0.0);
 	}
+	else if (T == TEXT("phase.event"))
+	{
+		// Time slowed: when it is you, the Slowed event carries the bill's terms (rules 0.7.0).
+		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
+		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("slowed") && (int32)FN7HudJson::Num(Pub, TEXT("by_seat"), -2) == MySeat && MySeat >= 0)
+		{
+			bSlowBill = FN7HudJson::Has(Pub, TEXT("debt_per_second"));
+			UFNNetClient* N = Net.Get();
+			SlowOpenedMs = FN7HudJson::Num(Pub, TEXT("opened_at_ms"), N ? N->NowServerMs() : 0.0);
+			DebtBase = FN7HudJson::Num(Pub, TEXT("debt_base"), 0.0);
+			DebtPerS = FN7HudJson::Num(Pub, TEXT("debt_per_second"), 0.0);
+			DebtCap = FN7HudJson::Num(Pub, TEXT("debt_cap"), 1.0e9);
+			BoltPaid = FN7HudJson::Has(Pub, TEXT("bolt_paid")) ? (int32)FN7HudJson::Num(Pub, TEXT("bolt_paid"), 1.0) : 1;
+		}
+		return;
+	}
 	else if (T == TEXT("window.closed"))
 	{
+		bSlowBill = false;
 		WindowSeat = -1;
 		DeadlineMs = 0.0;
 		if (UFNNetClient* N = Net.Get()) N->EndTyping();
@@ -510,6 +562,56 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 		Model.Bolts = (int32)FN7HudJson::Num(You, TEXT("bolts"), Model.Bolts);
 		if (FN7HudJson::Has(You, TEXT("sparks"))) Model.Sparks = (int32)FN7HudJson::Num(You, TEXT("sparks"), 0.0);
 	}
+	// Rules 0.7.0: your two demigods in full (each with its own health), your aura, the purse, the debt.
+	if (const TArray<TSharedPtr<FJsonValue>>* Hands = FN7HudJson::Arr(View, TEXT("demigods")))
+	{
+		Model.Mine.Reset();
+		MinePortraitHash.Reset();
+		double DebtSum = 0.0;
+		bool bDebt = false;
+		for (const TSharedPtr<FJsonValue>& V : *Hands)
+		{
+			const TSharedPtr<FJsonObject> G = V.IsValid() ? V->AsObject() : nullptr;
+			if (!G.IsValid()) continue;
+			FFNHudDemigod Dg;
+			Dg.Name = FText::FromString(FN7HudJson::Str(G, TEXT("name")));
+			Dg.Side = FN7HudJson::Str(G, TEXT("side"));
+			Dg.MaxHealth = FMath::Max(1, FMath::RoundToInt(FN7HudJson::Num(G, TEXT("max_health"), 10.0)));
+			Dg.Health = FMath::Clamp(FMath::RoundToInt(FN7HudJson::Num(G, TEXT("health"), Dg.MaxHealth)), 0, Dg.MaxHealth);
+			bool bAliveHand = true;
+			G->TryGetBoolField(TEXT("alive"), bAliveHand);
+			Dg.bAlive = bAliveHand;
+			if (FN7HudJson::Has(G, TEXT("debt_open"))) { DebtSum += FN7HudJson::Num(G, TEXT("debt_open"), 0.0); bDebt = true; }
+			FString Hash;
+			if (const TSharedPtr<FJsonObject> Img = FN7HudJson::Obj(G, TEXT("portrait_image")))
+			{
+				Hash = FN7HudJson::Str(Img, TEXT("hash"));
+				const FString Url = FN7HudJson::Str(Img, TEXT("status")) == TEXT("ready") ? FN7HudJson::Str(Img, TEXT("url")) : FString();
+				if (!Hash.IsEmpty() && !Url.IsEmpty()) RequestPortrait(Hash, Url);
+			}
+			Model.Mine.Add(Dg);
+			MinePortraitHash.Add(Hash);
+		}
+		if (Model.Mine.Num() == 2 && Model.Mine[0].Side == TEXT("right"))   // Left first
+		{
+			Model.Mine.Swap(0, 1);
+			MinePortraitHash.Swap(0, 1);
+		}
+		if (bDebt) Model.Debt = DebtSum;
+	}
+	else if (const TSharedPtr<FJsonObject> You = FN7HudJson::Obj(View, TEXT("you")))
+	{
+		if (FN7HudJson::Has(You, TEXT("debt_open"))) Model.Debt = FN7HudJson::Num(You, TEXT("debt_open"), 0.0);
+	}
+	const FString Aura = FN7HudJson::Str(View, TEXT("aura"));
+	if (Aura.StartsWith(TEXT("#")) && Aura.Len() >= 7) Model.YourAura = FLinearColor::FromSRGBColor(FColor::FromHex(Aura));
+	if (const TSharedPtr<FJsonObject> Charges = FN7HudJson::Obj(View, TEXT("charges")))
+	{
+		Model.Bolts = (int32)FN7HudJson::Num(Charges, TEXT("bolts"), Model.Bolts);
+		if (FN7HudJson::Has(Charges, TEXT("sparks"))) Model.Sparks = (int32)FN7HudJson::Num(Charges, TEXT("sparks"), 0.0);
+	}
+	const FString Player = FN7HudJson::Str(View, TEXT("player"));
+	if (!Player.IsEmpty() && Model.Mine.Num() > 0) Model.YouName = FText::FromString(Player);
 	Model.PowersNote = FText::Format(LOCTEXT("PowersNoteBolts", "{0} bolts  -  arm a power, write its target (place, name or lon,lat), SEND. Every bolt you spend gives each rival +2."), Model.Bolts);
 }
 
@@ -664,6 +766,9 @@ void SFNHudLive::Publish()
 		if (const TStrongObjectPtr<UTexture2D>* Tex = Portraits.Find(S.PortraitHash)) Out.PortraitTexture = Tex->Get();
 		Model.Seats.Add(Out);
 	}
+	for (int32 i = 0; i < Model.Mine.Num() && i < MinePortraitHash.Num(); ++i)
+		if (const TStrongObjectPtr<UTexture2D>* Tex = Portraits.Find(MinePortraitHash[i])) Model.Mine[i].PortraitTexture = Tex->Get();
+	if (Seats.Num() > 0) Model.AliveOf = Seats.Num();
 	for (FFNHudPower& P : Model.Powers) P.bArmed = P.Key() == ArmedPower;
 	if (UFNNetClient* N = Net.Get()) Model.bViewer = N->bViewer;
 	if (Layout.IsValid()) Layout->SetModel(Model);
@@ -825,6 +930,27 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 			? FString::Printf(TEXT("No demigod is free right now. The next match starts in about %d beats."), Model.BeatsTotal - Model.Beat)
 			: FString(TEXT("No demigod is free right now. You'll get one next match."));
 	}
+	// Time's live bill while you hold slowed time: debt(t) = min(cap, base + per_second * t), plus the bolt.
+	const bool bHolding = MySeat >= 0 && WindowSeat == MySeat;
+	FText Bill;
+	if (bHolding)
+	{
+		if (bSlowBill)
+		{
+			UFNNetClient* N = Net.Get();
+			const double Secs = FMath::Max(0.0, ((N ? N->NowServerMs() : SlowOpenedMs) - SlowOpenedMs) / 1000.0);
+			FNumberFormattingOptions One;
+			One.SetMinimumFractionalDigits(1).SetMaximumFractionalDigits(1);
+			Bill = FText::Format(LOCTEXT("BillNow", "{0} {0}|plural(one=bolt,other=bolts) + {1} debt"), BoltPaid, FText::AsNumber(FMath::Min(DebtCap, DebtBase + DebtPerS * Secs), &One));
+		}
+		else
+		{
+			Bill = LOCTEXT("BillPlain", "1 bolt + debt, growing while you write");
+		}
+	}
+	if (Layout.IsValid()) Layout->SetTimeBill(Bill, bHolding);
+	Model.TimeBill = Bill;
+	Model.bHoldingTime = bHolding;
 	Invalidate(EInvalidateWidgetReason::Paint);
 	return EActiveTimerReturnType::Continue;
 }
@@ -889,16 +1015,16 @@ namespace FN7HudMount
 
 	bool IsMounted() { return GMountLive.IsValid(); }
 
-	void Preview(bool bLobby, bool bFell)
+	void Preview(bool bLobby, bool bFell, bool bWill)
 	{
-		if (GMountLive.IsValid()) StaticCastSharedPtr<SFNHudLive>(GMountLive)->DebugPreview(bLobby, bFell);
+		if (GMountLive.IsValid()) StaticCastSharedPtr<SFNHudLive>(GMountLive)->DebugPreview(bLobby, bFell, bWill);
 	}
 }
 
 static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 	TEXT("FN7.Hud"),
 	TEXT("FN7.Hud on | off [connect] [shot] [quit] [lobby] [fell]: the live style-kit HUD over the game (hides the old HUD while on). ")
-	TEXT("lobby / fell = preview the lobby over the game / the out card on the sample table (no game joined). ")
+	TEXT("preview / lobby / fell / will = the sample table, plus the lobby over the game / the out card / the WILL open in slowed time (no game joined). ")
 	TEXT("connect = start the net client now; shot = save Saved/FN7HudLive_<n>.png every 8 s; quit = exit after 4 shots."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
@@ -910,16 +1036,18 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 		const bool bAoe = Args.Contains(TEXT("aoe"));
 		const bool bLobby = Args.Contains(TEXT("lobby"));
 		const bool bFell = Args.Contains(TEXT("fell"));
+		const bool bWill = Args.Contains(TEXT("will"));
+		const bool bPreview = Args.Contains(TEXT("preview"));
 		TWeakObjectPtr<UWorld> WeakWorld(World);
 		// Wait for the player controller and its net client, then mount (and optionally connect / photograph).
-		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell](float)
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview](float)
 		{
 			UWorld* W = WeakWorld.Get();
 			AFNPlayerController* PC = W ? Cast<AFNPlayerController>(W->GetFirstPlayerController()) : nullptr;
 			if (!PC || !PC->Net) return true;
 			FN7HudMount::Mount(PC->Net);
 			if (bConnect) PC->Net->Start();
-			if (bLobby || bFell) FN7HudMount::Preview(bLobby, bFell);
+			if (bLobby || bFell || bWill || bPreview) FN7HudMount::Preview(bLobby, bFell, bWill);
 			if (bAoe)
 			{
 				// Test: light an Earthquake's area (250 km) around the board hex at 42% / 78% of the viewport, as a drag would.

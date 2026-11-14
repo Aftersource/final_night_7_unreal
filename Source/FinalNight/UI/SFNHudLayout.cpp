@@ -1,6 +1,10 @@
 #include "SFNHudLayout.h"
 
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Containers/Ticker.h"
+#include "Framework/Application/SlateApplication.h"
+#include "SFNFoil.h"
+#include "Styling/CoreStyle.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "HAL/IConsoleManager.h"
@@ -82,62 +86,70 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnTakeSeat = InArgs._OnTakeSeat;
 	OnLobby = InArgs._OnLobby;
 
+	// Screen map v2: four corners, the centre (the hex board and the globe) completely clear.
 	ChildSlot
 	[
 		SNew(SOverlay)
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(Space::XL)
+		// Top left: the header strip and LOBBY.
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(Space::L)
 		[
 			SNew(SFNPanelMover).Id(TEXT("header"))[SAssignNew(HeaderHolder, SBox)]
 		]
-		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(Space::XL)
+		// Top right: WORLD, collapsible.
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(Space::L)
 		[
 			SNew(SFNPanelMover).Id(TEXT("news"))[SAssignNew(NewsHolder, SBox)]
 		]
-		// Bottom row: you + seats on the left, the composer centred in what is left. One row, so they never overlap.
-		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Bottom).Padding(Space::XL)
+		// Lower left: YOU, your two demigods.
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(Space::L)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom)
+			SNew(SFNPanelMover).Id(TEXT("you"))[SAssignNew(YouHolder, SBox)]
+		]
+		// Lower right: the compact power panel (the fallback) above the WILL scroll.
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(Space::L)
+		[
+			SNew(SFNPanelMover).Id(TEXT("will"))
 			[
-				SNew(SFNPanelMover).Id(TEXT("seats"))
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight()[SAssignNew(SeatsHolder, SBox)]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)[SAssignNew(YouHolder, SBox)]
-				]
-			]
-			+ SHorizontalBox::Slot().FillWidth(1.f).HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(Space::XL, 0.f, 0.f, 0.f)
-			[
-				SNew(SOverlay)
-				+ SOverlay::Slot()
-				[
-					SNew(SFNPanelMover).Id(TEXT("scroll"))[MakeComposePanel()]
-				]
-				// Watching without a seat: one clear way in.
-				+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom)
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(0.f, 0.f, 0.f, Space::S)
 				[
 					SNew(SBorder)
-					.BorderImage(FN7Style::Brush::Panel())
-					.Padding(FMargin(FN7Style::Space::XL, FN7Style::Space::L))
-					.Visibility_Lambda([this]() { return Model.bViewer ? EVisibility::Visible : EVisibility::Collapsed; })
+					.BorderImage(Brush::Panel())
+					.Padding(FMargin(Space::M, Space::S))
+					.Visibility_Lambda([this]() { return (Model.bPowerPanel && Model.Powers.Num() > 0 && !Model.bViewer) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
 					[
-						SNew(SVerticalBox)
-						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+						SAssignNew(PowersHolder, SBox)
+					]
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
+				[
+					MakeComposePanel()
+				]
+			]
+		]
+		// Watching without a seat: one clear way in, bottom centre (below the board).
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(Space::L)
+		[
+			SNew(SBorder)
+			.BorderImage(FN7Style::Brush::Panel())
+			.Padding(FMargin(FN7Style::Space::L, FN7Style::Space::M))
+			.Visibility_Lambda([this]() { return Model.bViewer ? EVisibility::Visible : EVisibility::Collapsed; })
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, FN7Style::Space::M, 0.f)
+				[
+					SNew(STextBlock).TextStyle(&FN7Style::Type::Body()).Text(LOCTEXT("Watching", "You are watching the house game."))
+				]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+				[
+					SNew(SBox).HeightOverride(40.f).WidthOverride(200.f)
+					[
+						SNew(SButton)
+						.ButtonStyle(&FN7Style::AccentButton())
+						.HAlign(HAlign_Center).VAlign(VAlign_Center)
+						.OnClicked_Lambda([this]() { OnTakeSeat.ExecuteIfBound(); return FReply::Handled(); })
 						[
-							SNew(STextBlock).TextStyle(&FN7Style::Type::Body()).Text(LOCTEXT("Watching", "You are watching the house game."))
-						]
-						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, FN7Style::Space::M, 0.f, 0.f)
-						[
-							SNew(SBox).HeightOverride(48.f).WidthOverride(260.f)
-							[
-								SNew(SButton)
-								.ButtonStyle(&FN7Style::AccentButton())
-								.HAlign(HAlign_Center).VAlign(VAlign_Center)
-								.OnClicked_Lambda([this]() { OnTakeSeat.ExecuteIfBound(); return FReply::Handled(); })
-								[
-									SNew(STextBlock).TextStyle(&FN7Style::Type::Title()).ColorAndOpacity(FN7HudParts::HudInk).Text(LOCTEXT("TakeSeat", "TAKE A SEAT"))
-								]
-							]
+							SNew(STextBlock).TextStyle(&FN7Style::Type::Label()).Font(FN7Style::Type::Font(12, TEXT("Bold"))).ColorAndOpacity(FN7HudParts::HudInk).Text(LOCTEXT("TakeSeat", "TAKE A SEAT"))
 						]
 					]
 				]
@@ -149,31 +161,27 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 
 void SFNHudLayout::SetModel(const FFNHudModel& InModel)
 {
-	using namespace FN7Style;
-	using namespace FN7HudParts;
 	Model = InModel;
 	RefreshSections();
 }
 
 void SFNHudLayout::RefreshSections()
 {
-	using namespace FN7Style;
-	using namespace FN7HudParts;
 	HeaderHolder->SetContent(MakeHeader());
 	NewsHolder->SetContent(MakeNews());
-	const FString SeatsSig = MakeSeatsSignature();
-	if (SeatsSig != SeatsSignature) { SeatsSignature = SeatsSig; SeatsHolder->SetContent(MakeSeats()); }
-	YouHolder->SetContent(MakeYou());
+	const FString YouSig = MakeYouSignature();
+	if (YouSig != YouSignature) { YouSignature = YouSig; YouHolder->SetContent(MakeYou()); }
 	const FString PowersSig = MakePowersSignature();
 	if (PowersSig != PowersSignature) { PowersSignature = PowersSig; PowersHolder->SetContent(MakePowers()); }
 	NewsHolder->SetVisibility(Model.News.Num() > 0 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
 }
 
-FString SFNHudLayout::MakeSeatsSignature() const
+FString SFNHudLayout::MakeYouSignature() const
 {
-	FString S;
-	for (const FFNHudSeat& Seat : Model.Seats)
-		S += FString::Printf(TEXT("%s|%d|%d|%d|%p|%d|%d|%d;"), *Seat.Name.ToString(), (int32)Seat.Role, Seat.bIsYou ? 1 : 0, Seat.bHoldsTime ? 1 : 0, Seat.PortraitTexture, Seat.PortraitPng.Num(), Seat.Bolts, Seat.Sparks);
+	FString S = FString::Printf(TEXT("%s|%d|%d|%d|%d|%.1f|%s|%s|%s|%d;"), *Model.YouName.ToString(), Model.Health, Model.MaxHealth, Model.Bolts, Model.Sparks,
+		Model.Debt, *Model.Place.ToString(), *Model.ArenaLine.ToString(), *Model.YourAura.ToFColor(true).ToHex(), Model.bViewer ? 1 : 0);
+	for (const FFNHudDemigod& D : Model.Mine)
+		S += FString::Printf(TEXT("%s|%s|%d|%d|%d|%p|%d;"), *D.Name.ToString(), *D.Side, D.Health, D.MaxHealth, D.bAlive ? 1 : 0, D.PortraitTexture, D.PortraitPng.Num());
 	return S;
 }
 
@@ -215,16 +223,16 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 		[
-			SNew(SBox).WidthOverride(4.f).HeightOverride(20.f)[SNew(SImage).Image(Brush::AccentRule())]
+			SNew(SBox).WidthOverride(4.f).HeightOverride(18.f)[SNew(SImage).Image(Brush::AccentRule())]
 		]
-		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
 		[
-			SNew(STextBlock).TextStyle(&Type::Title()).Text(LOCTEXT("Game", "FINAL NIGHT 7"))
+			SNew(STextBlock).TextStyle(&Type::Title()).Font(Type::Font(15, TEXT("Bold"))).Text(LOCTEXT("Game", "FINAL NIGHT 7"))
 		];
 
 	auto Add = [&Row](TSharedRef<SWidget> W)
 	{
-		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)[W];
+		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)[W];
 	};
 	if (!Model.Room.IsEmpty())
 	{
@@ -233,8 +241,8 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 	}
 	if (Model.BeatsTotal > 0)
 	{
-		Add(Stat(LOCTEXT("Beat", "BEAT"), FText::Format(LOCTEXT("BeatFmt", "{0} / {1}"), Model.Beat, Model.BeatsTotal)));
-		Add(Stat(LOCTEXT("Alive", "ALIVE"), FText::AsNumber(Model.Alive)));
+		Add(Stat(LOCTEXT("Beat", "BEAT"), FText::Format(LOCTEXT("BeatFmt", "{0}/{1}"), Model.Beat, Model.BeatsTotal)));
+		Add(Stat(LOCTEXT("Alive", "ALIVE"), Model.AliveOf > 0 ? FText::Format(LOCTEXT("AliveOf", "{0}/{1}"), Model.Alive, Model.AliveOf) : FText::AsNumber(Model.Alive)));
 	}
 	if (!Model.Entropy.IsEmpty())
 	{
@@ -242,24 +250,29 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 		[
 			SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("Entropy", "ENTROPY"))
 		];
-		Row->AddSlot().AutoWidth().VAlign(VAlign_Center)[Chip(Brush::Pill(EFNSeatRole::AI), Model.Entropy, Color::AIAura())];
+		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)[Chip(Brush::Pill(EFNSeatRole::AI), Model.Entropy, Color::AIAura())];
 	}
-	// LOBBY: the way out and to the other rooms (Esc does the same).
-	Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(Space::L, 0.f, 0.f, 0.f)
-	[
-		SNew(SButton)
-		.ButtonStyle(&PillButton())
-		.ToolTipText(LOCTEXT("LobbyTip", "The lobby (Esc)"))
-		.OnClicked_Lambda([this]() { OnLobby.ExecuteIfBound(); return FReply::Handled(); })
-		[
-			SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::Text()).Text(LOCTEXT("LobbyPill", "LOBBY"))
-		]
-	];
+	if (Model.bReplay) Add(Chip(Brush::Pill(EFNSeatRole::Fallen), LOCTEXT("Replay", "REPLAY"), Color::TextDim()));
 
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
 		[
-			SNew(SBorder).BorderImage(Brush::Panel()).Padding(FMargin(Space::L, Space::S))[Row]
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+			[
+				SNew(SBorder).BorderImage(Brush::Panel()).Padding(FMargin(Space::M, Space::S))[Row]
+			]
+			// LOBBY: its own small box, as on the screen map (Esc does the same).
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
+			[
+				SNew(SButton)
+				.ButtonStyle(&PillButton())
+				.ToolTipText(LOCTEXT("LobbyTip", "The lobby (Esc)"))
+				.OnClicked_Lambda([this]() { OnLobby.ExecuteIfBound(); return FReply::Handled(); })
+				[
+					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(Color::Accent()).Text(LOCTEXT("LobbyPill", "LOBBY"))
+				]
+			]
 		]
 		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(Space::XS, Space::S, 0.f, 0.f)
 		[
@@ -275,28 +288,206 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 {
 	using namespace FN7Style;
 	using namespace FN7HudParts;
-	TSharedRef<SVerticalBox> List = SNew(SVerticalBox);
-	for (int32 i = 0; i < Model.News.Num(); ++i)
-	{
-		const FFNHudNews& N = Model.News[i];
-		if (i > 0) List->AddSlot().AutoHeight().Padding(0.f, Space::S)[Divider(false)];
-		List->AddSlot().AutoHeight()
+	// The title row is the toggle: WORLD  (n)  -  click to fold the list away, click again to bring it back.
+	TSharedRef<SWidget> Title = SNew(SButton)
+		.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
+		.ContentPadding(FMargin(0.f))
+		.ToolTipText(LOCTEXT("NewsTip", "Fold or unfold the news"))
+		.OnClicked_Lambda([this]()
+		{
+			bNewsCollapsed = !bNewsCollapsed;
+			NewsHolder->SetContent(MakeNews());
+			return FReply::Handled();
+		})
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0.f, 2.f, Space::S, 0.f)
+			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 			[
-				SNew(SBox).MinDesiredWidth(56.f).HAlign(HAlign_Center)[Chip(Brush::PillAccent(), N.Tag, HudInk)]
+				SNew(STextBlock).TextStyle(&Type::Title()).Font(Type::Font(15, TEXT("Bold"))).Text(LOCTEXT("World", "WORLD"))
 			]
-			+ SHorizontalBox::Slot().FillWidth(1.f)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
 			[
-				SNew(STextBlock).TextStyle(&Type::Body()).AutoWrapText(true).Text(N.Text)
+				SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim())
+				.Text(bNewsCollapsed ? FText::Format(LOCTEXT("NewsFolded", "{0}  +"), Model.News.Num()) : LOCTEXT("NewsOpen", "-"))
+			]
+		];
+
+	TSharedRef<SVerticalBox> List = SNew(SVerticalBox);
+	List->AddSlot().AutoHeight()[Title];
+	if (!bNewsCollapsed)
+	{
+		for (int32 i = 0; i < Model.News.Num(); ++i)
+		{
+			const FFNHudNews& N = Model.News[i];
+			List->AddSlot().AutoHeight().Padding(0.f, i == 0 ? Space::S : 0.f, 0.f, 0.f)[i > 0 ? Divider(false) : SNullWidget::NullWidget];
+			List->AddSlot().AutoHeight().Padding(0.f, i > 0 ? Space::S : 0.f, 0.f, 0.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0.f, 2.f, Space::S, 0.f)
+				[
+					SNew(SBox).MinDesiredWidth(52.f).HAlign(HAlign_Center)[Chip(Brush::PillAccent(), N.Tag, HudInk)]
+				]
+				+ SHorizontalBox::Slot().FillWidth(1.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Body()).Font(Type::Font(12)).AutoWrapText(true).Text(N.Text)
+				]
+			];
+		}
+	}
+	return SNew(SBox)
+		.WidthOverride(bNewsCollapsed ? 180.f : 360.f)
+		[
+			SNew(SBorder).BorderImage(Brush::Panel()).Padding(FMargin(Space::M))[List]
+		];
+}
+
+const FSlateBrush* SFNHudLayout::AuraFrame()
+{
+	// One rounded frame per aura colour, kept for the session (old cards may still point at the last one).
+	static TMap<uint32, TSharedPtr<FSlateRoundedBoxBrush>> Cache;
+	const FColor Key = Model.YourAura.ToFColor(true);
+	TSharedPtr<FSlateRoundedBoxBrush>& B = Cache.FindOrAdd(Key.ToPackedRGBA());
+	if (!B.IsValid())
+		B = MakeShared<FSlateRoundedBoxBrush>(FLinearColor(Model.YourAura.R, Model.YourAura.G, Model.YourAura.B, 0.14f), 10.f, Model.YourAura, 2.5f);
+	return B.Get();
+}
+
+TSharedRef<SWidget> SFNHudLayout::MakeMine()
+{
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+	const float CardW = 140.f;
+	const FLinearColor Aura = Model.YourAura;
+	TSharedRef<SHorizontalBox> Pair = SNew(SHorizontalBox);
+	for (int32 i = 0; i < Model.Mine.Num() && i < 2; ++i)
+	{
+		const FFNHudDemigod& D = Model.Mine[i];
+		const bool bRight = D.Side == TEXT("right");
+		// "<player>'s Left Hand" -> "Left Hand".
+		FString Short = D.Name.ToString();
+		const int32 Cut = Short.Find(TEXT("'s "), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+		if (Cut != INDEX_NONE) Short = Short.Mid(Cut + 3);
+		if (Short.IsEmpty()) Short = bRight ? TEXT("Right Hand") : TEXT("Left Hand");
+
+		TSharedPtr<SFNPortraitCard> Card;
+		TSharedRef<SWidget> CardW_ = SAssignNew(Card, SFNPortraitCard)
+			.Name(FText::FromString(Short))
+			.Role(D.bAlive ? EFNSeatRole::Human : EFNSeatRole::Fallen)
+			.bIsYou(false)
+			.bShowHourglass(false)
+			.CardWidth(CardW);
+		if (D.PortraitTexture) Card->SetTexture(D.PortraitTexture);
+		else if (D.PortraitPng.Num() > 0) Card->SetImageFromPng(D.PortraitPng);
+
+		// Its own health: one segment per point, in your aura colour (grey once it has fallen).
+		TSharedRef<SHorizontalBox> Bar = SNew(SHorizontalBox);
+		const int32 Max = FMath::Clamp(D.MaxHealth, 1, 20);
+		const float SegW = FMath::Max(3.f, (CardW - 2.f * (Max - 1)) / Max);
+		for (int32 h = 0; h < Max; ++h)
+		{
+			const FLinearColor Fill = !D.bAlive ? Color::Fallen() * FLinearColor(1.f, 1.f, 1.f, 0.5f) : (h < D.Health ? Aura : Color::PanelEdge());
+			Bar->AddSlot().AutoWidth().Padding(0.f, 0.f, h + 1 < Max ? 2.f : 0.f, 0.f)
+			[
+				SNew(SBox).WidthOverride(SegW).HeightOverride(7.f)[SNew(SImage).Image(Brush::Segment(Fill))]
+			];
+		}
+
+		Pair->AddSlot().AutoWidth().Padding(i > 0 ? Space::M : 0.f, 0.f, 0.f, 0.f)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(SOverlay)
+				+ SOverlay::Slot()
+				[
+					SNew(SBorder).BorderImage(AuraFrame()).Padding(3.f)[CardW_]
+				]
+				// The L / R notch.
+				+ SOverlay::Slot().HAlign(bRight ? HAlign_Right : HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(bRight ? 0.f : 8.f, 8.f, bRight ? 8.f : 0.f, 0.f))
+				[
+					SNew(SBorder)
+					.BorderImage(Brush::Swatch(Aura))
+					.Padding(FMargin(6.f, 1.f))
+					[
+						SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(HudInk).Text(bRight ? LOCTEXT("R", "R") : LOCTEXT("L", "L"))
+					]
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(3.f, Space::S, 3.f, 0.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)[Bar]
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 2.f, 0.f, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Small())
+				.Text(D.bAlive ? FText::Format(LOCTEXT("HealthOf", "{0}/{1}"), D.Health, D.MaxHealth) : LOCTEXT("HandFallen", "FALLEN"))
 			]
 		];
 	}
-	return SNew(SBox)
-		.WidthOverride(400.f)
+
+	// Bolts, sparks, debt; Time's live bill while you hold slowed time.
+	TSharedRef<SHorizontalBox> Purse = SNew(SHorizontalBox);
+	Purse->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
+	[
+		Chip(Brush::PillAccent(), Model.Bolts == 1 ? LOCTEXT("OneBolt", "1 BOLT") : FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), HudInk)
+	];
+	if (Model.Sparks >= 0)
+		Purse->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
 		[
-			SNew(SFNPanel).Title(LOCTEXT("World", "WORLD")).Padding(FMargin(Space::L))[List]
+			Chip(Brush::Pill(EFNSeatRole::AI), Model.Sparks == 1 ? LOCTEXT("OneSpark", "1 SPARK") : FText::Format(LOCTEXT("Sparks", "{0} SPARKS"), Model.Sparks), Color::AIAura())
+		];
+	if (Model.Debt >= 0.0)
+	{
+		FNumberFormattingOptions One;
+		One.SetMinimumFractionalDigits(1).SetMaximumFractionalDigits(1);
+		Purse->AddSlot().AutoWidth().VAlign(VAlign_Center)
+		[
+			Chip(Brush::Pill(EFNSeatRole::Fallen), FText::Format(LOCTEXT("Debt", "DEBT {0}"), FText::AsNumber(Model.Debt, &One)), Color::Text())
+		];
+	}
+
+	return SNew(SBorder)
+		.BorderImage(Brush::Panel())
+		.Padding(FMargin(Space::M))
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, Space::S)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Aura).Text(LOCTEXT("YouLabel", "YOU"))
+				]
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+				[
+					SNew(STextBlock).TextStyle(&Type::Name()).Font(Type::Font(14, TEXT("Bold"))).Text(Model.YouName)
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Pair]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)[Purse]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+			[
+				SNew(SHorizontalBox)
+				.Visibility_Lambda([this]() { return (Model.bHoldingTime && !Model.TimeBill.IsEmpty()) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
+				[
+					SNew(SFNHourglass).Color(Color::HumanAura())
+				]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+				[
+					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(12, TEXT("Bold"))).ColorAndOpacity(Color::HumanAura())
+					.Text_Lambda([this]() { return FText::Format(LOCTEXT("TimeBill", "TIME'S BILL  {0}"), Model.TimeBill); })
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+			[
+				SNew(SBox).WidthOverride(2.f * CardW + Space::M + 6.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true)
+					.Text(Model.Place.IsEmpty() ? Model.ArenaLine : (Model.ArenaLine.IsEmpty() ? Model.Place : FText::Format(LOCTEXT("PlaceArena", "{0}  -  {1}"), Model.Place, Model.ArenaLine)))
+				]
+			]
 		];
 }
 
@@ -304,8 +495,10 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 {
 	using namespace FN7Style;
 	using namespace FN7HudParts;
-	if (Model.YouName.IsEmpty()) return SNullWidget::NullWidget;
+	if (Model.YouName.IsEmpty() && Model.Mine.Num() == 0) return SNullWidget::NullWidget;
+	if (Model.Mine.Num() > 0) return MakeMine();
 
+	// A one-demigod server: the classic panel (one health bar).
 	TSharedRef<SHorizontalBox> Bar = SNew(SHorizontalBox);
 	const int32 Max = FMath::Clamp(Model.MaxHealth, 1, 20);
 	for (int32 i = 0; i < Max; ++i)
@@ -318,9 +511,8 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 			]
 		];
 	}
-
 	return SNew(SBox)
-		.WidthOverride(480.f)
+		.WidthOverride(440.f)
 		[
 			SNew(SBorder)
 			.BorderImage(Brush::Panel())
@@ -336,13 +528,13 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 					]
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
 					[
-						Chip(Brush::PillAccent(), FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), HudInk)
+						Chip(Brush::PillAccent(), FText::Format(LOCTEXT("BoltsClassic", "{0} BOLTS"), Model.Bolts), HudInk)
 					]
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::XS, 0.f, 0.f, 0.f)
 					[
 						SNew(SBox).Visibility(Model.Sparks >= 0 ? EVisibility::Visible : EVisibility::Collapsed)
 						[
-							Chip(Brush::Pill(EFNSeatRole::AI), FText::Format(LOCTEXT("Sparks", "{0} SPARKS"), FMath::Max(0, Model.Sparks)), Color::AIAura())
+							Chip(Brush::Pill(EFNSeatRole::AI), FText::Format(LOCTEXT("SparksClassic", "{0} SPARKS"), FMath::Max(0, Model.Sparks)), Color::AIAura())
 						]
 					]
 				]
@@ -371,48 +563,6 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 		];
 }
 
-TSharedRef<SWidget> SFNHudLayout::MakeSeats()
-{
-	using namespace FN7Style;
-	using namespace FN7HudParts;
-	Cards.Reset();
-	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
-	for (const FFNHudSeat& S : Model.Seats)
-	{
-		TSharedPtr<SFNPortraitCard> Card;
-		// Under each card: its public bolts and sparks, as carved marks and numbers.
-		TSharedRef<SHorizontalBox> Counts = SNew(SHorizontalBox).Visibility(S.Bolts >= 0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
-		Counts->AddSlot().AutoWidth().VAlign(VAlign_Center)[SNew(SFNPips).Count(1).Kind(1).Color(Color::HumanAura())];
-		Counts->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(2.f, 0.f, Space::S, 0.f)[SNew(STextBlock).TextStyle(&Type::Label()).Text(FText::AsNumber(FMath::Max(0, S.Bolts)))];
-		if (S.Sparks >= 0)
-		{
-			Counts->AddSlot().AutoWidth().VAlign(VAlign_Center)[SNew(SFNPips).Count(1).Kind(2).Color(Color::AIAura())];
-			Counts->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(2.f, 0.f, 0.f, 0.f)[SNew(STextBlock).TextStyle(&Type::Label()).Text(FText::AsNumber(S.Sparks))];
-		}
-		Row->AddSlot().AutoWidth().Padding(0.f, Space::M, Space::S, 0.f)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight()
-			[
-				SAssignNew(Card, SFNPortraitCard)
-				.Name(S.Name)
-				.Role(S.Role)
-				.bIsYou(S.bIsYou)
-				.bShowHourglass(S.bHoldsTime)
-				.CardWidth(Model.Seats.Num() > 5 ? 92.f : 112.f)
-			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, Space::XS, 0.f, 0.f)
-			[
-				Counts
-			]
-		];
-		if (S.PortraitTexture) Card->SetTexture(S.PortraitTexture);
-		else if (S.PortraitPng.Num() > 0) Card->SetImageFromPng(S.PortraitPng);
-		Cards.Add(Card);
-	}
-	return Row;
-}
-
 TSharedRef<SWidget> SFNHudLayout::MakePowers()
 {
 	using namespace FN7Style;
@@ -423,7 +573,7 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 
 	auto Row = [this, &All](const FString& Tier) -> TSharedRef<SWrapBox>
 	{
-		TSharedRef<SWrapBox> Wrap = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(Space::S, Space::S));
+		TSharedRef<SWrapBox> Wrap = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(Space::XS, Space::XS));
 		for (const FFNHudPower& P : All)
 		{
 			if (P.Tier != Tier) continue;
@@ -442,7 +592,7 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 					if (Tier == TEXT("mini")) return Model.Sparks < 0 || Model.Sparks >= Cost;
 					return Model.Bolts >= Cost;
 				})
-				.TileSize(Tier == TEXT("mini") ? 84.f : 96.f)
+				.TileSize(Tier == TEXT("mini") ? 54.f : 58.f)
 				.OnClicked_Lambda([this, Key]() { OnPower.ExecuteIfBound(Key); })
 				.OnReorder_Lambda([this, Slug](const FString& Dragged) { ReorderPower(Dragged, Slug); })
 			];
@@ -450,31 +600,37 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 		return Wrap;
 	};
 
-	if (!bTiers) return Row(FString());
+	// Compact, lower right, on the dark panel: ENTROPY POWERS, the MEGA row (a bolt: the globe, level 1) and the MINI row
+	// (a spark: the board). A fallback until the powers live as hexes on the board's edge.
+	if (!bTiers) return SNew(SBox).WidthOverride(700.f)[Row(FString())];
 
-	auto Label = [](const FText& Title, const FText& Note)
+	auto Label = [](const FText& Title, const FText& Note, const FLinearColor& C)
 	{
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 			[
-				SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(10, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(Title)
+				SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(10, TEXT("Bold"))).ColorAndOpacity(C).Text(Title)
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 			[
-				SNew(STextBlock).TextStyle(&Type::Small()).Font(Type::Font(10, TEXT("Italic"))).ColorAndOpacity(FN7Wood::Ink() * FLinearColor(1.f, 1.f, 1.f, 0.7f)).Text(Note)
+				SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::TextDim()).Text(Note)
 			];
 	};
-	return SNew(SVerticalBox)
-		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, Space::XS)
+	return SNew(SBox)
+		.WidthOverride(700.f)
 		[
-			Label(LOCTEXT("Mega", "MEGA"), LOCTEXT("MegaNote", "a bolt each: the whole map, a huge area; every other god gains a bolt"))
-		]
-		+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("mega"))]
-		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, Space::XS)
-		[
-			Label(LOCTEXT("Mini", "MINI"), LOCTEXT("MiniNote", "a spark each: aimed on the board"))
-		]
-		+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("mini"))];
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 2.f)
+			[
+				Label(LOCTEXT("Mega", "MEGA"), LOCTEXT("MegaNote", "a bolt each  -  drop on the globe: the whole map (every other god gains a bolt)"), Color::HumanAura())
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("mega"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 2.f)
+			[
+				Label(LOCTEXT("Mini", "MINI"), LOCTEXT("MiniNote", "a spark each  -  slide onto the board"), Color::AIAura())
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("mini"))]
+		];
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
@@ -483,47 +639,39 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 	using namespace FN7HudParts;
 	const FLinearColor InkDim = FN7Wood::Ink() * FLinearColor(1.f, 1.f, 1.f, 0.72f);
 	return SNew(SBox)
-		.MinDesiredWidth(600.f)
-		.MaxDesiredWidth(900.f)
+		.WidthOverride(470.f)
 		[
-			// The old scroll: rolled up in the lobby, it unrolls as the match begins.
-			SNew(SFNScroll)
-			.bUnrolled_Lambda([this]() { return Model.BeatsTotal > 0 && !Model.bViewer; })
+			SNew(SOverlay)
+			// The WILL: a slim old scroll, rolled up until you open it, rolled up again after SEND.
+			+ SOverlay::Slot()
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, Space::S)
+				SNew(SFNScroll)
+				.Duration(0.9f)
+				.ContentPadding(FMargin(26.f, 14.f))
+				.bUnrolled_Lambda([this]() { return bWillOpen && !Model.bViewer; })
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight()
 					[
-						SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(LOCTEXT("Powers", "ENTROPY POWERS"))
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+						[
+							SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(LOCTEXT("Will", "YOUR WILL"))
+						]
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
+						[
+							SNew(SFNHourglass).Color(FN7Wood::RedInk())
+						]
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+						[
+							SNew(STextBlock).TextStyle(&Type::Name()).Font(Type::Font(14, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk())
+							.Text_Lambda([this]() { return TimerAttr.IsBound() || TimerAttr.IsSet() ? TimerAttr.Get() : Model.Timer; })
+						]
 					]
-					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
-					[
-						SNew(STextBlock).TextStyle(&Type::Small()).Font(Type::Font(11, TEXT("Italic"))).ColorAndOpacity(InkDim).AutoWrapText(true)
-						.Text_Lambda([this]() { return Model.PowersNote; })
-					]
-				]
-				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(PowersHolder, SBox)]
-				// An inked rule between the powers and the will.
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, Space::S)
-				[
-					SNew(SBox).HeightOverride(1.5f)
-					[
-						SNew(SImage).Image(Brush::Segment(FN7Wood::Ink() * FLinearColor(1.f, 1.f, 1.f, 0.35f)))
-					]
-				]
-				+ SVerticalBox::Slot().AutoHeight()
-				[
-					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(LOCTEXT("Will", "YOUR WILL"))
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
 					[
 						SNew(SBox)
-						.MinDesiredHeight(64.f)
+						.MinDesiredHeight(54.f)
 						[
 							SAssignNew(Compose, SFNTextBox)
 							.bMultiLine(true)
@@ -533,36 +681,74 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 							.OnTextCommitted(this, &SFNHudLayout::HandleTextCommitted)
 						]
 					]
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::M, 0.f, 0.f, 0.f)
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
 					[
-						SNew(SVerticalBox)
-						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, Space::S)
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
-							[
-								SNew(SFNHourglass).Color(FN7Wood::RedInk())
-							]
-							+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
-							[
-								SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(FN7Wood::RedInk())
-								.Text_Lambda([this]() { return TimerAttr.IsBound() || TimerAttr.IsSet() ? TimerAttr.Get() : Model.Timer; })
-							]
+							SNew(STextBlock).TextStyle(&Type::Small()).Font(Type::Font(10, TEXT("Italic"))).ColorAndOpacity(InkDim).AutoWrapText(true)
+							.Text(LOCTEXT("HandsHint", "l: for your Left Hand, r: for your Right Hand"))
 						]
-						+ SVerticalBox::Slot().AutoHeight()
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
 						[
 							SNew(SButton)
 							.ButtonStyle(&AccentButton())
 							.HAlign(HAlign_Center)
 							.OnClicked(this, &SFNHudLayout::HandleSend)
 							[
-								SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(HudInk).Text(LOCTEXT("Send", "SEND  WILL"))
+								SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(HudInk).Text(LOCTEXT("Send", "SEND"))
 							]
 						]
 					]
 				]
 			]
+			// The shiny finish over the whole scroll: rainbow foil, a streak that follows the mouse, sparkles,
+			// and a breathing gold edge while time is slowed for you.
+			+ SOverlay::Slot()
+			[
+				SNew(SFNFoil)
+				.Visibility(EVisibility::HitTestInvisible)
+				.bHot_Lambda([this]() { return Model.bHoldingTime; })
+				.Strength_Lambda([this]() { return bWillOpen ? 0.75f : 1.1f; })
+				.CornerRadius(6.f)
+			]
+			// Rolled up: the whole strip is the way in.
+			+ SOverlay::Slot()
+			[
+				SNew(SButton)
+				.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
+				.ContentPadding(FMargin(0.f))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.ToolTipText(LOCTEXT("WillTip", "Write your will (Enter)"))
+				.Visibility_Lambda([this]() { return (!bWillOpen && !Model.bViewer) ? EVisibility::Visible : EVisibility::Collapsed; })
+				.OnClicked_Lambda([this]() { OpenWill(); return FReply::Handled(); })
+				[
+					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(12, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.93f, 0.78f))
+					.ShadowOffset(FVector2D(1.f, 1.f)).ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.8f))
+					.Text_Lambda([this]()
+					{
+						const FText T = TimerAttr.IsBound() || TimerAttr.IsSet() ? TimerAttr.Get() : Model.Timer;
+						return T.IsEmpty() ? LOCTEXT("WillStrip", "YOUR WILL  -  click to write")
+							: FText::Format(LOCTEXT("WillStripTimer", "YOUR WILL  -  click to write  -  {0}"), T);
+					})
+				]
+			]
 		];
+}
+
+void SFNHudLayout::RollUpWill()
+{
+	bWillOpen = false;
+	if (FSlateApplication::IsInitialized()) FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
+}
+
+void SFNHudLayout::OpenWill()
+{
+	bWillOpen = true;
+	if (Compose.IsValid() && FSlateApplication::IsInitialized())
+		if (TSharedPtr<SWidget> Edit = Compose->GetEditable())
+			FSlateApplication::Get().SetKeyboardFocus(Edit, EFocusCause::SetDirectly);
 }
 
 void SFNHudLayout::HandleTextChanged(const FText& Text)
@@ -591,6 +777,8 @@ FReply SFNHudLayout::HandleSend()
 	OnSend.ExecuteIfBound(Text);
 	Compose->SetText(FText::GetEmpty());
 	bTypingSignalled = false;
+	bWillOpen = false;   // rolls up after SEND
+	if (FSlateApplication::IsInitialized()) FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
 	return FReply::Handled();
 }
 
@@ -629,6 +817,28 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.Seats.Add(Seat(TEXT("Oko"), EFNSeatRole::AI, false, true, TEXT("docs/style-refs/approved/event_maxzoom.png")));
 	M.Seats.Add(Seat(TEXT("Mara"), EFNSeatRole::AI, false, false, TEXT("docs/style-refs/approved/diorama_maxzoom.png")));
 	M.Seats.Add(Seat(TEXT("Cortes"), EFNSeatRole::Fallen, false, false, nullptr));
+	// Rules 0.7.0: your two demigods, each with its own health.
+	auto Hand = [](const TCHAR* Name, const TCHAR* Side, int32 Health, const TCHAR* Png)
+	{
+		FFNHudDemigod D;
+		D.Name = FText::FromString(Name);
+		D.Side = Side;
+		D.Health = Health;
+		D.MaxHealth = 10;
+		D.bAlive = Health > 0;
+		if (Png) FFileHelper::LoadFileToArray(D.PortraitPng, *FPaths::Combine(FPaths::ProjectDir(), Png));
+		return D;
+	};
+	M.Mine.Add(Hand(TEXT("Chris's Left Hand"), TEXT("left"), 10, TEXT("docs/style-refs/approved/player_portrait.png")));
+	M.Mine.Add(Hand(TEXT("Chris's Right Hand"), TEXT("right"), 6, TEXT("docs/style-refs/approved/diorama_maxzoom.png")));
+	M.YourAura = FLinearColor::FromSRGBColor(FColor(0xE6, 0x9F, 0x00));
+	M.Debt = 1.2;
+	M.AliveOf = 8;
+	M.Alive = 7;
+	M.Entropy = FText::FromString(TEXT("RESTLESS 34"));
+	M.TimeBill = FText::FromString(TEXT("1 bolt + 2.4 debt"));
+	M.Timer = FText::FromString(TEXT("0:22"));
+	M.ComposeHint = FText::FromString(TEXT("Write what you'll do. Time slows while you write."));
 	const int32 SeatBolts[] = { 1, 3, 2, 0 }, SeatSparks[] = { 5, 4, 2, 0 };
 	for (int32 i = 0; i < M.Seats.Num() && i < 4; ++i) { M.Seats[i].Bolts = SeatBolts[i]; M.Seats[i].Sparks = SeatSparks[i]; }
 
