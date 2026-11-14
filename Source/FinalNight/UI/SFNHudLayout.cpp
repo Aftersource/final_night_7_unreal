@@ -99,12 +99,47 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 		// Top left: the header strip and LOBBY.
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(Space::L)
 		[
-			SNew(SFNPanelMover).Id(TEXT("header"))[SAssignNew(HeaderHolder, SBox)]
+			SNew(SFNPanelMover).Id(TEXT("header"))
+			[
+				SAssignNew(HeaderHolder, SBox)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
+					[
+						SNew(SFNScroll).bStartOpen(true).RodHeight(16.f).ContentPadding(FMargin(22.f, 6.f, 22.f, 4.f))
+						[
+							SAssignNew(HeaderBody, SBox)
+						]
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(FN7Style::Space::XS, FN7Style::Space::S, 0.f, 0.f)
+					[
+						SNew(STextBlock)
+						.TextStyle(&FN7Style::Type::BodyOverImage())
+						.ColorAndOpacity(FN7Style::Color::TextDim())
+						.Text_Lambda([this]() { return Model.Status; })
+						.Visibility_Lambda([this]() { return Model.Status.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+					]
+				]
+			]
 		]
 		// Top right: WORLD, collapsible.
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(Space::L)
 		[
-			SNew(SFNPanelMover).Id(TEXT("news"))[SAssignNew(NewsHolder, SBox)]
+			SNew(SFNPanelMover).Id(TEXT("news"))
+			[
+				SAssignNew(NewsHolder, SBox)
+				.WidthOverride_Lambda([this]() { return bNewsCollapsed ? 200.f : 380.f; })
+				[
+					SNew(SFNScroll)
+					.bUnrolled_Lambda([this]() { return bNewsOpen; })
+					.Duration(0.9f)
+					.RodHeight(24.f)
+					.ContentPadding(FMargin(22.f, 12.f, 22.f, 10.f))
+					[
+						SAssignNew(NewsBody, SBox)
+					]
+				]
+			]
 		]
 		// Lower left: YOU, your two demigods.
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(Space::L)
@@ -204,13 +239,40 @@ void SFNHudLayout::SetModel(const FFNHudModel& InModel)
 
 void SFNHudLayout::RefreshSections()
 {
-	HeaderHolder->SetContent(MakeHeader());
-	NewsHolder->SetContent(MakeNews());
+	{
+		const FString Sig = FString::Printf(TEXT("%s|%d|%d|%d|%d|%s|%d"), *Model.Room.ToString(), Model.Beat, Model.BeatsTotal, Model.Alive, Model.AliveOf,
+			*Model.Entropy.ToString(), Model.bReplay ? 1 : 0);
+		if (Sig != HeaderSignature) { HeaderSignature = Sig; HeaderBody->SetContent(MakeHeader()); }
+	}
+	{
+		FString Sig = bNewsCollapsed ? TEXT("C|") : TEXT("O|");
+		for (const FFNHudNews& N : Model.News) Sig += N.Tag.ToString() + TEXT("|") + N.Text.ToString() + TEXT("\n");
+		if (Sig != NewsSignature)
+		{
+			NewsSignature = Sig;
+			if (!bNewsBuilt) { bNewsBuilt = true; NewsBody->SetContent(MakeNews()); bNewsOpen = true; }
+			else if (!bNewsSwapPending)
+			{
+				// Roll up, swap the inscription, unroll.
+				bNewsSwapPending = true;
+				bNewsOpen = false;
+				RegisterActiveTimer(0.68f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLayout::SwapNews));
+			}
+		}
+	}
 	const FString YouSig = MakeYouSignature();
 	if (YouSig != YouSignature) { YouSignature = YouSig; YouHolder->SetContent(MakeYou()); }
 	const FString PowersSig = MakePowersSignature();
 	if (PowersSig != PowersSignature) { PowersSignature = PowersSig; PowersHolder->SetContent(MakePowers()); }
 	NewsHolder->SetVisibility(Model.News.Num() > 0 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
+}
+
+EActiveTimerReturnType SFNHudLayout::SwapNews(double, float)
+{
+	bNewsSwapPending = false;
+	NewsBody->SetContent(MakeNews());   // the latest news, whatever arrived while it rolled up
+	bNewsOpen = true;
+	return EActiveTimerReturnType::Stop;
 }
 
 FString SFNHudLayout::MakeYouSignature() const
@@ -306,22 +368,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 		InkButton(LOCTEXT("ResetPill", "RESET VIEW"), LOCTEXT("ResetTip", "Reset the view: the board, the camera and the panels (R or Home)"), [this]() { OnResetView.ExecuteIfBound(); })
 	];
 
-	return SNew(SVerticalBox)
-		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
-		[
-			SNew(SFNScroll).bStartOpen(true).RodHeight(16.f).ContentPadding(FMargin(22.f, 6.f, 22.f, 4.f))
-			[
-				Row
-			]
-		]
-		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(Space::XS, Space::S, 0.f, 0.f)
-		[
-			SNew(STextBlock)
-			.TextStyle(&Type::BodyOverImage())
-			.ColorAndOpacity(Color::TextDim())
-			.Text(Model.Status)
-			.Visibility(Model.Status.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible)
-		];
+	return Row;
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeNews()
@@ -336,7 +383,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 		.OnClicked_Lambda([this]()
 		{
 			bNewsCollapsed = !bNewsCollapsed;
-			NewsHolder->SetContent(MakeNews());
+			RefreshSections();
 			return FReply::Handled();
 		})
 		[
@@ -378,12 +425,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 			];
 		}
 	}
-	// A cloth scroll between two turned rods, in the Will scroll's style (Chris asked for it to look like a scroll).
-	return SNew(SBox)
-		.WidthOverride(bNewsCollapsed ? 200.f : 380.f)
-		[
-			SNew(SFNScroll).bStartOpen(true).RodHeight(24.f).ContentPadding(FMargin(22.f, 12.f, 22.f, 10.f))[List]
-		];
+	return List;   // inscribed on the persistent WORLD scroll (built once in Construct)
 }
 
 const FSlateBrush* SFNHudLayout::AuraFrame()

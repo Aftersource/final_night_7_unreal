@@ -191,11 +191,13 @@ FVector AFNPowerRing::PouchWorld() const
 	if (!Rim(C, R, TableRot)) return GetActorLocation();
 	const AFNStudio* St = Studio.Get();
 	const float S = St ? (float)St->GetActorScale3D().X : 1.f;
-	const double ArcR = R + (RingRimGap + 8.f) * S;
+	// Just past the arc's far end, beside player 3's diorama boxes. The pouch goes right here, just past the other
+	// player's dioramas"). Plump (holding the hexes) it sits a little further along and nearer the board, off the god's
+	// box; empty it settles back beside the first hex, which it would otherwise cover.
+	const float Full = FMath::Clamp(PouchFull, 0.f, 1.f);
+	const double ArcR = R + FMath::Lerp(RingRimGap + 8.f, RingRimGap - 1.f, Full) * S;
 	const double StepDeg = FMath::RadiansToDegrees(((RingHexR * 1.7320508f + RingGap) * S) / (R + RingRimGap * S));
-	// The near end of the arc, toward you (Chris noted the pouch was blocking the portrait, so it must sit over the target area: at the far end
-	// it stood in front of the gods' diorama boxes).
-	const double A = FMath::DegreesToRadians(RingArcStart + 0.5 * StepDeg + 7.0);
+	const double A = FMath::DegreesToRadians(RingArcStart - (RingPerRow - 0.5) * StepDeg - RingPouchBeyond + FMath::Lerp(5.0, 12.0, (double)Full));
 	return C + TableRot.RotateVector(FVector((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), 0.f));
 }
 
@@ -733,7 +735,8 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	if (E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
 	FVector2D Px;
 	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
-	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
+	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px,
+		[this](const FString& R) { return !(IsMine && IsMine(R)); });   // overlapping: the enemy first (the challenge)
 	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s"), Ref.IsEmpty() ? TEXT("none") : *Ref);
 	if (Ref.IsEmpty())
 	{
@@ -754,8 +757,11 @@ FReply SFNPowerRingInput::OnMouseWheel(const FGeometry& G, const FPointerEvent& 
 	// Zooming in near any demigod's portrait should zoom to that demigod's exact position.
 	FVector2D Px;
 	if (!OnFigureWheel || !ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
-	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
-	if (Ref.IsEmpty()) return FReply::Unhandled();   // not near a demigod: the studio's wheel zoom
+	// "Near" = the nearest demigod within ~160 px of the cursor (on a card was too tight: most notches missed).
+	const FString Ref = AFNTableGods::FigureNear(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px, 160.0,
+		[this](const FString& R) { return !(IsMine && IsMine(R)); });   // overlapping: the enemy first, to scroll in on a fight
+	UE_LOG(LogTemp, Display, TEXT("FN7 wheel at %.0f,%.0f: nearest demigod %s"), Px.X, Px.Y, Ref.IsEmpty() ? TEXT("none (studio zoom)") : *Ref);
+	if (Ref.IsEmpty()) return FReply::Unhandled();   // no demigod near: the studio's wheel zoom
 	return OnFigureWheel(Ref, E.GetWheelDelta()) ? FReply::Handled() : FReply::Unhandled();
 }
 
