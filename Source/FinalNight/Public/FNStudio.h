@@ -74,6 +74,8 @@ public:
 	void ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm);
 	/** A lightning bolt strikes the Globe at this point (about half a second). */
 	void FlashAt(double Lon, double Lat);
+	/** Called when YOU click a spot on the Globe (Lon, Lat); the widget casts an armed Entropy power there. */
+	TFunction<void(double /*Lon*/, double /*Lat*/)> OnUserPickedSpot;
 	void ShowDropSpots(const TArray<FFNPiece>& Spots);
 	/** The board: every piece we know about (you, players, villagers, the fallen). */
 	void ShowWorld(const TArray<FFNPiece>& Pieces);
