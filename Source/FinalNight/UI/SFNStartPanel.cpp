@@ -50,6 +50,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 {
 	using namespace FN7Style;
 	Net = InArgs._Net;
+	OnChoice = InArgs._OnChoice;
 	const FLinearColor Ink(0.1f, 0.06f, 0.02f);
 
 	FString Name = ReadLocalLine(TEXT("FN7DisplayName.txt"));
@@ -145,6 +146,17 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 							[
 								SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(Ink).Text(LOCTEXT("Join", "JOIN THE GAME"))
 							]
+						]
+					]
+					// WATCH: join without taking a seat.
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, Space::S, 0.f, 0.f)
+					[
+						SNew(SButton)
+						.ButtonStyle(&PillButton())
+						.IsEnabled(this, &SFNStartPanel::CanJoin)
+						.OnClicked(this, &SFNStartPanel::OnWatch)
+						[
+							SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::Text()).Text(LOCTEXT("Watch", "WATCH"))
 						]
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, Space::M, 0.f, 0.f)
@@ -269,10 +281,14 @@ FString SFNStartPanel::ReadLocalLine(const TCHAR* File) const
 	return Lines.Num() ? Lines[0].TrimStartAndEnd() : FString();
 }
 
-FReply SFNStartPanel::OnJoin()
+FReply SFNStartPanel::OnJoin() { return Enter(true); }
+FReply SFNStartPanel::OnWatch() { return Enter(false); }
+
+FReply SFNStartPanel::Enter(bool bTakeSeat)
 {
 	UFNNetClient* N = Net.Get();
 	if (!N || bJoining) return FReply::Handled();
+	OnChoice.ExecuteIfBound(bTakeSeat);
 
 	const FString Name = NameBox.IsValid() ? NameBox->GetText().ToString().TrimStartAndEnd().Left(24) : FString();
 	if (!Name.IsEmpty()) FFileHelper::SaveStringToFile(Name + TEXT("\n"), *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DisplayName.txt")));

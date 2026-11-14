@@ -87,6 +87,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(StartPanel, SFNStartPanel)
 			.Net(Net.Get())
+			.OnChoice_Lambda([this](bool bTakeSeat) { bWantSeat = bTakeSeat; bSeatAsked = false; })
 			.Visibility_Lambda([this]() { return bInRoom ? EVisibility::Collapsed : EVisibility::Visible; })
 		]
 		// The power being dragged, floating over everything (never takes input).
@@ -129,6 +130,16 @@ void SFNHudLive::HandleStatus(const FString& Status)
 
 void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 {
+	// JOIN = TAKE A SEAT: joined as a viewer (the house is replaying, or between seats), ask for a seat once.
+	if ((T == TEXT("room.snapshot") || T == TEXT("match.snapshot") || T == TEXT("room.updated")) && bWantSeat && !bSeatAsked)
+		if (UFNNetClient* N = Net.Get())
+			if (N->bViewer)
+			{
+				bSeatAsked = true;
+				N->TakeSeat();
+				Model.Status = LOCTEXT("TakingSeat", "Taking a seat...");
+			}
+	if (T == TEXT("seat.joined")) Model.Status = FText::GetEmpty();
 
 	if (T == TEXT("auth.ok"))
 	{
@@ -247,6 +258,12 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("error"))
 	{
+		if (FN7HudJson::Str(D, TEXT("code")) == TEXT("room_full"))
+		{
+			Model.Status = LOCTEXT("TableFull", "Table full: watching. You'll get a seat next match.");
+			Publish();
+			return;
+		}
 		AddNews(LOCTEXT("Error", "ERROR"), FN7HudJson::Str(D, TEXT("message")));
 	}
 	else if (T == TEXT("seat.eliminated"))
@@ -256,6 +273,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("match.ended"))
 	{
+		bSeatAsked = false;   // still a viewer next match: JOIN asks again
 		const TSharedPtr<FJsonObject> Summary = FN7HudJson::Obj(D, TEXT("summary"));
 		FString Champ;
 		if (const TArray<TSharedPtr<FJsonValue>>* C = FN7HudJson::Arr(Summary, TEXT("champions")))

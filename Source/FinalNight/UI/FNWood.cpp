@@ -239,9 +239,9 @@ namespace FN7ClothGen
 
 		// Crisp torn edges on the left and right: transparent past an irregular tear, scorched just inside it.
 		const float Tear = 9.f + 7.f * (0.5f + 0.5f * Noise(Fy / 31.f, 1.7f)) + 3.f * Noise(Fy / 6.f, 5.3f);
-		const float Edge = (float)FMath::Min(X, W - 1 - X);
-		if (Edge < Tear - 0.5f) return FLinearColor(0.f, 0.f, 0.f, 0.f);
-		const float Inside = Edge - Tear;
+		const float EdgeDist = (float)FMath::Min(X, W - 1 - X);
+		if (EdgeDist < Tear - 0.5f) return FLinearColor(0.f, 0.f, 0.f, 0.f);
+		const float Inside = EdgeDist - Tear;
 		const float Alpha = FMath::Clamp(Inside + 0.5f, 0.f, 1.f);   // a one-pixel, crisp edge
 		if (Inside < 7.f)
 		{

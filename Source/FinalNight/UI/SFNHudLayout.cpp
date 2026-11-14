@@ -31,7 +31,7 @@ namespace FN7HudParts
 {
 	using namespace FN7Style;
 
-	const FLinearColor Ink(0.1f, 0.06f, 0.02f);
+	const FLinearColor HudInk(0.1f, 0.06f, 0.02f);
 
 	TSharedRef<SWidget> Divider(bool bVertical)
 	{
@@ -134,7 +134,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 								.HAlign(HAlign_Center).VAlign(VAlign_Center)
 								.OnClicked_Lambda([this]() { OnTakeSeat.ExecuteIfBound(); return FReply::Handled(); })
 								[
-									SNew(STextBlock).TextStyle(&FN7Style::Type::Title()).ColorAndOpacity(FN7HudParts::Ink).Text(LOCTEXT("TakeSeat", "TAKE A SEAT"))
+									SNew(STextBlock).TextStyle(&FN7Style::Type::Title()).ColorAndOpacity(FN7HudParts::HudInk).Text(LOCTEXT("TakeSeat", "TAKE A SEAT"))
 								]
 							]
 						]
@@ -273,7 +273,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0.f, 2.f, Space::S, 0.f)
 			[
-				SNew(SBox).MinDesiredWidth(56.f).HAlign(HAlign_Center)[Chip(Brush::PillAccent(), N.Tag, Ink)]
+				SNew(SBox).MinDesiredWidth(56.f).HAlign(HAlign_Center)[Chip(Brush::PillAccent(), N.Tag, HudInk)]
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.f)
 			[
@@ -324,7 +324,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 					]
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
 					[
-						Chip(Brush::PillAccent(), FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), Ink)
+						Chip(Brush::PillAccent(), FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), HudInk)
 					]
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
@@ -481,7 +481,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 							.HAlign(HAlign_Center)
 							.OnClicked(this, &SFNHudLayout::HandleSend)
 							[
-								SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Ink).Text(LOCTEXT("Send", "SEND  WILL"))
+								SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(HudInk).Text(LOCTEXT("Send", "SEND  WILL"))
 							]
 						]
 					]
