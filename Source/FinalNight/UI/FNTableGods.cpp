@@ -486,6 +486,32 @@ void AFNTableGods::SetFigureHeld(const FString& Ref, bool bHeld)
 	if (const TObjectPtr<AFNDemigodFigure>* F = OnBoard.Find(Ref)) if (F->Get()) (*F)->SetHeld(bHeld);
 }
 
+void AFNTableGods::SetLocalPos(const FString& Ref, double Lat, double Lon)
+{
+	FFNTableDemigod* D = BoardInfo.Find(Ref);
+	if (!D)
+	{
+		// Not on the board yet (no pos from the server): use its pedestal-side figure's data.
+		FFNTableDemigod New;
+		New.Ref = Ref;
+		New.bAlive = true;
+		D = &BoardInfo.Add(Ref, New);
+		if (const TObjectPtr<AFNDemigodFigure>* Side = Figures.Find(Ref))
+			if (Side->Get()) BoardAura.Add(Ref, FLinearColor(1.f, 0.85f, 0.4f));
+	}
+	D->Lat = Lat;
+	D->Lon = Lon;
+	D->bHasPos = true;
+	TObjectPtr<AFNDemigodFigure>& Fig = OnBoard.FindOrAdd(Ref);
+	if (!Fig && GetWorld())
+	{
+		FActorSpawnParameters P;
+		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Fig = GetWorld()->SpawnActor<AFNDemigodFigure>(GetActorLocation(), FRotator::ZeroRotator, P);
+		if (Fig) Fig->SetDemigod(*D, BoardAura.FindRef(Ref), true);
+	}
+}
+
 AFNDemigodFigure* AFNTableGods::FindFigure(const FString& Ref) const
 {
 	const TObjectPtr<AFNDemigodFigure>* F = Figures.Find(Ref);
@@ -616,7 +642,8 @@ void AFNTableGods::Tick(float Dt)
 		Fig->SetActorHiddenInGame(!bOn);
 		if (bOn)
 		{
-			Fig->SetActorLocation(Wp);
+			// Glide to its point (a summon, a server move, the map zooming).
+			Fig->SetActorLocation(FMath::VInterpTo(Fig->GetActorLocation(), Wp, Dt, 5.f));
 			Fig->SetActorScale3D(FVector(0.36f * S));
 		}
 	}

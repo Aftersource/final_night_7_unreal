@@ -100,6 +100,8 @@ public:
 	void SubmitOrders(int32 Round, const FString& Left, const FString& Right);
 	/** A god power (instant, any phase). Target: a ref ("dg:2"), a name, or "lon,lat". */
 	void CastPower(int32 Round, const FString& Power, const FString& Target, const FString& Tier = TEXT("mini"));
+	/** Summon one of your demigods to a point (instant): action.submit {fields:{summon:{demigod, target:[lon, lat]}}}. */
+	void Summon(int32 Round, const FString& DemigodRef, double Lon, double Lat);
 	/** A god power at a point on the globe, [lon, lat]. */
 	void CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier = TEXT("mini"));
 

@@ -442,6 +442,20 @@ void UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& T
 	Send(TEXT("action.submit"), D);
 }
 
+void UFNNetClient::Summon(int32 Round, const FString& DemigodRef, double Lon, double Lat)
+{
+	// The Mac kit's summon drag (server support lands in 0.8.0): like CastPower, an instant action.
+	TSharedRef<FJsonObject> D = Obj(), F = Obj(), S = Obj();
+	S->SetStringField(TEXT("demigod"), DemigodRef);
+	S->SetArrayField(TEXT("target"), JLonLat(Lon, Lat));
+	F->SetObjectField(TEXT("summon"), S);
+	D->SetNumberField(TEXT("round"), Round);
+	D->SetStringField(TEXT("text"), TEXT(""));
+	D->SetBoolField(TEXT("instant"), true);
+	D->SetObjectField(TEXT("fields"), F);
+	Send(TEXT("action.submit"), D);
+}
+
 void UFNNetClient::CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier)
 {
 	CastPower(Round, Power, FString::Printf(TEXT("%.6f,%.6f"), Lon, Lat), Tier);
