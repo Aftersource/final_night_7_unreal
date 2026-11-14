@@ -361,6 +361,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 
 SFNRootWidget::~SFNRootWidget()
 {
+	if (DiceTicker.IsValid()) FTSTicker::GetCoreTicker().RemoveTicker(DiceTicker);
 	if (Net.IsValid())
 	{
 		Net->OnServerMessage.Remove(MsgHandle);
@@ -1151,6 +1152,15 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> Pub = Sub(D, TEXT("public"));
 		LastOutcome = Pub;
 		Alive = (int32)Numb(Pub, TEXT("alive"), Alive);
+		QueueOutcomeDice(Pub);
+		if (const TArray<TSharedPtr<FJsonValue>>* Dm = Arr(Pub, TEXT("dm_events")))   // the DM's decisions this beat (rules 0.8.0), one line each
+			for (int32 i = 0, Shown = 0; i < Dm->Num() && Shown < 3; ++i)
+			{
+				const TSharedPtr<FJsonObject> E = (*Dm)[i].IsValid() ? (*Dm)[i]->AsObject() : nullptr;
+				if (!E.IsValid() || Str(E, TEXT("event")) == TEXT("summoned")) continue;   // the kit HUD shows summons
+				const FString Line = Str(E, TEXT("text"));
+				if (!Line.IsEmpty()) { AddBanner(Line, UiCyan); ++Shown; }
+			}
 		const FString Cap = Str(Pub, TEXT("previous_caption"));
 		if (!Cap.IsEmpty()) { AddBanner(Cap, UiPale); CutLines.Add(Cap); CutSpots.Add(FVector2D(MyLon, MyLat)); }
 		if (const TArray<TSharedPtr<FJsonValue>>* Om = Arr(Pub, TEXT("omens")))
@@ -1233,24 +1243,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		else Status = TEXT("Orders received");
 		return true;
 	}
-	if (T == TEXT("dice.rolled"))
-	{
-		// The DM's die, visible (rules 0.8.0): {who, die:"d20", roll, modifier, total, target_dc, verdict, reason, at, cell}. A real die tumbles on the table.
-		const FString Die = Str(D, TEXT("die"));
-		const int32 Sides = Die.StartsWith(TEXT("d")) ? FMath::Max(2, FCString::Atoi(*Die.RightChop(1))) : 20;
-		const int32 Roll = (int32)Numb(D, TEXT("roll"), 1), Mod = (int32)Numb(D, TEXT("modifier")), Tot = (int32)Numb(D, TEXT("total"), Roll), Dc = (int32)Numb(D, TEXT("target_dc"), 10);
-		const FString Verdict = Str(D, TEXT("verdict")), Who = Str(D, TEXT("who")), Why = Str(D, TEXT("reason"));
-		const bool bOk = Verdict.StartsWith(TEXT("success"), ESearchCase::IgnoreCase) || Verdict.StartsWith(TEXT("crit"), ESearchCase::IgnoreCase) || Tot >= Dc;
-		if (St)
-		{
-			if (Sides == 20) St->RollDice(Roll, Mod, Verdict.ToUpper());
-			else St->RollDuelDice(Roll, Sides, Dc, bOk, Who);
-		}
-		AddBanner(FString::Printf(TEXT("%s rolls a %s: %d%s = %d vs %d  -  %s%s"), *Who, *Die, Roll, Mod ? *FString::Printf(TEXT(" %+d"), Mod) : TEXT(""), Tot, Dc, *Verdict.ToUpper(), Why.IsEmpty() ? TEXT("") : *(TEXT("  (") + Why + TEXT(")"))), bOk ? UiGold : UiRed);
-		double Lo = 0.0, La = 0.0;
-		if (St && LonLat(D, TEXT("at"), Lo, La)) St->FlashAt(Lo, La);
-		return true;
-	}
+	if (T == TEXT("dice.rolled")) { ShowDieRoll(D); return true; }
 	if (T == TEXT("seat.revived")) { AddBanner(TEXT("Back in play: ") + Str(D, TEXT("reason")), UiGold); return true; }
 	return false;   // everything else (auth, room, seat.eliminated, match.ended, errors) is shared with the old client
 }
@@ -1847,3 +1840,70 @@ void SFNRootWidget::RequestPicture(const FString& Scene, const FString& Caption)
 }
 
 #undef LOCTEXT_NAMESPACE
+
+
+// ---------------------------------------------------------------------------------------------------------------
+// The visible d20 (Benito's feature 3, rules 0.8.0). One roll: {who, die:"d20", roll, modifier, total, target_dc,
+// verdict (crit_fail / fail / success / crit_success), reason, at, cell, beat}. The die tumbles on the table and the
+// globe flashes where it was rolled. A beat can carry up to 60 rolls, so only the 3 that matter most are shown:
+// natural 1s and 20s first, then encounters, then the rest, about 2.6 s apart. Driven by the core ticker, so it also
+// runs while this classic widget is hidden under the kit HUD.
+void SFNRootWidget::ShowDieRoll(const TSharedPtr<FJsonObject>& D)
+{
+	if (!D.IsValid()) return;
+	AFNStudio* St = Studio.Get();
+	const FString Die = Str(D, TEXT("die"));
+	const int32 Sides = Die.StartsWith(TEXT("d")) ? FMath::Max(2, FCString::Atoi(*Die.RightChop(1))) : 20;
+	const int32 Roll = (int32)Numb(D, TEXT("roll"), 1), Mod = (int32)Numb(D, TEXT("modifier")), Tot = (int32)Numb(D, TEXT("total"), Roll), Dc = (int32)Numb(D, TEXT("target_dc"), 10);
+	const FString Verdict = Str(D, TEXT("verdict")), Who = Str(D, TEXT("who")), Why = Str(D, TEXT("reason"));
+	const bool bOk = Verdict.IsEmpty() ? Tot >= Dc : Verdict.Contains(TEXT("success"), ESearchCase::IgnoreCase);
+	const FString Shown = Verdict.Replace(TEXT("_"), TEXT(" ")).ToUpper();
+	if (St)
+	{
+		if (Sides == 20) St->RollDice(Roll, Mod, Shown);
+		else St->RollDuelDice(Roll, Sides, Dc, bOk, Who);
+	}
+	AddBanner(FString::Printf(TEXT("%s rolls a %s: %d%s = %d vs %d  -  %s%s"), *Who, *Die, Roll, Mod ? *FString::Printf(TEXT(" %+d"), Mod) : TEXT(""), Tot, Dc, *Shown, Why.IsEmpty() ? TEXT("") : *(TEXT("  (") + Why + TEXT(")"))), bOk ? UiGold : UiRed);
+	double Lo = 0.0, La = 0.0;
+	if (St && LonLat(D, TEXT("at"), Lo, La)) St->FlashAt(Lo, La);
+}
+
+void SFNRootWidget::QueueOutcomeDice(const TSharedPtr<FJsonObject>& Pub)
+{
+	const TArray<TSharedPtr<FJsonValue>>* Dice = Arr(Pub, TEXT("dice"));
+	if (!Dice || Dice->Num() == 0) return;
+	TArray<TPair<int32, TSharedPtr<FJsonObject>>> Ranked;
+	for (int32 i = 0; i < Dice->Num(); ++i)
+	{
+		const TSharedPtr<FJsonObject> R = (*Dice)[i].IsValid() ? (*Dice)[i]->AsObject() : nullptr;
+		if (!R.IsValid()) continue;
+		const FString V = Str(R, TEXT("verdict"));
+		const int32 Score = (V.StartsWith(TEXT("crit")) ? 200 : 0) + (Str(R, TEXT("reason")).Contains(TEXT("encounter")) ? 100 : 0) - i;
+		Ranked.Emplace(Score, R);
+	}
+	Ranked.StableSort([](const TPair<int32, TSharedPtr<FJsonObject>>& A, const TPair<int32, TSharedPtr<FJsonObject>>& B) { return A.Key > B.Key; });
+	DiceQueue.Reset();
+	for (int32 i = 0; i < Ranked.Num() && i < 3; ++i) DiceQueue.Add(Ranked[i].Value);
+	DiceWait = 0.f;
+	if (!DiceTicker.IsValid())
+	{
+		TWeakPtr<SFNRootWidget> Weak = SharedThis(this);
+		DiceTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Weak](float Dt)
+		{
+			const TSharedPtr<SFNRootWidget> Self = Weak.Pin();
+			return Self.IsValid() && Self->TickDiceQueue(Dt);
+		}));
+	}
+}
+
+bool SFNRootWidget::TickDiceQueue(float Dt)
+{
+	DiceWait -= Dt;
+	if (DiceWait > 0.f) return true;
+	if (DiceQueue.Num() == 0) { DiceTicker.Reset(); return false; }
+	const TSharedPtr<FJsonObject> Next = DiceQueue[0];
+	DiceQueue.RemoveAt(0);
+	ShowDieRoll(Next);
+	DiceWait = 2.6f;
+	return true;
+}
