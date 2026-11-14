@@ -456,6 +456,34 @@ void UFNNetClient::Summon(int32 Round, const FString& DemigodRef, double Lon, do
 	Send(TEXT("action.submit"), D);
 }
 
+void UFNNetClient::Challenge(int32 Round, const FString& MineRef, const FString& TargetRef, const FString& Level)
+{
+	// The Mac kit's challenge (server: rules 0.8.1): an instant action, like Summon.
+	TSharedRef<FJsonObject> D = Obj(), F = Obj(), C = Obj();
+	C->SetStringField(TEXT("demigod"), MineRef);
+	C->SetStringField(TEXT("target"), TargetRef);
+	C->SetStringField(TEXT("level"), Level);
+	F->SetObjectField(TEXT("challenge"), C);
+	D->SetNumberField(TEXT("round"), Round);
+	D->SetStringField(TEXT("text"), TEXT(""));
+	D->SetBoolField(TEXT("instant"), true);
+	D->SetObjectField(TEXT("fields"), F);
+	Send(TEXT("action.submit"), D);
+}
+
+void UFNNetClient::DuelLine(int32 Round, const FString& DuelId, const FString& Text)
+{
+	TSharedRef<FJsonObject> D = Obj(), F = Obj(), L = Obj();
+	L->SetStringField(TEXT("duel_id"), DuelId);
+	L->SetStringField(TEXT("text"), Text.Left(120));
+	F->SetObjectField(TEXT("duel"), L);
+	D->SetNumberField(TEXT("round"), Round);
+	D->SetStringField(TEXT("text"), TEXT(""));
+	D->SetBoolField(TEXT("instant"), true);
+	D->SetObjectField(TEXT("fields"), F);
+	Send(TEXT("action.submit"), D);
+}
+
 void UFNNetClient::CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier)
 {
 	CastPower(Round, Power, FString::Printf(TEXT("%.6f,%.6f"), Lon, Lat), Tier);

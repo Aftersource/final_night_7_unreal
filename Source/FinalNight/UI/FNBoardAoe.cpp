@@ -318,3 +318,34 @@ void AFNStudio::ResetView()
 	BuildTable();
 	RebuildIn = -1.f;
 }
+
+void AFNStudio::CenterBoardAndGlobe(double Lat, double Lon)
+{
+	// The zoom level stays; only the centre moves (Chris noted that double clicking is not centring the globe map and table map).
+	PickLat = FMath::Clamp(Lat, -89.9, 89.9);
+	PickLon = Lon;
+	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
+	bUserPicked = true;
+	FocusDir = PickDir;          // the globe turns this point toward you (UpdateGlobe's slerp)
+	ManualUntil = -1.f;          // even if you spun it by hand a moment ago
+	BuildTable();
+	RebuildIn = -1.f;
+}
+
+void AFNStudio::SetGlobeFocus(double Lat, double Lon)
+{
+	FocusDir = BoardDir(Lon, FMath::Clamp(Lat, -89.9, 89.9)).GetSafeNormal();
+}
+
+void AFNStudio::PreviewFocus(double Lat, double Lon, int32 Level)
+{
+	static const double LevelHexM[4] = { 3.0, 30.0, 3000.0, 120000.0 };
+	MapLevel = FMath::Clamp(Level, 0, 3);
+	PickRadiusM = LevelHexM[MapLevel] * 22.0;
+	PickLat = FMath::Clamp(Lat, -89.9, 89.9);
+	PickLon = Lon;
+	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
+	bUserPicked = true;
+	BuildTable();
+	RebuildIn = -1.f;
+}

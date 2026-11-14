@@ -105,6 +105,14 @@ public:
 	/** The plate (fault) lines on the globe and the board: 0 hidden .. 1 glowing. The kit fades them in only while a mega
 	 *  is in hand (FFNPowerDragDrop::OnMegaArmed). */
 	void SetFaultLinesAlpha(float Alpha);
+	/** Double-click a demigod: the table map centred on it at its CURRENT zoom, and the globe turned to face it. */
+	void CenterBoardAndGlobe(double Lat, double Lon);
+	/** Keep the globe facing a point (re-asserted by the HUD while a centring holds). */
+	void SetGlobeFocus(double Lat, double Lon);
+	/** The table's zoom level now: 0 people (3 m hexes), 1 houses (30 m), 2 villages (3 km), 3 regions (120 km). */
+	int32 GetMapLevel() const { return MapLevel; }
+	/** Gate renders only (no match needed): the table at a lat/lon and level. */
+	void PreviewFocus(double Lat, double Lon, int32 Level);
 	/** RESET VIEW: the board back to the regions level centred on your demigod (as at the start of a match). */
 	void ResetView();
 	/** The point on the floating GLOBE under a viewport pixel (lat/lon on the globe, and the world point), or false;
