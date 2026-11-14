@@ -131,6 +131,12 @@ const FSlateBrush* FN7Style::Brush::AccentRule()
 	return &B;
 }
 
+const FSlateBrush* FN7Style::Brush::AccentRing()
+{
+	static const FSlateRoundedBoxBrush B(FLinearColor::Transparent, Radius::Card, Color::Accent(), 2.5f);
+	return &B;
+}
+
 const FSlateBrush* FN7Style::Brush::Swatch(const FLinearColor& Fill)
 {
 	static TMap<uint32, TUniquePtr<FSlateRoundedBoxBrush>> Cache;

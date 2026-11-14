@@ -31,6 +31,8 @@ private:
 	TWeakObjectPtr<UFNNetClient> Net;
 	FDelegateHandle MessageHandle;
 	FDelegateHandle StatusHandle;
+	FDelegateHandle DropHandle;
+	void OnPowerDropped(const FString& Power, const FVector2D& ScreenPosition);
 	TSharedPtr<SFNHudLayout> Layout;
 	TSharedPtr<class SFNStartPanel> StartPanel;
 	bool bInRoom = false;

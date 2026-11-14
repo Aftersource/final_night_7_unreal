@@ -24,6 +24,7 @@
 #include "Widgets/SWeakWidget.h"
 #include "Widgets/SOverlay.h"
 #include "SFNStartPanel.h"
+#include "FNPowerDrag.h"
 
 #define LOCTEXT_NAMESPACE "SFNHudLive"
 
@@ -91,6 +92,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		MessageHandle = N->OnServerMessage.AddSP(this, &SFNHudLive::HandleMessage);
 		StatusHandle = N->OnStatus.AddSP(this, &SFNHudLive::HandleStatus);
 	}
+	DropHandle = FFNPowerDragDrop::OnDroppedOnWorld().AddSP(this, &SFNHudLive::OnPowerDropped);
 	RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLive::TickTimer));
 }
 
@@ -101,6 +103,7 @@ SFNHudLive::~SFNHudLive()
 		N->OnServerMessage.Remove(MessageHandle);
 		N->OnStatus.Remove(StatusHandle);
 	}
+	FFNPowerDragDrop::OnDroppedOnWorld().Remove(DropHandle);
 }
 
 void SFNHudLive::HandleStatus(const FString& Status)
@@ -430,6 +433,15 @@ void SFNHudLive::OnSend(const FString& Text)
 	N->SubmitOrders(Round, Left, Right);
 	N->EndTyping();
 	AddNews(LOCTEXT("You", "YOU"), Text);
+	Publish();
+}
+
+void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D&)
+{
+	// A tile dropped on the table or globe. Until the globe casts at the drop point itself, arm it here:
+	// the player writes the target and presses SEND.
+	ArmedPower = Power;
+	AddNews(LOCTEXT("Armed", "ARMED"), FString::Printf(TEXT("%s: write its target (a place, a name or lon,lat) and SEND."), *Power));
 	Publish();
 }
 

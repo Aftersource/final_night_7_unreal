@@ -9,6 +9,8 @@
 #include "SFNPanel.h"
 #include "SFNPortraitCard.h"
 #include "SFNTextBox.h"
+#include "SFNPowerTile.h"
+#include "FNWood.h"
 #include "UnrealClient.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -303,22 +305,18 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 	for (const FFNHudPower& P : Model.Powers)
 	{
 		const FString Slug = P.Slug;
+		const bool bArmedNow = P.bArmed;
+		const bool bAfford = Model.Bolts >= P.Cost;
 		Powers->AddSlot()
 		[
-			SNew(SButton)
-			.ButtonStyle(P.bArmed ? &PillButtonArmed() : &PillButton())
-			.OnClicked_Lambda([this, Slug]() { OnPower.ExecuteIfBound(Slug); return FReply::Handled(); })
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
-				[
-					SNew(STextBlock).TextStyle(&Type::Body()).Text(P.Name)
-				]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
-				[
-					SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(P.bArmed ? Ink : Color::Accent()).Text(FText::AsNumber(P.Cost))
-				]
-			]
+			SNew(SFNPowerTile)
+			.Slug(Slug)
+			.Name(P.Name)
+			.Cost(P.Cost)
+			.bArmed(bArmedNow)
+			.bEnabled(bAfford)
+			.TileSize(96.f)
+			.OnClicked_Lambda([this, Slug]() { OnPower.ExecuteIfBound(Slug); })
 		];
 	}
 	return Powers;
@@ -357,6 +355,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 					[
 						SAssignNew(Compose, SFNTextBox)
 						.bMultiLine(true)
+						.Style(&FN7Wood::WillTextBox())
 						.HintText_Lambda([this]() { return Model.ComposeHint; })
 						.OnTextChanged(this, &SFNHudLayout::HandleTextChanged)
 						.OnTextCommitted(this, &SFNHudLayout::HandleTextCommitted)
@@ -435,10 +434,10 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.YouName = FText::FromString(TEXT("Chris"));
 	M.Health = 10;
 	M.MaxHealth = 10;
-	M.Bolts = 21;
+	M.Bolts = 3;
 	M.Place = FText::FromString(TEXT("Vienna, Western Europe"));
 	M.ArenaLine = FText::FromString(TEXT("Time's circle: 8637 km around Kinshasa. Stay inside."));
-	M.PowersNote = FText::FromString(TEXT("21 bolts  -  every bolt you spend gives each rival +2"));
+	M.PowersNote = FText::FromString(TEXT("3 bolts  -  click to arm, or drag a block onto the globe. Every bolt you spend gives each rival +2."));
 	M.ComposeHint = FText::FromString(TEXT("Write what you'll do today. Time slows while you write..."));
 	M.Timer = FText::FromString(TEXT("0:05"));
 
@@ -465,7 +464,7 @@ FFNHudModel SFNHudLayout::SampleModel()
 
 	auto Power = [](const TCHAR* Slug, const TCHAR* Name, int32 Cost, bool bArmed) { FFNHudPower P; P.Slug = Slug; P.Name = FText::FromString(Name); P.Cost = Cost; P.bArmed = bArmed; return P; };
 	M.Powers.Add(Power(TEXT("lightning"), TEXT("Lightning bolt"), 1, true));
-	M.Powers.Add(Power(TEXT("storm"), TEXT("Storm clouds"), 1, false));
+	M.Powers.Add(Power(TEXT("storm_clouds"), TEXT("Storm clouds"), 1, false));
 	M.Powers.Add(Power(TEXT("volcano"), TEXT("Volcano"), 3, false));
 	M.Powers.Add(Power(TEXT("earthquake"), TEXT("Earthquake"), 2, false));
 	M.Powers.Add(Power(TEXT("flood"), TEXT("Flood"), 2, false));

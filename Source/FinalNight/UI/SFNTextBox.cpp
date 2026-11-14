@@ -5,11 +5,12 @@
 
 void SFNTextBox::Construct(const FArguments& InArgs)
 {
+	const FEditableTextBoxStyle* BoxStyle = InArgs._Style ? InArgs._Style : &FN7Style::TextBox();
 	TSharedRef<SWidget> Inner = SNullWidget::NullWidget;
 	if (InArgs._bMultiLine)
 	{
 		Inner = SAssignNew(Multi, SMultiLineEditableTextBox)
-			.Style(&FN7Style::TextBox())
+			.Style(BoxStyle)
 			.Text(InArgs._Text)
 			.HintText(InArgs._HintText)
 			.AutoWrapText(true)
@@ -19,7 +20,7 @@ void SFNTextBox::Construct(const FArguments& InArgs)
 	else
 	{
 		Inner = SAssignNew(Single, SEditableTextBox)
-			.Style(&FN7Style::TextBox())
+			.Style(BoxStyle)
 			.Text(InArgs._Text)
 			.HintText(InArgs._HintText)
 			.OnTextChanged(InArgs._OnTextChanged)

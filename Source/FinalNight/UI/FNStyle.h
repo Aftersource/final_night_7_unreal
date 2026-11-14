@@ -63,6 +63,7 @@ namespace FN7Style
 		FINALNIGHT_API const FSlateBrush* PillAccent();          // fully rounded, orange fill (badges, timers)
 		FINALNIGHT_API const FSlateBrush* PillYou();             // fully rounded, gold fill ("YOU")
 		FINALNIGHT_API const FSlateBrush* AccentRule();          // flat orange, for the 2 px rule under a title
+		FINALNIGHT_API const FSlateBrush* AccentRing();          // radius 8, 2.5 px orange outline, no fill (armed / selected)
 		FINALNIGHT_API const FSlateBrush* Swatch(const FLinearColor& Fill);  // radius 6 chip, cached per colour
 		FINALNIGHT_API const FSlateBrush* Segment(const FLinearColor& Fill); // radius 2 bar segment, cached per colour
 	}
