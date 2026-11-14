@@ -17,11 +17,15 @@ class UFNNetClient;
  * JOIN saves the name to Config/FN7DisplayName.txt and connects (the root joins the house at auth.ok), or calls
  * UFNNetClient::JoinHouse() when already connected. JOIN never hosts: with no house game it says so.
  */
+DECLARE_DELEGATE_OneParam(FOnFNJoinChoice, bool /*bTakeSeat*/);
+
 class FINALNIGHT_API SFNStartPanel : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SFNStartPanel) {}
 		SLATE_ARGUMENT(UFNNetClient*, Net)
+		/** JOIN (take a seat) or WATCH (stay a viewer), told before connecting. */
+		SLATE_EVENT(FOnFNJoinChoice, OnChoice)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -53,6 +57,9 @@ private:
 	void RefreshHouse(int32 PathIndex = 0);
 	FString ReadLocalLine(const TCHAR* File) const;
 	FReply OnJoin();
+	FReply OnWatch();
+	FReply Enter(bool bTakeSeat);
+	FOnFNJoinChoice OnChoice;
 
 	FText GetStatusText() const;
 	FSlateColor GetStatusColor() const;

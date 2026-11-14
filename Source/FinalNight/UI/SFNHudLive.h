@@ -41,6 +41,8 @@ private:
 	TSharedPtr<SFNHudLayout> Layout;
 	TSharedPtr<class SFNStartPanel> StartPanel;
 	bool bInRoom = false;
+	bool bWantSeat = true;     // JOIN = take a seat; WATCH = stay a viewer
+	bool bSeatAsked = false;
 	FFNHudModel Model;
 
 	struct FSeatInfo
