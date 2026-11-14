@@ -9,7 +9,6 @@
 
 namespace FN7ScrollAnim
 {
-	constexpr float RodH = 30.f;
 	constexpr float Overhang = 14.f;   // the rods reach past the cloth on each side
 
 	/** Ease out with a little give at the end: the cloth's weight drops it a hair past open, then it settles. */
@@ -28,6 +27,7 @@ void SFNScroll::Construct(const FArguments& InArgs)
 	bUnrolled = InArgs._bUnrolled;
 	Duration = FMath::Max(0.2f, InArgs._Duration);
 	ContentPadding = InArgs._ContentPadding;
+	RodH = FMath::Max(6.f, InArgs._RodHeight);
 	Inner = InArgs._Content.Widget;
 
 	ChildSlot
@@ -90,9 +90,9 @@ void SFNScroll::Construct(const FArguments& InArgs)
 	];
 
 	bTarget = bUnrolled.Get();
-	Progress = 0.f;
-	From = 0.f;
-	bAnimating = bTarget;
+	Progress = (InArgs._bStartOpen && bTarget) ? 1.f : 0.f;
+	From = Progress;
+	bAnimating = bTarget && Progress < 1.f;
 	AnimStart = -1.0;   // starts on the first tick
 }
 

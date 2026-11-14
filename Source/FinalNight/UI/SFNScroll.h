@@ -19,10 +19,16 @@ public:
 		: _bUnrolled(true)
 		, _Duration(1.4f)
 		, _ContentPadding(FMargin(34.f, 22.f))
+		, _RodHeight(30.f)
+		, _bStartOpen(false)
 	{}
 		SLATE_ATTRIBUTE(bool, bUnrolled)
 		SLATE_ARGUMENT(float, Duration)
 		SLATE_ARGUMENT(FMargin, ContentPadding)
+		/** The rods' thickness (the header's scroll uses slim rods). */
+		SLATE_ARGUMENT(float, RodHeight)
+		/** Already unrolled when built (a panel rebuilt on every refresh must not replay the unroll). */
+		SLATE_ARGUMENT(bool, bStartOpen)
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
 
@@ -33,6 +39,7 @@ private:
 	TAttribute<bool> bUnrolled;
 	float Duration = 1.4f;
 	FMargin ContentPadding;
+	float RodH = 30.f;
 	TSharedPtr<SWidget> Inner;
 
 	bool bTarget = false;
