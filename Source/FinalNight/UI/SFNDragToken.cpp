@@ -58,7 +58,8 @@ void SFNDragToken::Tick(const FGeometry& G, const double Now, const float Dt)
 	using namespace FN7Token;
 	SCompoundWidget::Tick(G, Now, Dt);
 
-	const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();
+	TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();
+	if (Op.IsValid() && Op->bFromRing) Op.Reset();   // a hex from the table's power ring is its own 3D piece: no 2D token
 	if (Op.IsValid())
 	{
 		if (!bDragging || ShownPower != Op->Power)

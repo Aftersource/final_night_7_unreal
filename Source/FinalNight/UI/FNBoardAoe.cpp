@@ -6,6 +6,8 @@
 #include "FNPlanet.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -128,4 +130,115 @@ void AFNStudio::ShowAreaOfEffect(bool bShow, const FVector2D& ViewportPixel, dou
 				Set->AddInstance(FTransform(FRotator(0.f, 60.f * k, 0.f), Pos, FVector(TileW * 1.7320508f / 100.f, TileW / 100.f, Thick / 100.f)));
 			++Lit;
 		}
+}
+
+bool AFNStudio::BoardPointFor(double Lat, double Lon, FVector& OutWorld) const
+{
+	using namespace FNPlanet;
+	if (TableFace < 0 || TableK <= 0.0) return false;
+	const FVector3d V = LatLonToVec(Lat, Lon);
+	int32 Face;
+	double U, W;
+	VecToFaceUV(V, Face, U, W);
+	if (Face != TableFace) return false;
+	const double Px = U * RadiusM, Py = W * RadiusM;
+	if (FVector2D::Distance(FVector2D(Px, Py), FVector2D(TableCx, TableCy)) > PickRadiusM) return false;
+	const float Top = 0.4f + FN7Board::Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, Lat, Lon)) - TableLo) / TableRange);
+	const FVector Local = FN7Board::ActionC + FVector((float)((Px - TableCx) * TableK), (float)(-(Py - TableCy) * TableK), Top);
+	OutWorld = GetActorTransform().TransformPosition(Local);
+	return true;
+}
+
+bool AFNStudio::GetBoardRim(FVector& OutCenter, double& OutRadiusWorld, FRotator& OutTableRot) const
+{
+	OutCenter = GetActorTransform().TransformPosition(FN7Board::ActionC);
+	OutRadiusWorld = FN7Board::ActionR * GetActorScale3D().X;
+	OutTableRot = GetActorRotation();
+	return true;
+}
+
+void AFNStudio::HideClassicSeats()
+{
+	// Every frame while the kit's gods stand at the table (UpdateSeats turns the aura beads back on each tick).
+	for (FSeatSlot& S : SeatSlots)
+	{
+		if (S.Fig) S.Fig->SetVisibility(false, true);
+		if (S.Body) S.Body->SetVisibility(false, true);
+		for (UStaticMeshComponent* B : S.Aura) if (B) B->SetVisibility(false);
+		if (S.Label) S.Label->SetVisibility(false);
+		if (S.Glow) S.Glow->SetIntensity(0.f);
+	}
+}
+
+bool AFNStudio::GlobePointAtScreen(const FVector2D& ViewportPixel, double& OutLat, double& OutLon, FVector& OutWorld) const
+{
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!PC || !BoardRoot) return false;
+	FVector O, D;
+	if (!PC->DeprojectScreenPositionToWorld(ViewportPixel.X, ViewportPixel.Y, O, D)) return false;
+	// The globe: a sphere of BoardR (board-root space) around BoardRoot, spinning with it.
+	const FTransform Xf = BoardRoot->GetComponentTransform();
+	const FVector C = Xf.GetLocation();
+	const double R = BoardR * Xf.GetScale3D().GetMax();
+	const FVector OC = O - C;
+	const double B = FVector::DotProduct(OC, D);
+	const double Disc = B * B - (OC.SizeSquared() - R * R);
+	if (Disc < 0.0) return false;
+	const double T = -B - FMath::Sqrt(Disc);
+	if (T <= 0.0) return false;
+	OutWorld = O + D * T;
+	const FVector L = Xf.InverseTransformPosition(OutWorld).GetSafeNormal();
+	// The inverse of LonLatToGlobe: (cosLa cosLo, -cosLa sinLo, sinLa).
+	OutLat = FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(L.Z, -1.0, 1.0)));
+	OutLon = FMath::RadiansToDegrees(FMath::Atan2(-L.Y, L.X));
+	return true;
+}
+
+void AFNStudio::ShowMegaOnGlobe(bool bShow, double Lat, double Lon, double RadiusKm)
+{
+	static TMap<TWeakObjectPtr<AFNStudio>, TWeakObjectPtr<UInstancedStaticMeshComponent>> Rings;
+	TWeakObjectPtr<UInstancedStaticMeshComponent>& Slot = Rings.FindOrAdd(this);
+	if (!Slot.IsValid() && BoardRoot)
+	{
+		UInstancedStaticMeshComponent* C = NewObject<UInstancedStaticMeshComponent>(this, TEXT("FN7MegaGlobe"));
+		C->SetupAttachment(BoardRoot);
+		C->SetMobility(EComponentMobility::Movable);
+		C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		C->SetCastShadow(false);
+		if (BaseMat)
+		{
+			UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(BaseMat, C);
+			M->SetVectorParameterValue(TEXT("Color"), FLinearColor::FromSRGBColor(FColor(255, 150, 40)) * 2.f);
+			C->SetMaterial(0, M);
+		}
+		C->RegisterComponent();
+		Slot = C;
+	}
+	UInstancedStaticMeshComponent* Ring = Slot.Get();
+	if (!Ring) return;
+	Ring->ClearInstances();
+	if (!bShow) return;
+	// A dotted fence at angular radius km / earth radius around the target, plus a bright cross on it (board-root space).
+	const FVector Cn = LonLatToGlobe(Lon, Lat, 1.f).GetSafeNormal();
+	const FVector Up = FMath::Abs(Cn.Z) > 0.95f ? FVector(1, 0, 0) : FVector(0, 0, 1);
+	const FVector E1 = FVector::CrossProduct(Up, Cn).GetSafeNormal();
+	const FVector E2 = FVector::CrossProduct(Cn, E1);
+	const double Ang = FMath::Clamp(FMath::Max(RadiusKm, 300.0) / 6371.0, 0.02, PI * 0.95);
+	const int32 N = 72;
+	for (int32 i = 0; i < N; ++i)
+	{
+		const double T = 2.0 * PI * i / N;
+		const FVector Dv = (Cn * FMath::Cos(Ang) + (E1 * FMath::Cos(T) + E2 * FMath::Sin(T)) * FMath::Sin(Ang)).GetSafeNormal();
+		Ring->AddInstance(FTransform(FRotationMatrix::MakeFromZ(Dv).Rotator(), Dv * (BoardR + 2.5f), FVector(0.022f, 0.022f, 0.05f)));
+	}
+	for (int32 k = 0; k < 2; ++k)
+	{
+		const FVector Axis = k == 0 ? E1 : E2;
+		for (int32 j = -3; j <= 3; ++j)
+		{
+			const FVector Dv = (Cn + Axis * (0.018 * j)).GetSafeNormal();
+			Ring->AddInstance(FTransform(FRotationMatrix::MakeFromZ(Dv).Rotator(), Dv * (BoardR + 3.f), FVector(0.03f, 0.03f, 0.07f)));
+		}
+	}
 }

@@ -28,6 +28,10 @@ public:
 	/** "mega" (a bolt, map scale), "mini" (a spark, the board), or empty on a server without tiers. */
 	FString Tier;
 
+	/** True for a hex lifted from the table's power ring (AFNPowerRing): the hex itself is the piece (no 2D token), and
+	 *  where it lands decides the tier (over the globe = mega, on the board = mini). */
+	bool bFromRing = false;
+
 	/** The latest screen-space cursor position of this drag. */
 	FVector2D ScreenPosition = FVector2D::ZeroVector;
 

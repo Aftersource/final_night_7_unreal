@@ -92,6 +92,16 @@ public:
 	 *  under a viewport pixel, and an area-of-effect overlay of lit hexes around it, for dragging an Entropy power. */
 	bool HexAtScreen(const FVector2D& ViewportPixel, double& OutLat, double& OutLon, FVector& OutWorldCenter, double& OutHexM) const;
 	void ShowAreaOfEffect(bool bShow, const FVector2D& ViewportPixel, double RadiusKm);
+	/** Style-kit hooks for the gods, the demigod figures and the power ring (implemented in UI/FNBoardAoe.cpp): the world
+	 *  point on the board for a lat/lon (false when it is off the board), the board's rim, and hiding the classic seat
+	 *  silhouettes and minifigs while the kit's gods stand at the table. */
+	bool BoardPointFor(double Lat, double Lon, FVector& OutWorld) const;
+	bool GetBoardRim(FVector& OutCenter, double& OutRadiusWorld, FRotator& OutTableRot) const;
+	void HideClassicSeats();
+	/** The point on the floating GLOBE under a viewport pixel (lat/lon on the globe, and the world point), or false;
+	 *  and a ring on the globe around a lat/lon at a radius in km (a MEGA power's area while it hovers over the globe). */
+	bool GlobePointAtScreen(const FVector2D& ViewportPixel, double& OutLat, double& OutLon, FVector& OutWorld) const;
+	void ShowMegaOnGlobe(bool bShow, double Lat, double Lon, double RadiusKm);
 	/** Called when YOU click a spot on the Globe (Lon, Lat); the widget casts an armed Entropy power there. */
 	TFunction<void(double /*Lon*/, double /*Lat*/)> OnUserPickedSpot;
 	void ShowDropSpots(const TArray<FFNPiece>& Spots);

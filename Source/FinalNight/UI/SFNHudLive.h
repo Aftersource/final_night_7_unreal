@@ -41,6 +41,13 @@ private:
 	TOptional<FVector2D> SnapPowerToBoard(const FString& Power, const FVector2D& ScreenPosition);
 	class AFNStudio* FindStudio() const;
 	TMap<FString, double> PowerRadiusKm;
+	double RadiusFor(const FString& Slug, const FString& Tier) const;
+	// The powers as hexes on the table (AFNPowerRing), with their input layer; a drop over the globe is a mega.
+	TSharedPtr<class SFNPowerRingInput> RingInput;
+	bool bOverGlobe = false;
+	void UpdateRing();
+	/** Where a ring hex would land: over the globe (mega), on a board hex (mini), or neither; and the point to hover it at. */
+	int32 RingTarget(const FVector2D& ScreenPosition, double& OutLat, double& OutLon, FVector& OutWorld, FVector2D& OutPixel) const;
 	TSharedPtr<SFNHudLayout> Layout;
 	TSharedPtr<class SFNStartPanel> StartPanel;
 	bool bInRoom = false;
