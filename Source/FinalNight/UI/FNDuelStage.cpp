@@ -54,8 +54,11 @@ const TArray<FString>& AFNDuelStage::SkinNames()
 
 int32 AFNDuelStage::SkinForName(const FString& DemigodName)
 {
-	// As the lab's fnv (duel_lab/lib/m.js) over TextEncoder bytes: offset basis 2166136261, prime 16777619.
-	const FTCHARToUTF8 Utf8(*DemigodName.ToLower());
+	// As the lab's fnv (duel_lab/lib/m.js) over TextEncoder bytes: offset basis 2166136261, prime 16777619. Lower-casing
+	// is ASCII-only, as the server's (A-Z only; other characters as written), so every client picks the same skin.
+	FString Key = DemigodName;
+	for (TCHAR& Ch : Key) if (Ch >= TEXT('A') && Ch <= TEXT('Z')) Ch = Ch - TEXT('A') + TEXT('a');
+	const FTCHARToUTF8 Utf8(*Key);
 	uint32 H = 2166136261u;
 	for (int32 i = 0; i < Utf8.Length(); ++i)
 	{

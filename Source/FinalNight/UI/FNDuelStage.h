@@ -29,7 +29,9 @@ public:
 	static const TArray<FString>& ClipNames();
 	/** The skins, in the order the name hash picks them: wood, obsidian, gold, dragonscale, butterfly. */
 	static const TArray<FString>& SkinNames();
-	/** The skin a demigod wears until the server sends one: FNV-1a 32 of the lower-cased name's UTF-8 bytes, mod 5. */
+	/** The skin a demigod wears when challenge.lock carries none: FNV-1a 32 of the name's UTF-8 bytes after ASCII-only
+	 *  lower-casing, mod 5 (server vectors: "Ash's Left Hand" obsidian, "Brix's Right Hand" wood, "Dune's Right Hand"
+	 *  gold, "Nyx" butterfly, "kali" dragonscale). */
 	static int32 SkinForName(const FString& DemigodName);
 
 	/** Step A proof: five mannequins on the table, one per skin, each cycling every clip. */
