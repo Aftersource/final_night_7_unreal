@@ -11,12 +11,12 @@ class UFNNetClient;
 
 /**
  * The FN7 start screen, shown until you are in a room: title, server status (GET /stats), tonight's game
- * (GET /api/house, then /api/game/current, then Config/FN7JoinCode.txt), your name and one JOIN THE GAME button.
+ * (GET /api/house, else Config/FN7JoinCode.txt), your name and one JOIN THE GAME button.
  * It covers the whole viewport and swallows clicks, so nothing behind it reaches the globe.
  *
- * JOIN saves the name to Config/FN7DisplayName.txt. With a game code it writes Config/FN7JoinCode.txt (the root
- * HUD joins that code at auth.ok instead of creating a room) and connects, or sends room.join when already
- * connected. With no code anywhere it connects and the client hosts as before.
+ * JOIN saves the name to Config/FN7DisplayName.txt, writes the house code to Config/FN7JoinCode.txt (the root HUD
+ * joins that code at auth.ok instead of creating a room; the file is removed once seated) and connects, or sends
+ * room.join when already connected. JOIN never hosts: with no house game it says so.
  */
 class FINALNIGHT_API SFNStartPanel : public SCompoundWidget
 {
@@ -42,7 +42,9 @@ private:
 	int32 PlayersConnected = 0;
 	int32 Rooms = 0;
 	FString HouseCode;
-	FString HouseSource;   // "house", "current" or "file"
+	FString HouseSource;   // "house" or "file"
+	FString HouseDetail;   // "beat 12, 3 at the table"
+	bool bWroteJoinFile = false;
 	bool bConnected = false;
 	bool bJoining = false;
 	FString Progress;

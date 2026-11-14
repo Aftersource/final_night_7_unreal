@@ -1,6 +1,8 @@
 #include "SFNStartPanel.h"
 
 #include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "HAL/FileManager.h"
 #include "FNNetClient.h"
 #include "FNStyle.h"
 #include "HttpModule.h"
@@ -177,6 +179,12 @@ void SFNStartPanel::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		bConnected = true;
 		Progress = TEXT("Connected. Taking your seat...");
 	}
+	else if ((T == TEXT("room.snapshot") || T == TEXT("match.snapshot")) && bWroteJoinFile)
+	{
+		IFileManager::Get().Delete(*FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7JoinCode.txt")));
+		bWroteJoinFile = false;
+		bJoining = false;
+	}
 	else if (T == TEXT("error"))
 	{
 		FString Msg;
@@ -213,36 +221,43 @@ void SFNStartPanel::RefreshStats()
 	Req->ProcessRequest();
 }
 
-void SFNStartPanel::RefreshHouse(int32 PathIndex)
+void SFNStartPanel::RefreshHouse(int32)
 {
-	static const TCHAR* Paths[] = { TEXT("/api/house"), TEXT("/api/game/current") };
 	UFNNetClient* N = Net.Get();
 	if (!N) return;
-	if (PathIndex >= UE_ARRAY_COUNT(Paths))
-	{
-		const FString Local = ReadLocalLine(TEXT("FN7JoinCode.txt"));
-		HouseCode = Local.ToUpper();
-		HouseSource = Local.IsEmpty() ? FString() : TEXT("file");
-		return;
-	}
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(N->MediaUrl(Paths[PathIndex]));
+	Req->SetURL(N->MediaUrl(TEXT("/api/house")));
 	Req->SetVerb(TEXT("GET"));
 	Req->SetTimeout(8.f);
 	TWeakPtr<SFNStartPanel> Weak = StaticCastSharedRef<SFNStartPanel>(AsShared());
-	Req->OnProcessRequestComplete().BindLambda([Weak, PathIndex](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	Req->OnProcessRequestComplete().BindLambda([Weak](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
 	{
 		TSharedPtr<SFNStartPanel> Self = Weak.Pin();
 		if (!Self.IsValid()) return;
-		const FString Code = (bOk && Resp.IsValid() && Resp->GetResponseCode() == 200)
-			? FN7StartJson::FindCode(FN7StartJson::Parse(Resp->GetContentAsString())) : FString();
+		const int32 HttpCode = Resp.IsValid() ? Resp->GetResponseCode() : 0;
+		const TSharedPtr<FJsonObject> O = (bOk && HttpCode == 200) ? FN7StartJson::Parse(Resp->GetContentAsString()) : nullptr;
+		const FString Code = FN7StartJson::FindCode(O);
 		if (!Code.IsEmpty())
 		{
 			Self->HouseCode = Code.ToUpper();
-			Self->HouseSource = PathIndex == 0 ? TEXT("house") : TEXT("current");
+			Self->HouseSource = TEXT("house");
+			FString State, Phase;
+			double Round = 0.0;
+			const TArray<TSharedPtr<FJsonValue>>* SeatList = nullptr;
+			O->TryGetStringField(TEXT("state"), State);
+			O->TryGetStringField(TEXT("phase"), Phase);
+			O->TryGetNumberField(TEXT("round"), Round);
+			const int32 SeatCount = O->TryGetArrayField(TEXT("seats"), SeatList) && SeatList ? SeatList->Num() : 0;
+			Self->HouseDetail = State == TEXT("in_match")
+				? FString::Printf(TEXT("beat %d, %d at the table"), (int32)Round, SeatCount)
+				: FString::Printf(TEXT("%s, %d at the table"), State.IsEmpty() ? TEXT("open") : *State, SeatCount);
 			return;
 		}
-		Self->RefreshHouse(PathIndex + 1);
+		// No house (404) or no server: the last word is Config/FN7JoinCode.txt, if this machine has one.
+		const FString Local = Self->ReadLocalLine(TEXT("FN7JoinCode.txt"));
+		Self->HouseCode = Local.ToUpper();
+		Self->HouseSource = Local.IsEmpty() ? FString() : TEXT("file");
+		Self->HouseDetail.Reset();
 	});
 	Req->ProcessRequest();
 }
@@ -260,29 +275,36 @@ FReply SFNStartPanel::OnJoin()
 {
 	UFNNetClient* N = Net.Get();
 	if (!N || bJoining) return FReply::Handled();
-	bJoining = true;
 
 	const FString Name = NameBox.IsValid() ? NameBox->GetText().ToString().TrimStartAndEnd().Left(24) : FString();
 	if (!Name.IsEmpty()) FFileHelper::SaveStringToFile(Name + TEXT("\n"), *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DisplayName.txt")));
 
+	// JOIN never hosts: without the house game (or a local join code) there is nothing to join.
 	const FString Code = HouseCode;
-	if (!Code.IsEmpty() && HouseSource != TEXT("file"))
+	if (Code.IsEmpty())
+	{
+		Progress = TEXT("The server has no game running right now. This checks again every few seconds.");
+		return FReply::Handled();
+	}
+	bJoining = true;
+
+	// The root HUD joins Config/FN7JoinCode.txt at auth.ok instead of creating a room; it is removed again once we
+	// are seated, so a stale code never steers a later session.
+	if (HouseSource != TEXT("file"))
+	{
 		FFileHelper::SaveStringToFile(Code + TEXT("\n"), *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7JoinCode.txt")));
+		bWroteJoinFile = true;
+	}
 
 	if (!bConnected)
 	{
-		Progress = Code.IsEmpty() ? TEXT("Connecting... no game is running, so you'll open one.") : FString::Printf(TEXT("Connecting and joining %s..."), *Code);
+		Progress = FString::Printf(TEXT("Connecting and joining %s..."), *Code);
 		N->Start();
-	}
-	else if (!Code.IsEmpty())
-	{
-		Progress = FString::Printf(TEXT("Joining %s..."), *Code);
-		N->JoinRoom(Code);
 	}
 	else
 	{
-		Progress = TEXT("Opening a game...");
-		N->CreateRoom();
+		Progress = FString::Printf(TEXT("Joining %s..."), *Code);
+		N->JoinRoom(Code);
 	}
 	return FReply::Handled();
 }
@@ -308,9 +330,10 @@ FSlateColor SFNStartPanel::GetStatusColor() const
 
 FText SFNStartPanel::GetGameText() const
 {
-	if (HouseCode.IsEmpty()) return LOCTEXT("NoGame", "No game is running yet. JOIN opens one; the others join you.");
-	if (HouseSource == TEXT("file")) return FText::Format(LOCTEXT("FileGame", "Room {0}"), FText::FromString(HouseCode));
-	return FText::Format(LOCTEXT("LiveGame", "Tonight's game  -  room {0}"), FText::FromString(HouseCode));
+	if (HouseCode.IsEmpty()) return LOCTEXT("NoGame", "The server has no game running right now.");
+	if (HouseSource == TEXT("file")) return FText::Format(LOCTEXT("FileGame", "Room {0} (this machine's join code)"), FText::FromString(HouseCode));
+	if (HouseDetail.IsEmpty()) return FText::Format(LOCTEXT("LiveGame", "The house game  -  room {0}"), FText::FromString(HouseCode));
+	return FText::Format(LOCTEXT("LiveGameDetail", "The house game  -  room {0}  -  {1}"), FText::FromString(HouseCode), FText::FromString(HouseDetail));
 }
 
 FText SFNStartPanel::GetProgressText() const
