@@ -144,6 +144,7 @@ private:
 
 	// Out of the match (both demigods fell): "You fell at beat N", TAKE ANOTHER DEMIGOD, WATCH, RETURN TO LOBBY.
 	bool bOut = false;
+	bool bWiped = false;   // rules 0.9.0: both of your demigods down but not out (no seat.eliminated): plead to Death
 	bool bOutDismissed = false;
 	bool bTakeAsked = false;
 	double TakeAskedAt = 0.0;
