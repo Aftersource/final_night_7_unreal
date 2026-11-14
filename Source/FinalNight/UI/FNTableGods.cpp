@@ -203,8 +203,8 @@ void AFNGodPedestal::SetGod(const FFNTableGod& God)
 	if (Glow) Glow->SetLightColor(Aura);
 	if (Plate)
 	{
-		const TCHAR* Tag = !God.bAlive ? TEXT("OUT") : !God.bConnected ? TEXT("AWAY") : God.bHuman ? TEXT("HUMAN") : TEXT("AI");
-		Plate->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *God.Player, Tag)));
+		const TCHAR* PlateTag = !God.bAlive ? TEXT("OUT") : !God.bConnected ? TEXT("AWAY") : God.bHuman ? TEXT("HUMAN") : TEXT("AI");
+		Plate->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *God.Player, PlateTag)));
 		Plate->SetTextRenderColor((God.bAlive ? Aura : GodGrey * 2.f).ToFColor(true));
 	}
 }

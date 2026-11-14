@@ -1,4 +1,5 @@
 #include "SFNStartPanel.h"
+#include "FNWood.h"
 
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -138,7 +139,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 			.WidthOverride(600.f)
 			[
 				SNew(SBorder)
-				.BorderImage(Brush::Card())
+				.BorderImage(FN7Wood::MarbleBrush())   // a black onyx marble tablet (Chris asked for a mystical, granite or onyx marbled look)
 				.Padding(FMargin(Space::XL + Space::S, Space::XL))
 				[
 					SNew(SVerticalBox)

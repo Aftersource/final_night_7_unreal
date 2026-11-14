@@ -319,6 +319,42 @@ namespace FN7ClothGen
 		return C;
 	}
 
+	FLinearColor Marble(int32 X, int32 Y, int32 W, int32 H)
+	{
+		const float Fx = (float)X, Fy = (float)Y;
+		// Turbulence: a few octaves of noise warp a diagonal sine into veins.
+		float Turb = 0.f, Amp = 1.f, F = 1.f / 160.f;
+		for (int32 o = 0; o < 6; ++o) { Turb += Amp * FMath::Abs(Noise(Fx * F + o * 31.7f, Fy * F - o * 17.3f)); Amp *= 0.5f; F *= 2.f; }
+		const float V = FMath::Abs(FMath::Sin((Fx * 0.6f + Fy) / 70.f + Turb * 6.f));      // 0 on a vein
+		const float Vein = FMath::Pow(FMath::Clamp(1.f - V, 0.f, 1.f), 40.f);              // thin veins
+		const float Smoke = FMath::Pow(FMath::Clamp(1.f - V, 0.f, 1.f), 3.f) * 0.5f;        // smoky clouds around them
+		FLinearColor C = FLinearColor(0.012f, 0.011f, 0.016f);                            // deep black onyx
+		C += FLinearColor(0.035f, 0.035f, 0.045f) * Smoke;
+		C = FMath::Lerp(C, FLinearColor(0.50f, 0.44f, 0.33f), Vein * 0.42f);              // faint white-gold veins
+		const float Speck = FMath::Frac(FMath::Sin(Fx * 12.9898f + Fy * 78.233f) * 43758.5453f);
+		if (Speck > 0.992f) C += FLinearColor(0.10f, 0.09f, 0.08f);                       // granite glints
+		// Polished sheen: a soft diagonal highlight.
+		C += FLinearColor(0.025f, 0.025f, 0.035f) * FMath::Clamp(1.f - FMath::Abs((Fx - Fy) / (W + H) * 2.f - 0.1f) * 3.f, 0.f, 1.f);
+		// Chiselled bevel lit top-left, a fine gold inlay line inside it.
+		const float Bev = 12.f;
+		const float L = Fx, T = Fy, R = W - 1 - Fx, B = H - 1 - Fy;
+		const float D = FMath::Min(FMath::Min(L, T), FMath::Min(R, B));
+		if (D < Bev)
+		{
+			const bool bLit = (L <= T && L <= R && L <= B) || (T <= L && T <= R && T <= B);
+			const float K = 1.f - D / Bev;
+			C = bLit ? C + FLinearColor(0.09f, 0.09f, 0.11f) * K : C * (1.f - 0.6f * K);
+		}
+		const float G = D - (Bev + 6.f);
+		if (G > -0.9f && G < 0.9f) C = FMath::Lerp(C, FLinearColor(0.75f, 0.55f, 0.22f), 0.8f);
+		const float Rad = 14.f;
+		float A = 1.f;
+		const float Cx = FMath::Min(L, R), Cy = FMath::Min(T, B);
+		if (Cx < Rad && Cy < Rad) A = FMath::Clamp(Rad - FVector2D::Distance(FVector2D(Cx, Cy), FVector2D(Rad, Rad)) + 0.5f, 0.f, 1.f);
+		C.A = A;
+		return C;
+	}
+
 	FSlateBrush ImageBrush(UTexture2D* Tex, int32 W, int32 H, ESlateBrushDrawType::Type Draw, const FMargin& Margin = FMargin(0.f))
 	{
 		FSlateBrush B;
@@ -404,6 +440,17 @@ const FSlateBrush* FN7Wood::StoneBrush()
 		const int32 W = 512, H = 512;
 		return FN7ClothGen::ImageBrush(FN7ClothGen::MakeRGBA(W, H, [W, H](int32 X, int32 Y) { return FN7ClothGen::Stone(X, Y, W, H); }), W, H,
 			ESlateBrushDrawType::Box, FMargin(36.f / W));
+	}();
+	return &B;
+}
+
+const FSlateBrush* FN7Wood::MarbleBrush()
+{
+	static const FSlateBrush B = []()
+	{
+		const int32 W = 768, H = 768;
+		return FN7ClothGen::ImageBrush(FN7ClothGen::MakeRGBA(W, H, [W, H](int32 X, int32 Y) { return FN7ClothGen::Marble(X, Y, W, H); }), W, H,
+			ESlateBrushDrawType::Box, FMargin(30.f / W));
 	}();
 	return &B;
 }

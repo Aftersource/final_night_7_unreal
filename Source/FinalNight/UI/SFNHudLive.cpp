@@ -34,6 +34,7 @@
 #include "SFNPanelMover.h"
 #include "FNPowerRing.h"
 #include "FNTableGods.h"
+#include "FNWood.h"
 #include "FNMedia.h"
 #include "FNStyle.h"
 #include "Framework/Application/IInputProcessor.h"
@@ -78,6 +79,8 @@ namespace FN7HudJson
 }
 
 /** True when keyboard focus is in the game viewport or the HUD over it (not in an editor panel). */
+static bool FN7LonLat(const TSharedPtr<FJsonObject>& O, const TCHAR* Key, double& OutLat, double& OutLon);
+
 static bool FN7GameHasFocus()
 {
 	UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
@@ -157,6 +160,62 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		[
 			MakeOutCard()
 		]
+		// The challenge confirm box: a dark veil and a stone tablet with the choice.
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage(FN7Style::Brush::Segment(FLinearColor(0.f, 0.f, 0.02f, 0.55f)))
+			.HAlign(HAlign_Center).VAlign(VAlign_Center)
+			.Visibility_Lambda([this]() { return bConfirmOpen ? EVisibility::Visible : EVisibility::Collapsed; })
+			[
+				SNew(SBox).WidthOverride(560.f)
+				[
+					SNew(SBorder)
+					.BorderImage(FN7Wood::StoneBrush())
+					.Padding(FMargin(34.f, 26.f))
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 10.f)
+						[
+							SNew(STextBlock).TextStyle(&FN7Style::Type::Title()).Font(FN7Style::Type::Font(20, TEXT("Bold")))
+							.ColorAndOpacity(FLinearColor(1.f, 0.42f, 0.25f)).Text_Lambda([this]() { return ConfirmTitle; })
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 18.f)
+						[
+							SNew(STextBlock).TextStyle(&FN7Style::Type::Body()).WrapTextAt(480.f).Justification(ETextJustify::Center)
+							.Text_Lambda([this]() { return ConfirmBody; })
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 14.f, 0.f)
+							[
+								SNew(SBox).WidthOverride(220.f).HeightOverride(46.f)
+								[
+									SNew(SButton).ButtonStyle(&FN7Style::AccentButton()).HAlign(HAlign_Center).VAlign(VAlign_Center)
+									.OnClicked_Lambda([this]() { ConfirmChallenge(); return FReply::Handled(); })
+									[
+										SNew(STextBlock).TextStyle(&FN7Style::Type::Label()).Font(FN7Style::Type::Font(14, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.05f, 0.03f, 0.02f))
+										.Text_Lambda([this]() { return bConfirmTeleport ? LOCTEXT("ChalGoTp", "TELEPORT + CHALLENGE") : LOCTEXT("ChalGo", "CHALLENGE"); })
+									]
+								]
+							]
+							+ SHorizontalBox::Slot().AutoWidth()
+							[
+								SNew(SBox).WidthOverride(140.f).HeightOverride(46.f)
+								[
+									SNew(SButton).HAlign(HAlign_Center).VAlign(VAlign_Center)
+									.OnClicked_Lambda([this]() { bConfirmOpen = false; return FReply::Handled(); })
+									[
+										SNew(STextBlock).TextStyle(&FN7Style::Type::Label()).Font(FN7Style::Type::Font(13, TEXT("Bold"))).Text(LOCTEXT("ChalNo", "CANCEL"))
+									]
+								]
+							]
+						]
+					]
+				]
+			]
+		]
 		// The lobby: covers everything (and swallows clicks) until we are in a room, and over the game when opened.
 		+ SOverlay::Slot()
 		[
@@ -204,6 +263,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		{
 			TSharedPtr<SFNHudLive> Self = Weak.Pin();
 			if (!Self.IsValid() || !Self->bInRoom) return false;
+			if (Self->bConfirmOpen) { Self->bConfirmOpen = false; return true; }   // Esc cancels a challenge confirm
 			// Writing: Esc rolls the WILL back up (the text stays). Otherwise it opens or closes the lobby.
 			if (!Self->bLobbyOpen && Self->Layout.IsValid() && Self->Layout->IsWillOpen()) { Self->Layout->RollUpWill(); return true; }
 			Self->SetLobbyOpen(!Self->bLobbyOpen);
@@ -561,6 +621,19 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
 		// A summon accepted (rules 0.8.0): the piece lifts and dissolves at its origin, for everyone.
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("summoning")) { HandleSummoning(Pub); return; }
+		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("challenge.lock"))
+		{
+			const TSharedPtr<FJsonObject> A = FN7HudJson::Obj(Pub, TEXT("a")), B = FN7HudJson::Obj(Pub, TEXT("b"));
+			const FString An = FN7HudJson::Str(A, TEXT("name")), Bn = FN7HudJson::Str(B, TEXT("name"));
+			UE_LOG(LogTemp, Display, TEXT("FN7 challenge.lock: %s vs %s"), *An, *Bn);
+			PendingChallengeRef.Reset();
+			ShowBanner(LOCTEXT("Clash", "CLASH!"), FText::FromString(FString::Printf(TEXT("%s  vs  %s"), *An, *Bn)), FLinearColor(1.f, 0.42f, 0.25f), 0.0, 5.0);
+			AddNews(LOCTEXT("ClashTag", "CLASH"), FString::Printf(TEXT("%s challenges %s"), *An, *Bn));
+			double La = 0.0, Lo = 0.0;
+			if (FN7LonLat(Pub, TEXT("at"), La, Lo)) if (AFNStudio* Sc = FindStudio()) Sc->CenterBoardAndGlobe(La, Lo);   // glides there
+			Publish();
+			return;
+		}
 		// Time slowed: when it is you, the Slowed event carries the bill's terms (rules 0.7.0).
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("slowed") && (int32)FN7HudJson::Num(Pub, TEXT("by_seat"), -2) == MySeat && MySeat >= 0)
 		{
@@ -602,7 +675,9 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 				{ TEXT("not_yours"), TEXT("That's not your demigod.") } };
 			if (!PendingChallengeRef.IsEmpty() && FPlatformTime::Seconds() - PendingChallengeAt < 8.0)
 			{
-				const FString* Why = ChallengeWhy.Find(Reason);
+				int32 Colon = INDEX_NONE;
+				const FString Key = Reason.FindChar(TEXT(':'), Colon) ? Reason.Left(Colon) : Reason;   // "too_far:<km>:<allowed>"
+				const FString* Why = ChallengeWhy.Find(Key);
 				UE_LOG(LogTemp, Display, TEXT("FN7 challenge refused: %s %s"), *PendingChallengeRef, *Reason);
 				PendingChallengeRef.Reset();
 				Toast(Why ? *Why : FString::Printf(TEXT("Challenge refused: %s"), *Reason));
@@ -1646,12 +1721,14 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 	GlobeHoldUntil = FPlatformTime::Seconds() + 30.0;
 	if (!bMine)
 	{
-		// A rival: one of YOUR living demigods within a REGION hex (120 km) of it = a CHALLENGE, at ANY zoom (Chris,
-		// Challenge range was reported as too far: a zoom-dependent range made it 3 m at people zoom). The zoom only
-		// frames the fight. The one you selected last goes first.
-		static const double HexKm[4] = { 120.0, 120.0, 120.0, 120.0 };
-		static const TCHAR* LevelName[4] = { TEXT("regions"), TEXT("regions"), TEXT("regions"), TEXT("regions") };
+		// A rival: a challenge, always one confirm away (the challenge felt harder to reach than it should be). In reach (the two pieces
+		// touching on the table, or within the server's range: max(120 km, the contact distance at this zoom)) it just
+		// challenges; otherwise your demigod teleports beside the rival first (the summoning's mishap: about -1 to -2
+		// health) and then challenges from there.
+		static const double ContactKm[4] = { 0.015, 0.15, 15.0, 600.0 };
+		static const TCHAR* LevelName[4] = { TEXT("people"), TEXT("houses"), TEXT("villages"), TEXT("regions") };
 		const int32 Lv = FMath::Clamp(St->GetMapLevel(), 0, 3);
+		const double Reach = FMath::Max(120.0, ContactKm[Lv]);
 		auto Km = [](double A1, double O1, double A2, double O2)
 		{
 			const double L1 = FMath::DegreesToRadians(A1), L2 = FMath::DegreesToRadians(A2), DO = FMath::DegreesToRadians(O2 - O1);
@@ -1659,26 +1736,29 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		};
 		FString Mine;
 		double Best = TNumericLimits<double>::Max();
+		bool bReach = false;
 		for (const FSeatInfo& S : Seats)
 		{
 			if (!MineRefs.Contains(S.Ref) || !S.bAlive || !S.bHasPos) continue;
-			// Contact = the two pieces touching on the table at this zoom (what he sees), or within 120 km.
-			const bool bTouch = T && T->PiecesTouch(S.Ref, Ref);
 			const double K = Km(S.Lat, S.Lon, La, Lo);
-			const double D = K - (S.Ref == SelectedRef ? 1e6 : 0.0);
-			if ((bTouch || K <= HexKm[Lv]) && D < Best) { Best = D; Mine = S.Ref; }
+			const bool bIn = (T && T->PiecesTouch(S.Ref, Ref)) || K <= Reach;
+			// The one you selected goes first, then one already in reach, then the nearest.
+			const double Score = K - (S.Ref == SelectedRef ? 1e7 : 0.0) - (bIn ? 1e6 : 0.0);
+			if (Score < Best) { Best = Score; Mine = S.Ref; bReach = bIn; }
 		}
-		if (Mine.IsEmpty())
-		{
-			UE_LOG(LogTemp, Display, TEXT("FN7 challenge: %s too far at %s (%.3f km hex)"), *Ref, LevelName[Lv], HexKm[Lv]);
-			Toast(FString::Printf(TEXT("Too far to challenge %s: move one of yours onto it (touching on the table) first."), *NameOf(Ref)));
-			return;
-		}
-		if (UFNNetClient* N = Net.Get()) N->Challenge(Round, Mine, Ref, LevelName[Lv]);
-		PendingChallengeRef = Ref;
-		PendingChallengeAt = FPlatformTime::Seconds();
-		UE_LOG(LogTemp, Display, TEXT("FN7 challenge sent: %s -> %s (%s)"), *Mine, *Ref, LevelName[Lv]);
-		Toast(FString::Printf(TEXT("CHALLENGE!  %s  vs  %s"), *NameOf(Mine), *NameOf(Ref)));
+		if (Mine.IsEmpty()) { Toast(TEXT("Both of your demigods have fallen: no one to send into a challenge.")); return; }
+		ConfirmMine = Mine;
+		ConfirmTarget = Ref;
+		ConfirmLevel = LevelName[Lv];
+		ConfirmLat = La;
+		ConfirmLon = Lo;
+		bConfirmTeleport = !bReach;
+		ConfirmTitle = FText::FromString(FString::Printf(TEXT("CHALLENGE %s?"), *NameOf(Ref).ToUpper()));
+		ConfirmBody = bReach
+			? FText::FromString(FString::Printf(TEXT("%s is within reach. The duel starts at once: the world holds its breath while you fight."), *NameOf(Mine)))
+			: FText::FromString(FString::Printf(TEXT("%s teleports beside %s first: expect about -1 to -2 health from the summoning (it never drops you below 2.5). Then the duel starts."), *NameOf(Mine), *NameOf(Ref)));
+		bConfirmOpen = true;
+		UE_LOG(LogTemp, Display, TEXT("FN7 challenge confirm: %s -> %s (%s, %s)"), *Mine, *Ref, bReach ? TEXT("in reach") : TEXT("teleport first"), LevelName[Lv]);
 		return;
 	}
 	if (T && bMine)
@@ -1704,6 +1784,30 @@ bool SFNHudLive::OnDemigodWheel(const FString& Ref, float Delta)
 	UE_LOG(LogTemp, Display, TEXT("FN7 wheel: %s -> level %d at %.5f, %.5f"), *Ref, Lv, La, Lo);
 	St->FocusBoard(La, Lo, Lv);
 	return true;
+}
+
+void SFNHudLive::ConfirmChallenge()
+{
+	bConfirmOpen = false;
+	UFNNetClient* N = Net.Get();
+	if (!N || ConfirmMine.IsEmpty() || ConfirmTarget.IsEmpty()) return;
+	if (bConfirmTeleport)
+	{
+		// Teleport beside the rival (the server nudges it onto a free neighbouring hex), then challenge from there.
+		N->Summon(Round, ConfirmMine, ConfirmLon, ConfirmLat);
+		if (AFNTableGods* T = AFNTableGods::GetAny(FindStudio() ? FindStudio()->GetWorld() : nullptr))
+		{
+			double FromLa = 0.0, FromLo = 0.0;
+			if (T->GetBoardPos(ConfirmMine, FromLa, FromLo)) T->PlaySummoning(ConfirmMine, FromLa, FromLo, AuraOf(ConfirmMine));
+		}
+		PendingSummonRef = ConfirmMine;
+		PendingSummonAt = FPlatformTime::Seconds();
+	}
+	N->Challenge(Round, ConfirmMine, ConfirmTarget, ConfirmLevel);
+	PendingChallengeRef = ConfirmTarget;
+	PendingChallengeAt = FPlatformTime::Seconds();
+	UE_LOG(LogTemp, Display, TEXT("FN7 challenge sent: %s -> %s (%s%s)"), *ConfirmMine, *ConfirmTarget, *ConfirmLevel, bConfirmTeleport ? TEXT(", after a teleport") : TEXT(""));
+	Toast(FString::Printf(TEXT("CHALLENGE!  %s  vs  %s"), *NameOf(ConfirmMine), *NameOf(ConfirmTarget)));
 }
 
 void SFNHudLive::ShowBanner(const FText& Title, const FText& Text, const FLinearColor& Color, double Delay, double Secs)

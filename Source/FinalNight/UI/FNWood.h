@@ -42,4 +42,9 @@ namespace FN7Wood
 	/** A carved stone tablet: dark mottled slate with specks and hairline cracks, a chiselled bevel lit from the top
 	 *  left and a carved groove inside it, rounded corners (9-slice: the bevel and groove stay crisp at any size). */
 	FINALNIGHT_API const FSlateBrush* StoneBrush();
+
+	/** A polished black onyx / granite marble tablet: deep black with smoky grey and thin white-gold veins, a fine granite
+	 *  speckle, a chiselled bevel, rounded corners (9-slice). For the lobby / login card (a mystical tablet look,
+	 *  procedural granite/onyx marbled"). */
+	FINALNIGHT_API const FSlateBrush* MarbleBrush();
 }
