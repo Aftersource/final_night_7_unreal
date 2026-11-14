@@ -73,3 +73,8 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# Local secrets and per-machine config: never commit the access key or any LLM key.
+*.key
+Config/*Local*.ini
+Saved/
