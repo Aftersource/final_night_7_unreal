@@ -1169,6 +1169,12 @@ void SFNHudLive::UpdateRing()
 	if (!St) return;
 	if (RingInput.IsValid()) RingInput->SetStudio(St);
 	const bool bShow = bInRoom && Model.Powers.Num() > 0 && !Model.bViewer;
+	{
+		// Why the ring is up or not, once per change (live diagnosis instead of guessing).
+		static FString LastRing;
+		const FString R = FString::Printf(TEXT("shown=%d in_room=%d powers=%d viewer=%d"), bShow ? 1 : 0, bInRoom ? 1 : 0, Model.Powers.Num(), Model.bViewer ? 1 : 0);
+		if (R != LastRing) { LastRing = R; UE_LOG(LogTemp, Display, TEXT("FN7 ring: %s"), *R); }
+	}
 	AFNPowerRing* Ring = AFNPowerRing::Get(St, bShow);
 	if (!Ring) return;
 	// One hex per power (the tier is where it lands), in this machine's saved order.
