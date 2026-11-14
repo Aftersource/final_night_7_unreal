@@ -2086,8 +2086,13 @@ void SFNHudLive::OnPowerDragOver(const FString& Power, const FVector2D& ScreenPo
 			const float S = (float)St->GetActorScale3D().X;
 			if (Where == 2 && PC && PC->PlayerCameraManager)
 				Ring->MoveLifted(World + (PC->PlayerCameraManager->GetCameraLocation() - World).GetSafeNormal() * 14.f * S);
-			else if (Where == 1)
-				Ring->MoveLifted(World + FVector(0, 0, 9.f * S));
+			else if (Where == 1 && PC && PC->PlayerCameraManager)
+			{
+				// Over the board: small, higher, and a little beyond the target as seen from the camera, so the lit hexes
+				// stay in view in front of it.
+				const FVector Away = (World - PC->PlayerCameraManager->GetCameraLocation()).GetSafeNormal2D();
+				Ring->MoveLifted(World + FVector(0, 0, 15.f * S) + Away * 9.f * S, 0.45f);
+			}
 			else if (PC)
 			{
 				// Anywhere else: hover over the table plane under the cursor.
