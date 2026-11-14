@@ -5,34 +5,39 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "FNStyle.h"
 
+class SBox;
 class SFNPortraitCard;
+class SFNTextBox;
+class UTexture2D;
 
-/** One demigod seat as the HUD shows it. PortraitPng = the bytes of /media/<hash>.png (empty: the initial). */
+/** One demigod seat as the HUD shows it. Portrait: a cached texture, else PNG bytes, else the initial. */
 struct FFNHudSeat
 {
 	FText Name;
 	EFNSeatRole Role = EFNSeatRole::AI;
 	bool bIsYou = false;
 	bool bHoldsTime = false;
+	UTexture2D* PortraitTexture = nullptr;
 	TArray<uint8> PortraitPng;
 };
 
-/** One line of world news: a short tag (e.g. "DAY 7") and the text. */
+/** One line of news: a short tag (e.g. "BEAT 7", "YOU") and the text. */
 struct FFNHudNews
 {
 	FText Tag;
 	FText Text;
 };
 
-/** One power on the bar. */
+/** One power on the bar; Slug is what the server casts. */
 struct FFNHudPower
 {
+	FString Slug;
 	FText Name;
 	int32 Cost = 1;
 	bool bArmed = false;
 };
 
-/** Everything the HUD layout draws; the bridge fills it from the payloads. */
+/** Everything the HUD layout draws; SFNHudLive fills it from the payloads. */
 struct FFNHudModel
 {
 	FText Room;
@@ -49,36 +54,60 @@ struct FFNHudModel
 	FText PowersNote;       // "every bolt you spend gives each rival +2"
 	FText ComposeHint;      // "Write what you'll do today..."
 	FText Timer;            // "0:05"
+	FText Status;           // one line under the header: connection, waiting for host, match over
 	TArray<FFNHudSeat> Seats;
 	TArray<FFNHudNews> News;
 	TArray<FFNHudPower> Powers;
 };
 
+DECLARE_DELEGATE_OneParam(FOnFNHudSend, const FString& /*Text*/);
+DECLARE_DELEGATE(FOnFNHudTyping);
+DECLARE_DELEGATE_OneParam(FOnFNHudPower, const FString& /*Slug*/);
+
 /**
- * The full FN7 HUD, laid out on a 4-corner grid around a clear centre (the globe):
- * top-left header strip, right WORLD news column, lower-left you + seat cards, bottom-centre powers + compose.
+ * The full FN7 HUD on a corner grid around a clear centre (the globe): header strip top left, WORLD news top right,
+ * seat cards and your status lower left, powers and the WILL composer bottom centre (one bottom row, no overlap).
+ * SetModel refreshes every section in place; the composer keeps its text and focus across updates.
  */
 class FINALNIGHT_API SFNHudLayout : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SFNHudLayout) {}
 		SLATE_ARGUMENT(FFNHudModel, Model)
+		/** Overrides Model.Timer when bound (a live countdown). */
+		SLATE_ATTRIBUTE(FText, Timer)
+		SLATE_EVENT(FOnFNHudSend, OnSend)
+		SLATE_EVENT(FOnFNHudTyping, OnTypingStarted)
+		SLATE_EVENT(FOnFNHudPower, OnPower)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 	void SetModel(const FFNHudModel& InModel);
+	const FFNHudModel& GetModel() const { return Model; }
 
 	/** A model filled with a believable mid-match state, for previews and screenshots. */
 	static FFNHudModel SampleModel();
 
 private:
 	FFNHudModel Model;
-	TArray<TSharedPtr<SFNPortraitCard>> Cards;
-	void Rebuild();
+	TAttribute<FText> TimerAttr;
+	FOnFNHudSend OnSend;
+	FOnFNHudTyping OnTypingStarted;
+	FOnFNHudPower OnPower;
+	bool bTypingSignalled = false;
 
+	TSharedPtr<SBox> HeaderHolder, NewsHolder, SeatsHolder, YouHolder, PowersHolder;
+	TSharedPtr<SFNTextBox> Compose;
+	TArray<TSharedPtr<SFNPortraitCard>> Cards;
+
+	void RefreshSections();
 	TSharedRef<SWidget> MakeHeader();
 	TSharedRef<SWidget> MakeNews();
 	TSharedRef<SWidget> MakeYou();
 	TSharedRef<SWidget> MakeSeats();
-	TSharedRef<SWidget> MakeCompose();
+	TSharedRef<SWidget> MakePowers();
+	TSharedRef<SWidget> MakeComposePanel();
+	void HandleTextChanged(const FText& Text);
+	void HandleTextCommitted(const FText& Text, ETextCommit::Type Commit);
+	FReply HandleSend();
 };

@@ -22,10 +22,12 @@
 
 #define LOCTEXT_NAMESPACE "SFNHudLayout"
 
-using namespace FN7Style;
-
-namespace
+namespace FN7HudParts
 {
+	using namespace FN7Style;
+
+	const FLinearColor Ink(0.1f, 0.06f, 0.02f);
+
 	TSharedRef<SWidget> Divider(bool bVertical)
 	{
 		return SNew(SBox)
@@ -33,7 +35,7 @@ namespace
 			.HeightOverride(bVertical ? 18.f : 1.f)
 			.VAlign(VAlign_Center)
 			[
-				SNew(SImage).Image(Brush::Swatch(Color::PanelEdge())).ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.6f))
+				SNew(SImage).Image(Brush::Segment(Color::PanelEdge())).ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.6f))
 			];
 	}
 
@@ -50,7 +52,7 @@ namespace
 			];
 	}
 
-	TSharedRef<SWidget> Pill(const FSlateBrush* B, const FText& T, const FLinearColor& TextColor)
+	TSharedRef<SWidget> Chip(const FSlateBrush* B, const FText& T, const FLinearColor& TextColor)
 	{
 		return SNew(SBorder)
 			.BorderImage(B)
@@ -62,112 +64,134 @@ namespace
 	}
 }
 
+
 void SFNHudLayout::Construct(const FArguments& InArgs)
 {
+	using namespace FN7Style;
+	using namespace FN7HudParts;
 	Model = InArgs._Model;
-	Rebuild();
-}
+	TimerAttr = InArgs._Timer;
+	OnSend = InArgs._OnSend;
+	OnTypingStarted = InArgs._OnTypingStarted;
+	OnPower = InArgs._OnPower;
 
-void SFNHudLayout::SetModel(const FFNHudModel& InModel)
-{
-	Model = InModel;
-	Rebuild();
-}
-
-void SFNHudLayout::Rebuild()
-{
-	Cards.Reset();
 	ChildSlot
 	[
 		SNew(SOverlay)
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(Space::XL)
 		[
-			MakeHeader()
+			SAssignNew(HeaderHolder, SBox)
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(Space::XL)
 		[
-			MakeNews()
+			SAssignNew(NewsHolder, SBox)
 		]
-		// Bottom row: you + seats on the left, compose centred in what is left. One row, so they never overlap.
+		// Bottom row: you + seats on the left, the composer centred in what is left. One row, so they never overlap.
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Bottom).Padding(Space::XL)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom)
 			[
 				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[MakeSeats()]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)[MakeYou()]
+				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(SeatsHolder, SBox)]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)[SAssignNew(YouHolder, SBox)]
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.f).HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(Space::XL, 0.f, 0.f, 0.f)
 			[
-				MakeCompose()
+				MakeComposePanel()
 			]
 		]
 	];
+	RefreshSections();
+}
+
+void SFNHudLayout::SetModel(const FFNHudModel& InModel)
+{
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+	Model = InModel;
+	RefreshSections();
+}
+
+void SFNHudLayout::RefreshSections()
+{
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+	HeaderHolder->SetContent(MakeHeader());
+	NewsHolder->SetContent(MakeNews());
+	SeatsHolder->SetContent(MakeSeats());
+	YouHolder->SetContent(MakeYou());
+	PowersHolder->SetContent(MakePowers());
+	NewsHolder->SetVisibility(Model.News.Num() > 0 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 {
-	return SNew(SBorder)
-		.BorderImage(Brush::Panel())
-		.Padding(FMargin(Space::L, Space::S))
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
-			[
-				SNew(SBox).WidthOverride(4.f).HeightOverride(20.f)[SNew(SImage).Image(Brush::AccentRule())]
-			]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)
-			[
-				SNew(STextBlock).TextStyle(&Type::Title()).Text(LOCTEXT("Game", "FINAL NIGHT 7"))
-			]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)[Divider(true)]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)
-			[
-				Stat(LOCTEXT("Room", "ROOM"), Model.Room)
-			]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)
-			[
-				Stat(LOCTEXT("Beat", "BEAT"), FText::Format(LOCTEXT("BeatFmt", "{0} / {1}"), Model.Beat, Model.BeatsTotal))
-			]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)
-			[
-				Stat(LOCTEXT("Alive", "ALIVE"), FText::AsNumber(Model.Alive))
-			]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
-				[
-					SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("Entropy", "ENTROPY"))
-				]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
-				[
-					Pill(Brush::Pill(EFNSeatRole::AI), Model.Entropy, Color::AIAura())
-				]
-			]
+			SNew(SBox).WidthOverride(4.f).HeightOverride(20.f)[SNew(SImage).Image(Brush::AccentRule())]
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)
+		[
+			SNew(STextBlock).TextStyle(&Type::Title()).Text(LOCTEXT("Game", "FINAL NIGHT 7"))
+		];
+
+	auto Add = [&Row](TSharedRef<SWidget> W)
+	{
+		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::L, 0.f)[W];
+	};
+	if (!Model.Room.IsEmpty())
+	{
+		Add(Divider(true));
+		Add(Stat(LOCTEXT("Room", "ROOM"), Model.Room));
+	}
+	if (Model.BeatsTotal > 0)
+	{
+		Add(Stat(LOCTEXT("Beat", "BEAT"), FText::Format(LOCTEXT("BeatFmt", "{0} / {1}"), Model.Beat, Model.BeatsTotal)));
+		Add(Stat(LOCTEXT("Alive", "ALIVE"), FText::AsNumber(Model.Alive)));
+	}
+	if (!Model.Entropy.IsEmpty())
+	{
+		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
+		[
+			SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("Entropy", "ENTROPY"))
+		];
+		Row->AddSlot().AutoWidth().VAlign(VAlign_Center)[Chip(Brush::Pill(EFNSeatRole::AI), Model.Entropy, Color::AIAura())];
+	}
+
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
+		[
+			SNew(SBorder).BorderImage(Brush::Panel()).Padding(FMargin(Space::L, Space::S))[Row]
+		]
+		+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(Space::XS, Space::S, 0.f, 0.f)
+		[
+			SNew(STextBlock)
+			.TextStyle(&Type::BodyOverImage())
+			.ColorAndOpacity(Color::TextDim())
+			.Text(Model.Status)
+			.Visibility(Model.Status.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible)
 		];
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeNews()
 {
+	using namespace FN7Style;
+	using namespace FN7HudParts;
 	TSharedRef<SVerticalBox> List = SNew(SVerticalBox);
 	for (int32 i = 0; i < Model.News.Num(); ++i)
 	{
 		const FFNHudNews& N = Model.News[i];
-		if (i > 0)
-		{
-			List->AddSlot().AutoHeight().Padding(0.f, Space::S)[Divider(false)];
-		}
+		if (i > 0) List->AddSlot().AutoHeight().Padding(0.f, Space::S)[Divider(false)];
 		List->AddSlot().AutoHeight()
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0.f, 2.f, Space::S, 0.f)
 			[
-				SNew(SBox).MinDesiredWidth(52.f).HAlign(HAlign_Center)
-				[
-					Pill(Brush::PillAccent(), N.Tag, FLinearColor(0.1f, 0.06f, 0.02f))
-				]
+				SNew(SBox).MinDesiredWidth(56.f).HAlign(HAlign_Center)[Chip(Brush::PillAccent(), N.Tag, Ink)]
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.f)
 			[
@@ -175,31 +199,28 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 			]
 		];
 	}
-
 	return SNew(SBox)
 		.WidthOverride(400.f)
 		[
-			SNew(SFNPanel)
-			.Title(LOCTEXT("World", "WORLD"))
-			.Padding(FMargin(Space::L))
-			[
-				List
-			]
+			SNew(SFNPanel).Title(LOCTEXT("World", "WORLD")).Padding(FMargin(Space::L))[List]
 		];
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeYou()
 {
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+	if (Model.YouName.IsEmpty()) return SNullWidget::NullWidget;
+
 	TSharedRef<SHorizontalBox> Bar = SNew(SHorizontalBox);
-	const int32 Max = FMath::Max(1, Model.MaxHealth);
+	const int32 Max = FMath::Clamp(Model.MaxHealth, 1, 20);
 	for (int32 i = 0; i < Max; ++i)
 	{
-		const bool bFull = i < Model.Health;
 		Bar->AddSlot().AutoWidth().Padding(0.f, 0.f, 3.f, 0.f)
 		[
 			SNew(SBox).WidthOverride(22.f).HeightOverride(8.f)
 			[
-				SNew(SImage).Image(Brush::Segment(bFull ? Color::HumanAura() : Color::PanelEdge()))
+				SNew(SImage).Image(Brush::Segment(i < Model.Health ? Color::HumanAura() : Color::PanelEdge()))
 			]
 		];
 	}
@@ -221,7 +242,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 					]
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
 					[
-						Pill(Brush::PillAccent(), FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), FLinearColor(0.1f, 0.06f, 0.02f))
+						Chip(Brush::PillAccent(), FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), Ink)
 					]
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
@@ -251,6 +272,9 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 
 TSharedRef<SWidget> SFNHudLayout::MakeSeats()
 {
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+	Cards.Reset();
 	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
 	for (const FFNHudSeat& S : Model.Seats)
 	{
@@ -262,23 +286,28 @@ TSharedRef<SWidget> SFNHudLayout::MakeSeats()
 			.Role(S.Role)
 			.bIsYou(S.bIsYou)
 			.bShowHourglass(S.bHoldsTime)
-			.CardWidth(112.f)
+			.CardWidth(Model.Seats.Num() > 5 ? 92.f : 112.f)
 		];
-		if (S.PortraitPng.Num() > 0) Card->SetImageFromPng(S.PortraitPng);
+		if (S.PortraitTexture) Card->SetTexture(S.PortraitTexture);
+		else if (S.PortraitPng.Num() > 0) Card->SetImageFromPng(S.PortraitPng);
 		Cards.Add(Card);
 	}
 	return Row;
 }
 
-TSharedRef<SWidget> SFNHudLayout::MakeCompose()
+TSharedRef<SWidget> SFNHudLayout::MakePowers()
 {
+	using namespace FN7Style;
+	using namespace FN7HudParts;
 	TSharedRef<SWrapBox> Powers = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(Space::S, Space::S));
 	for (const FFNHudPower& P : Model.Powers)
 	{
+		const FString Slug = P.Slug;
 		Powers->AddSlot()
 		[
 			SNew(SButton)
 			.ButtonStyle(P.bArmed ? &PillButtonArmed() : &PillButton())
+			.OnClicked_Lambda([this, Slug]() { OnPower.ExecuteIfBound(Slug); return FReply::Handled(); })
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
@@ -287,12 +316,18 @@ TSharedRef<SWidget> SFNHudLayout::MakeCompose()
 				]
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
 				[
-					SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(P.bArmed ? FLinearColor(0.1f, 0.06f, 0.02f) : Color::Accent()).Text(FText::AsNumber(P.Cost))
+					SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(P.bArmed ? Ink : Color::Accent()).Text(FText::AsNumber(P.Cost))
 				]
 			]
 		];
 	}
+	return Powers;
+}
 
+TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
+{
+	using namespace FN7Style;
+	using namespace FN7HudParts;
 	return SNew(SBox)
 		.MinDesiredWidth(560.f)
 		.MaxDesiredWidth(860.f)
@@ -311,16 +346,20 @@ TSharedRef<SWidget> SFNHudLayout::MakeCompose()
 					]
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 					[
-						SNew(STextBlock).TextStyle(&Type::Small()).Text(Model.PowersNote)
+						SNew(STextBlock).TextStyle(&Type::Small()).Text_Lambda([this]() { return Model.PowersNote; })
 					]
 				]
-				+ SVerticalBox::Slot().AutoHeight()[Powers]
+				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(PowersHolder, SBox)]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 					[
-						SNew(SFNTextBox).bMultiLine(true).HintText(Model.ComposeHint)
+						SAssignNew(Compose, SFNTextBox)
+						.bMultiLine(true)
+						.HintText_Lambda([this]() { return Model.ComposeHint; })
+						.OnTextChanged(this, &SFNHudLayout::HandleTextChanged)
+						.OnTextCommitted(this, &SFNHudLayout::HandleTextCommitted)
 					]
 					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::M, 0.f, 0.f, 0.f)
 					[
@@ -334,7 +373,8 @@ TSharedRef<SWidget> SFNHudLayout::MakeCompose()
 							]
 							+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 							[
-								SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(Color::Accent()).Text(Model.Timer)
+								SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(Color::Accent())
+								.Text_Lambda([this]() { return TimerAttr.IsBound() || TimerAttr.IsSet() ? TimerAttr.Get() : Model.Timer; })
 							]
 						]
 						+ SVerticalBox::Slot().AutoHeight()
@@ -342,8 +382,9 @@ TSharedRef<SWidget> SFNHudLayout::MakeCompose()
 							SNew(SButton)
 							.ButtonStyle(&AccentButton())
 							.HAlign(HAlign_Center)
+							.OnClicked(this, &SFNHudLayout::HandleSend)
 							[
-								SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(FLinearColor(0.1f, 0.06f, 0.02f)).Text(LOCTEXT("Send", "SEND  WILL"))
+								SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Ink).Text(LOCTEXT("Send", "SEND  WILL"))
 							]
 						]
 					]
@@ -352,8 +393,39 @@ TSharedRef<SWidget> SFNHudLayout::MakeCompose()
 		];
 }
 
+void SFNHudLayout::HandleTextChanged(const FText& Text)
+{
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+	if (!bTypingSignalled && !Text.IsEmpty())
+	{
+		bTypingSignalled = true;
+		OnTypingStarted.ExecuteIfBound();
+	}
+}
+
+void SFNHudLayout::HandleTextCommitted(const FText&, ETextCommit::Type)
+{
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+}
+
+FReply SFNHudLayout::HandleSend()
+{
+	using namespace FN7Style;
+	using namespace FN7HudParts;
+	const FString Text = Compose.IsValid() ? Compose->GetText().ToString().TrimStartAndEnd() : FString();
+	if (Text.IsEmpty()) return FReply::Handled();
+	OnSend.ExecuteIfBound(Text);
+	Compose->SetText(FText::GetEmpty());
+	bTypingSignalled = false;
+	return FReply::Handled();
+}
+
 FFNHudModel SFNHudLayout::SampleModel()
 {
+	using namespace FN7Style;
+	using namespace FN7HudParts;
 	FFNHudModel M;
 	M.Room = FText::FromString(TEXT("2ZAHKZ"));
 	M.Beat = 8;
@@ -386,36 +458,36 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.Seats.Add(Seat(TEXT("Cortes"), EFNSeatRole::Fallen, false, false, nullptr));
 
 	auto News = [](const TCHAR* Tag, const TCHAR* Text) { FFNHudNews N; N.Tag = FText::FromString(Tag); N.Text = FText::FromString(Text); return N; };
-	M.News.Add(News(TEXT("DAY 7"), TEXT("Oko slowed time and the crowds went wild. Tashkent's army pulled back.")));
-	M.News.Add(News(TEXT("DAY 7"), TEXT("The Monterrey bread riot under Isabela Valdez breaks open the granaries: stores fall to 45%.")));
-	M.News.Add(News(TEXT("DAY 7"), TEXT("The displaced doomsayers of Tashkent take up arms for Mara: 3289 volunteers.")));
-	M.News.Add(News(TEXT("DAY 6"), TEXT("The Dar es Salaam bread riot breaks open the city's granaries: stores fall to 59%.")));
+	M.News.Add(News(TEXT("BEAT 7"), TEXT("Oko slowed time and the crowds went wild. Tashkent's army pulled back.")));
+	M.News.Add(News(TEXT("BEAT 7"), TEXT("The Monterrey bread riot under Isabela Valdez breaks open the granaries: stores fall to 45%.")));
+	M.News.Add(News(TEXT("BEAT 7"), TEXT("The displaced doomsayers of Tashkent take up arms for Mara: 3289 volunteers.")));
+	M.News.Add(News(TEXT("BEAT 6"), TEXT("The Dar es Salaam bread riot breaks open the city's granaries: stores fall to 59%.")));
 
-	auto Power = [](const TCHAR* Name, int32 Cost, bool bArmed) { FFNHudPower P; P.Name = FText::FromString(Name); P.Cost = Cost; P.bArmed = bArmed; return P; };
-	M.Powers.Add(Power(TEXT("Lightning bolt"), 1, true));
-	M.Powers.Add(Power(TEXT("Storm clouds"), 1, false));
-	M.Powers.Add(Power(TEXT("Volcano"), 3, false));
-	M.Powers.Add(Power(TEXT("Earthquake"), 2, false));
-	M.Powers.Add(Power(TEXT("Flood"), 2, false));
-	M.Powers.Add(Power(TEXT("Wildfire"), 2, false));
-	M.Powers.Add(Power(TEXT("Meteor"), 4, false));
-	M.Powers.Add(Power(TEXT("Raise land"), 2, false));
-	M.Powers.Add(Power(TEXT("Sink land"), 3, false));
-	M.Powers.Add(Power(TEXT("Grow forest"), 1, false));
-	M.Powers.Add(Power(TEXT("Swarm"), 2, false));
+	auto Power = [](const TCHAR* Slug, const TCHAR* Name, int32 Cost, bool bArmed) { FFNHudPower P; P.Slug = Slug; P.Name = FText::FromString(Name); P.Cost = Cost; P.bArmed = bArmed; return P; };
+	M.Powers.Add(Power(TEXT("lightning"), TEXT("Lightning bolt"), 1, true));
+	M.Powers.Add(Power(TEXT("storm"), TEXT("Storm clouds"), 1, false));
+	M.Powers.Add(Power(TEXT("volcano"), TEXT("Volcano"), 3, false));
+	M.Powers.Add(Power(TEXT("earthquake"), TEXT("Earthquake"), 2, false));
+	M.Powers.Add(Power(TEXT("flood"), TEXT("Flood"), 2, false));
+	M.Powers.Add(Power(TEXT("wildfire"), TEXT("Wildfire"), 2, false));
+	M.Powers.Add(Power(TEXT("meteor"), TEXT("Meteor"), 4, false));
+	M.Powers.Add(Power(TEXT("raise_land"), TEXT("Raise land"), 2, false));
+	M.Powers.Add(Power(TEXT("sink_land"), TEXT("Sink land"), 3, false));
+	M.Powers.Add(Power(TEXT("grow_forest"), TEXT("Grow forest"), 1, false));
+	M.Powers.Add(Power(TEXT("swarm"), TEXT("Swarm"), 2, false));
 	return M;
 }
 
 // --- FN7.HudPreview [clean] [shot] [quit] -------------------------------------
-// Shows the layout over the game viewport with SampleModel(). "clean" removes the other viewport widgets first
-// (preview only), "shot" saves Saved/FN7HudLayout.png with the UI, "quit" exits after the shot.
+// The layout over the game viewport with SampleModel(). "clean" removes the other viewport widgets first (preview
+// only), "shot" saves Saved/FN7HudLayout.png with the UI, "quit" exits after the shot.
 
-namespace
+namespace FN7HudPreview
 {
 	TSharedPtr<SWidget> GHud;
 	TSharedPtr<SWidget> GHudContent;
 
-	void ShowHud(UGameViewportClient* VC, bool bClean)
+	void Show(UGameViewportClient* VC, bool bClean)
 	{
 		if (bClean) VC->RemoveAllViewportWidgets();
 		else if (GHud.IsValid()) VC->RemoveViewportWidgetContent(GHud.ToSharedRef());
@@ -430,6 +502,7 @@ static FAutoConsoleCommand GFN7HudPreviewCommand(
 	TEXT("Show the FN7 HUD layout with sample data. Args: clean (hide other viewport widgets), shot (save Saved/FN7HudLayout.png), quit (exit after the shot)."),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
+		using namespace FN7HudPreview;
 		const bool bClean = Args.Contains(TEXT("clean"));
 		const bool bShot = Args.Contains(TEXT("shot"));
 		const bool bQuit = Args.Contains(TEXT("quit"));
@@ -442,12 +515,11 @@ static FAutoConsoleCommand GFN7HudPreviewCommand(
 			GHudContent.Reset();
 			return;
 		}
-		ShowHud(VC, bClean);
+		Show(VC, bClean);
 		if (!bShot) return;
-		// Give the player controller time to add its own widgets, then clear them again and take the shot.
 		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudPreviewClean"), 4.f, [bClean](float)
 		{
-			if (UGameViewportClient* V = GEngine ? GEngine->GameViewport : nullptr) ShowHud(V, bClean);
+			if (UGameViewportClient* V = GEngine ? GEngine->GameViewport : nullptr) Show(V, bClean);
 			return false;
 		});
 		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudPreviewShot"), 6.f, [](float)

@@ -1,0 +1,501 @@
+#include "SFNHudLive.h"
+
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/Texture2D.h"
+#include "FNNetClient.h"
+#include "FNPlayerController.h"
+#include "HAL/IConsoleManager.h"
+#include "HttpModule.h"
+#include "ImageUtils.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Containers/Ticker.h"
+#include "Misc/DateTime.h"
+#include "Misc/Paths.h"
+#include "UnrealClient.h"
+#include "Widgets/SViewport.h"
+#include "Widgets/SWeakWidget.h"
+
+#define LOCTEXT_NAMESPACE "SFNHudLive"
+
+namespace FN7HudJson
+{
+	TSharedPtr<FJsonObject> Obj(const TSharedPtr<FJsonObject>& O, const TCHAR* K)
+	{
+		const TSharedPtr<FJsonObject>* Out = nullptr;
+		return (O.IsValid() && O->TryGetObjectField(K, Out) && Out) ? *Out : nullptr;
+	}
+	const TArray<TSharedPtr<FJsonValue>>* Arr(const TSharedPtr<FJsonObject>& O, const TCHAR* K)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* Out = nullptr;
+		return (O.IsValid() && O->TryGetArrayField(K, Out)) ? Out : nullptr;
+	}
+	FString Str(const TSharedPtr<FJsonObject>& O, const TCHAR* K)
+	{
+		FString S;
+		if (O.IsValid()) O->TryGetStringField(K, S);
+		return S;
+	}
+	double Num(const TSharedPtr<FJsonObject>& O, const TCHAR* K, double Default = 0.0)
+	{
+		double V = Default;
+		if (O.IsValid()) O->TryGetNumberField(K, V);
+		return V;
+	}
+	bool Has(const TSharedPtr<FJsonObject>& O, const TCHAR* K)
+	{
+		return O.IsValid() && O->HasField(K) && !O->GetField<EJson::None>(K)->IsNull();
+	}
+}
+
+void SFNHudLive::Construct(const FArguments& InArgs)
+{
+	Net = InArgs._Net;
+	Model.YouName = FText::GetEmpty();
+	Model.ComposeHint = LOCTEXT("Hint", "Write what you'll do. Time slows while you write; SEND to act. Lines starting r: go to your right hand.");
+	Model.PowersNote = LOCTEXT("PowersNote", "Arm a power, write its target (a place, a name or lon,lat), SEND");
+	Model.Status = LOCTEXT("Connecting", "Click the table to connect");
+
+	ChildSlot
+	[
+		SAssignNew(Layout, SFNHudLayout)
+		.Model(Model)
+		.Timer(this, &SFNHudLive::GetTimer)
+		.OnSend(this, &SFNHudLive::OnSend)
+		.OnTypingStarted(this, &SFNHudLive::OnTyping)
+		.OnPower(this, &SFNHudLive::OnPower)
+	];
+
+	if (UFNNetClient* N = Net.Get())
+	{
+		MessageHandle = N->OnServerMessage.AddSP(this, &SFNHudLive::HandleMessage);
+		StatusHandle = N->OnStatus.AddSP(this, &SFNHudLive::HandleStatus);
+	}
+	RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLive::TickTimer));
+}
+
+SFNHudLive::~SFNHudLive()
+{
+	if (UFNNetClient* N = Net.Get())
+	{
+		N->OnServerMessage.Remove(MessageHandle);
+		N->OnStatus.Remove(StatusHandle);
+	}
+}
+
+void SFNHudLive::HandleStatus(const FString& Status)
+{
+	Model.Status = FText::FromString(Status);
+	Publish();
+}
+
+void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
+{
+
+	if (T == TEXT("auth.ok"))
+	{
+		Model.YouName = FText::FromString(FN7HudJson::Str(D, TEXT("display_name")));
+	}
+	else if (T == TEXT("room.snapshot") || T == TEXT("room.updated"))
+	{
+		const FString Code = FN7HudJson::Str(D, TEXT("code"));
+		if (!Code.IsEmpty()) Model.Room = FText::FromString(Code);
+		if (FN7HudJson::Str(D, TEXT("state")) == TEXT("open"))
+			Model.Status = FText::Format(LOCTEXT("Lobby", "Room {0} is open. Give the code to the other players; the host starts the match."), Model.Room);
+	}
+	else if (T == TEXT("match.started"))
+	{
+		Model.Status = LOCTEXT("Started", "The match has begun.");
+		Model.News.Reset();
+	}
+	else if (T == TEXT("phase.changed"))
+	{
+		Round = (int32)FN7HudJson::Num(D, TEXT("round"), Round);
+		if (FN7HudJson::Str(D, TEXT("phase")) == TEXT("compose") && WindowSeat < 0) DeadlineMs = FN7HudJson::Num(D, TEXT("deadline"), 0.0);
+	}
+	else if (T == TEXT("round.brief"))
+	{
+		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
+		Round = (int32)FN7HudJson::Num(D, TEXT("round"), Round);
+		Model.Beat = (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round);
+		Model.BeatsTotal = (int32)FN7HudJson::Num(Pub, TEXT("beats_total"), Model.BeatsTotal);
+		Model.Alive = (int32)FN7HudJson::Num(Pub, TEXT("alive"), Model.Alive);
+		ReadEntropy(FN7HudJson::Obj(Pub, TEXT("entropy")));
+		if (const TArray<TSharedPtr<FJsonValue>>* P = FN7HudJson::Arr(Pub, TEXT("powers"))) ReadPowers(*P);
+		if (const TSharedPtr<FJsonObject> Arena = FN7HudJson::Obj(Pub, TEXT("arena")))
+			Model.ArenaLine = FText::Format(LOCTEXT("Arena", "Time's circle: {0} km around {1}. Stay inside."),
+				FText::AsNumber((int32)FN7HudJson::Num(Arena, TEXT("radius_km"))), FText::FromString(FN7HudJson::Str(Arena, TEXT("city"))));
+		ReadSeatView(FN7HudJson::Obj(D, TEXT("private")));
+		Model.Status = FText::GetEmpty();
+	}
+	else if (T == TEXT("round.private_state"))
+	{
+		ReadSeatView(FN7HudJson::Obj(D, TEXT("state")));
+	}
+	else if (T == TEXT("round.committed"))
+	{
+		const TSharedPtr<FJsonObject> PV = FN7HudJson::Obj(D, TEXT("public_state"));
+		Model.Alive = (int32)FN7HudJson::Num(PV, TEXT("alive"), Model.Alive);
+		ReadEntropy(FN7HudJson::Obj(PV, TEXT("entropy")));
+		ReadDemigods(PV);
+	}
+	else if (T == TEXT("round.outcome"))
+	{
+		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
+		ReadEntropy(FN7HudJson::Obj(Pub, TEXT("entropy")));
+		const FText Tag = FText::Format(LOCTEXT("BeatTag", "BEAT {0}"), (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round));
+		if (const TArray<TSharedPtr<FJsonValue>>* Events = FN7HudJson::Arr(Pub, TEXT("events")))
+		{
+			int32 Added = 0;
+			for (int32 i = Events->Num() - 1; i >= 0 && Added < 3; --i)
+			{
+				const TSharedPtr<FJsonObject> E = (*Events)[i]->AsObject();
+				const FString Text = FN7HudJson::Str(E, TEXT("text"));
+				if (FN7HudJson::Num(E, TEXT("magnitude"), 0.0) < 4.0 || Text.IsEmpty()) continue;
+				AddNews(Tag, Text);
+				++Added;
+			}
+		}
+		const FString Caption = FN7HudJson::Str(Pub, TEXT("previous_caption"));
+		if (!Caption.IsEmpty()) AddNews(LOCTEXT("Story", "STORY"), Caption);
+	}
+	else if (T == TEXT("round.private"))
+	{
+		const TSharedPtr<FJsonObject> Priv = FN7HudJson::Obj(D, TEXT("private"));
+		if (const TArray<TSharedPtr<FJsonValue>>* Hands = FN7HudJson::Arr(Priv, TEXT("hands")))
+			for (const TSharedPtr<FJsonValue>& H : *Hands)
+			{
+				const FString Said = FN7HudJson::Str(H->AsObject(), TEXT("said"));
+				if (!Said.IsEmpty()) AddNews(LOCTEXT("Hands", "HANDS"), Said);
+			}
+	}
+	else if (T == TEXT("window.opened"))
+	{
+		WindowSeat = (int32)FN7HudJson::Num(D, TEXT("by_seat"), -1);
+		DeadlineMs = FN7HudJson::Num(D, TEXT("deadline"), 0.0);
+	}
+	else if (T == TEXT("window.closed"))
+	{
+		WindowSeat = -1;
+		DeadlineMs = 0.0;
+		if (UFNNetClient* N = Net.Get()) N->EndTyping();
+	}
+	else if (T == TEXT("action.received"))
+	{
+		bool bAccepted = true;
+		if (D.IsValid()) D->TryGetBoolField(TEXT("accepted"), bAccepted);
+		if (!bAccepted)
+		{
+			const FString Reason = FN7HudJson::Str(D, TEXT("reason"));
+			AddNews(LOCTEXT("Refused", "REFUSED"), Reason == TEXT("cut") ? TEXT("Too slow: the window closed before your orders arrived.") : Reason);
+		}
+	}
+	else if (T == TEXT("error"))
+	{
+		AddNews(LOCTEXT("Error", "ERROR"), FN7HudJson::Str(D, TEXT("message")));
+	}
+	else if (T == TEXT("seat.eliminated"))
+	{
+		if ((int32)FN7HudJson::Num(D, TEXT("seat"), -2) == MySeat)
+			AddNews(LOCTEXT("Fallen", "FALLEN"), FString::Printf(TEXT("You fell: %s"), *FN7HudJson::Str(D, TEXT("reason"))));
+	}
+	else if (T == TEXT("match.ended"))
+	{
+		const TSharedPtr<FJsonObject> Summary = FN7HudJson::Obj(D, TEXT("summary"));
+		FString Champ;
+		if (const TArray<TSharedPtr<FJsonValue>>* C = FN7HudJson::Arr(Summary, TEXT("champions")))
+			if (C->Num() > 0) Champ = FN7HudJson::Str((*C)[0]->AsObject(), TEXT("name"));
+		Model.Status = FText::Format(LOCTEXT("Over", "MATCH OVER  -  champion: {0}"), FText::FromString(Champ));
+		DeadlineMs = 0.0;
+		WindowSeat = -1;
+	}
+	else
+	{
+		return;
+	}
+	Publish();
+}
+
+void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
+{
+	if (!View.IsValid()) return;
+	MySeat = (int32)FN7HudJson::Num(View, TEXT("seat"), MySeat);
+	const FString Name = FN7HudJson::Str(View, TEXT("name"));
+	if (!Name.IsEmpty()) Model.YouName = FText::FromString(Name);
+	Model.MaxHealth = FMath::RoundToInt(FN7HudJson::Num(View, TEXT("max_health"), Model.MaxHealth));
+	if (const TSharedPtr<FJsonObject> You = FN7HudJson::Obj(View, TEXT("you")))
+	{
+		Model.Health = FMath::Clamp(FMath::RoundToInt(FN7HudJson::Num(You, TEXT("health"), Model.Health)), 0, Model.MaxHealth);
+		Model.Bolts = (int32)FN7HudJson::Num(You, TEXT("bolts"), Model.Bolts);
+	}
+	Model.PowersNote = FText::Format(LOCTEXT("PowersNoteBolts", "{0} bolts  -  arm a power, write its target (place, name or lon,lat), SEND. Every bolt you spend gives each rival +2."), Model.Bolts);
+}
+
+void SFNHudLive::ReadDemigods(const TSharedPtr<FJsonObject>& PV)
+{
+	const TArray<TSharedPtr<FJsonValue>>* List = FN7HudJson::Arr(PV, TEXT("demigods"));
+	if (!List) return;
+	Seats.Reset();
+	for (const TSharedPtr<FJsonValue>& V : *List)
+	{
+		const TSharedPtr<FJsonObject> G = V->AsObject();
+		FSeatInfo S;
+		S.Ref = FN7HudJson::Str(G, TEXT("ref"));
+		S.Name = FN7HudJson::Str(G, TEXT("name"));
+		S.Seat = FN7HudJson::Has(G, TEXT("seat")) ? (int32)FN7HudJson::Num(G, TEXT("seat"), -1) : -1;
+		bool bAlive = true;
+		if (G.IsValid()) G->TryGetBoolField(TEXT("alive"), bAlive);
+		S.bAlive = bAlive;
+		if (const TSharedPtr<FJsonObject> Img = FN7HudJson::Obj(G, TEXT("portrait_image")))
+		{
+			S.PortraitHash = FN7HudJson::Str(Img, TEXT("hash"));
+			if (FN7HudJson::Str(Img, TEXT("status")) == TEXT("ready")) S.PortraitUrl = FN7HudJson::Str(Img, TEXT("url"));
+			if (!S.PortraitHash.IsEmpty() && !S.PortraitUrl.IsEmpty()) RequestPortrait(S.PortraitHash, S.PortraitUrl);
+		}
+		if (S.Seat >= 0 && S.Seat == MySeat)
+		{
+			const FString Place = FN7HudJson::Str(G, TEXT("place"));
+			const FString Region = FN7HudJson::Str(G, TEXT("region"));
+			Model.Place = FText::FromString(Place == Region || Region.IsEmpty() ? Place : Place + TEXT(", ") + Region);
+		}
+		Seats.Add(S);
+	}
+}
+
+void SFNHudLive::ReadEntropy(const TSharedPtr<FJsonObject>& E)
+{
+	if (!E.IsValid()) return;
+	Model.Entropy = FText::FromString(FString::Printf(TEXT("%s %d"), *FN7HudJson::Str(E, TEXT("key")).ToUpper(), FMath::RoundToInt(FN7HudJson::Num(E, TEXT("value")))));
+}
+
+void SFNHudLive::ReadPowers(const TArray<TSharedPtr<FJsonValue>>& Powers)
+{
+	Model.Powers.Reset();
+	for (const TSharedPtr<FJsonValue>& V : Powers)
+	{
+		const TSharedPtr<FJsonObject> P = V->AsObject();
+		const FString Slug = FN7HudJson::Str(P, TEXT("slug"));
+		if (Slug.IsEmpty() || Slug == TEXT("custom")) continue;
+		FFNHudPower Out;
+		Out.Slug = Slug;
+		Out.Name = FText::FromString(FN7HudJson::Str(P, TEXT("name")));
+		Out.Cost = (int32)FN7HudJson::Num(P, TEXT("cost"), 1);
+		Model.Powers.Add(Out);
+	}
+}
+
+void SFNHudLive::AddNews(const FText& Tag, const FString& Text)
+{
+	if (Text.IsEmpty()) return;
+	FFNHudNews N;
+	N.Tag = Tag;
+	N.Text = FText::FromString(Text.Len() > 220 ? Text.Left(217) + TEXT("...") : Text);
+	Model.News.Insert(N, 0);
+	if (Model.News.Num() > 6) Model.News.SetNum(6);
+}
+
+void SFNHudLive::RequestPortrait(const FString& Hash, const FString& Url)
+{
+	UFNNetClient* N = Net.Get();
+	if (!N || Portraits.Contains(Hash) || PortraitRequests.Contains(Hash)) return;
+	PortraitRequests.Add(Hash);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(N->MediaUrl(Url));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetTimeout(30.f);
+	TWeakPtr<SFNHudLive> Weak = StaticCastSharedRef<SFNHudLive>(AsShared());
+	Req->OnProcessRequestComplete().BindLambda([Weak, Hash](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		TSharedPtr<SFNHudLive> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		Self->PortraitRequests.Remove(Hash);
+		if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) return;
+		UTexture2D* Tex = FImageUtils::ImportBufferAsTexture2D(Resp->GetContent());
+		if (!Tex) return;
+		Self->Portraits.Add(Hash, TStrongObjectPtr<UTexture2D>(Tex));
+		Self->Publish();
+	});
+	Req->ProcessRequest();
+}
+
+void SFNHudLive::Publish()
+{
+	Model.Seats.Reset();
+	for (const FSeatInfo& S : Seats)
+	{
+		FFNHudSeat Out;
+		Out.Name = FText::FromString(S.Name);
+		Out.Role = !S.bAlive ? EFNSeatRole::Fallen : (S.Seat >= 0 ? EFNSeatRole::Human : EFNSeatRole::AI);
+		Out.bIsYou = S.Seat >= 0 && S.Seat == MySeat;
+		Out.bHoldsTime = S.Seat >= 0 && S.Seat == WindowSeat;
+		if (const TStrongObjectPtr<UTexture2D>* Tex = Portraits.Find(S.PortraitHash)) Out.PortraitTexture = Tex->Get();
+		Model.Seats.Add(Out);
+	}
+	for (FFNHudPower& P : Model.Powers) P.bArmed = P.Slug == ArmedPower;
+	if (Layout.IsValid()) Layout->SetModel(Model);
+}
+
+void SFNHudLive::OnTyping()
+{
+	if (UFNNetClient* N = Net.Get())
+		if (N->bFn7 && ArmedPower.IsEmpty()) N->BeginTyping();
+}
+
+void SFNHudLive::OnSend(const FString& Text)
+{
+	UFNNetClient* N = Net.Get();
+	if (!N) return;
+	if (!ArmedPower.IsEmpty())
+	{
+		N->CastPower(Round, ArmedPower, Text);
+		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %s"), *ArmedPower, *Text));
+		ArmedPower.Reset();
+		Publish();
+		return;
+	}
+	FString Left, Right;
+	TArray<FString> Lines;
+	Text.ParseIntoArrayLines(Lines);
+	for (const FString& L : Lines)
+	{
+		const FString Line = L.TrimStartAndEnd();
+		if (Line.StartsWith(TEXT("r:"), ESearchCase::IgnoreCase)) Right += (Right.IsEmpty() ? TEXT("") : TEXT("\n")) + Line.RightChop(2).TrimStart();
+		else if (Line.StartsWith(TEXT("l:"), ESearchCase::IgnoreCase)) Left += (Left.IsEmpty() ? TEXT("") : TEXT("\n")) + Line.RightChop(2).TrimStart();
+		else Left += (Left.IsEmpty() ? TEXT("") : TEXT("\n")) + Line;
+	}
+	N->SubmitOrders(Round, Left, Right);
+	N->EndTyping();
+	AddNews(LOCTEXT("You", "YOU"), Text);
+	Publish();
+}
+
+void SFNHudLive::OnPower(const FString& Slug)
+{
+	ArmedPower = ArmedPower == Slug ? FString() : Slug;
+	Publish();
+}
+
+FText SFNHudLive::GetTimer() const
+{
+	if (DeadlineMs <= 0.0) return FText::GetEmpty();
+	const double NowMs = (FDateTime::UtcNow() - FDateTime(1970, 1, 1)).GetTotalMilliseconds();
+	const int32 Secs = FMath::Max(0, FMath::CeilToInt((DeadlineMs - NowMs) / 1000.0));
+	return FText::FromString(FString::Printf(TEXT("%d:%02d"), Secs / 60, Secs % 60));
+}
+
+EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
+{
+	Invalidate(EInvalidateWidgetReason::Paint);
+	return EActiveTimerReturnType::Continue;
+}
+
+// --- mounting ---------------------------------------------------------------
+
+namespace FN7HudMount
+{
+	TSharedPtr<SWidget> GMountWeak;
+	TSharedPtr<SWidget> GMountLive;
+	TArray<TWeakPtr<SWidget>> GHidden;
+
+	void FindByType(const TSharedRef<SWidget>& W, const FName& Type, TArray<TSharedRef<SWidget>>& Out)
+	{
+		if (W->GetType() == Type) Out.Add(W);
+		FChildren* Kids = W->GetChildren();
+		if (!Kids) return;
+		for (int32 i = 0; i < Kids->Num(); ++i) FindByType(Kids->GetChildAt(i), Type, Out);
+	}
+
+	void SetOldHudHidden(bool bHide)
+	{
+		if (!bHide)
+		{
+			for (const TWeakPtr<SWidget>& W : GHidden)
+				if (TSharedPtr<SWidget> P = W.Pin()) P->SetVisibility(EVisibility::SelfHitTestInvisible);
+			GHidden.Reset();
+			return;
+		}
+		UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+		TSharedPtr<SViewport> VP = VC ? VC->GetGameViewportWidget() : nullptr;
+		if (!VP.IsValid()) return;
+		TArray<TSharedRef<SWidget>> Found;
+		FindByType(VP.ToSharedRef(), FName(TEXT("SFNRootWidget")), Found);
+		for (const TSharedRef<SWidget>& W : Found)
+		{
+			W->SetVisibility(EVisibility::Collapsed);
+			GHidden.Add(W);
+		}
+	}
+
+	bool Mount(UFNNetClient* Net)
+	{
+		UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+		if (!VC || !Net) return false;
+		Unmount();
+		GMountLive = SNew(SFNHudLive).Net(Net);
+		GMountWeak = SNew(SWeakWidget).PossiblyNullContent(GMountLive);
+		VC->AddViewportWidgetContent(GMountWeak.ToSharedRef(), 50);
+		SetOldHudHidden(true);
+		return true;
+	}
+
+	void Unmount()
+	{
+		UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+		if (VC && GMountWeak.IsValid()) VC->RemoveViewportWidgetContent(GMountWeak.ToSharedRef());
+		GMountWeak.Reset();
+		GMountLive.Reset();
+		SetOldHudHidden(false);
+	}
+
+	bool IsMounted() { return GMountLive.IsValid(); }
+}
+
+static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
+	TEXT("FN7.Hud"),
+	TEXT("FN7.Hud on | off [connect] [shot] [quit]: the live style-kit HUD over the game (hides the old HUD while on). ")
+	TEXT("connect = start the net client now; shot = save Saved/FN7HudLive_<n>.png every 8 s; quit = exit after 4 shots."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		const bool bOff = Args.Num() > 0 && Args[0].Equals(TEXT("off"), ESearchCase::IgnoreCase);
+		if (bOff) { FN7HudMount::Unmount(); return; }
+		const bool bConnect = Args.Contains(TEXT("connect"));
+		const bool bShot = Args.Contains(TEXT("shot"));
+		const bool bQuit = Args.Contains(TEXT("quit"));
+		TWeakObjectPtr<UWorld> WeakWorld(World);
+		// Wait for the player controller and its net client, then mount (and optionally connect / photograph).
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit](float)
+		{
+			UWorld* W = WeakWorld.Get();
+			AFNPlayerController* PC = W ? Cast<AFNPlayerController>(W->GetFirstPlayerController()) : nullptr;
+			if (!PC || !PC->Net) return true;
+			FN7HudMount::Mount(PC->Net);
+			if (bConnect) PC->Net->Start();
+			if (bShot)
+			{
+				for (int32 i = 1; i <= 4; ++i)
+				{
+					FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudShot"), 8.f * i, [i](float)
+					{
+						FScreenshotRequest::RequestScreenshot(FPaths::Combine(FPaths::ProjectSavedDir(), FString::Printf(TEXT("FN7HudLive_%d.png"), i)), true, false);
+						return false;
+					});
+				}
+				if (bQuit)
+				{
+					FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudQuit"), 36.f, [](float)
+					{
+						FPlatformMisc::RequestExit(false, TEXT("FN7.Hud quit"));
+						return false;
+					});
+				}
+			}
+			return false;
+		});
+	}));
+
+#undef LOCTEXT_NAMESPACE
