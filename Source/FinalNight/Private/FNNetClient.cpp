@@ -42,6 +42,29 @@ namespace FNJson
 }
 using namespace FNJson;
 
+// Never write secrets to the log: tokens and the access key are blanked in every logged frame.
+static FString RedactForLog(FString S)
+{
+	for (const TCHAR* Field : { TEXT("\"resume_token\":\""), TEXT("\"session_token\":\""), TEXT("\"token\":\""), TEXT("\"key\":\"") })
+	{
+		int32 From = 0;
+		while ((From = S.Find(Field, ESearchCase::IgnoreCase, ESearchDir::FromStart, From)) != INDEX_NONE)
+		{
+			const int32 V = From + FCString::Strlen(Field);
+			const int32 End = S.Find(TEXT("\""), ESearchCase::CaseSensitive, ESearchDir::FromStart, V);
+			if (End == INDEX_NONE) break;
+			S = S.Left(V) + TEXT("***") + S.Mid(End);
+			From = V + 3;
+		}
+	}
+	for (const TCHAR* Q : { TEXT("?key="), TEXT("&key=") })
+	{
+		const int32 K = S.Find(Q);
+		if (K != INDEX_NONE) { int32 E = K + 5; while (E < S.Len() && S[E] != '&' && S[E] != '"' && S[E] != ' ') ++E; S = S.Left(K + 5) + TEXT("***") + S.Mid(E); }
+	}
+	return S;
+}
+
 static double EpochMs() { return (FDateTime::UtcNow() - FDateTime(1970, 1, 1)).GetTotalMilliseconds(); }
 
 UWorld* UFNNetClient::GetTimerWorld() const { return GetOuter() ? GetOuter()->GetWorld() : nullptr; }
@@ -152,7 +175,7 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 	const TSharedPtr<FJsonObject>* DPtr = nullptr;
 	TSharedPtr<FJsonObject> D = MakeShared<FJsonObject>();
 	if (Env->TryGetObjectField(TEXT("d"), DPtr) && DPtr && DPtr->IsValid()) D = *DPtr;
-	UE_LOG(LogFNNet, Log, TEXT("<< %s %s"), *T, *Write(D.ToSharedRef()).Left(180));
+	UE_LOG(LogFNNet, Log, TEXT("<< %s %s"), *T, *RedactForLog(Write(D.ToSharedRef())).Left(180));
 
 	// Final Night 7 slow windows: one per room. If you start typing while someone else's window is open you write
 	// into theirs (CLIENT_API.md: "Others may type"); otherwise the next window.opened is the one your begin opened.
@@ -180,7 +203,14 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 		}
 		else
 		{
-			A->SetStringField(TEXT("display_name"), DisplayName.Left(24));
+			// Per-machine name: the first line of Config/FN7DisplayName.txt (not committed) overrides DisplayName.
+			FString Name = DisplayName, Local;
+			if (FFileHelper::LoadFileToString(Local, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DisplayName.txt"))))
+			{
+				TArray<FString> L; Local.ParseIntoArrayLines(L);
+				if (L.Num() && !L[0].TrimStartAndEnd().IsEmpty()) Name = L[0].TrimStartAndEnd();
+			}
+			A->SetStringField(TEXT("display_name"), Name.Left(24));
 			TSharedRef<FJsonObject> C = Obj();
 			C->SetStringField(TEXT("kind"), TEXT("unreal"));
 			C->SetStringField(TEXT("version"), TEXT("0.1"));
@@ -222,11 +252,27 @@ void UFNNetClient::Send(const FString& T, TSharedPtr<FJsonObject> D)
 	Env->SetStringField(TEXT("id"), Id);
 	Env->SetObjectField(TEXT("d"), D);
 	const FString Out = Write(Env);
-	UE_LOG(LogFNNet, Log, TEXT(">> %s"), *Out.Left(200));
+	UE_LOG(LogFNNet, Log, TEXT(">> %s"), *RedactForLog(Out).Left(200));
 	Socket->Send(Out);
 }
 
 void UFNNetClient::QuickJoin() { Send(TEXT("room.quickjoin")); }
+
+void UFNNetClient::JoinRoom(const FString& Code)
+{
+	TSharedRef<FJsonObject> D = Obj();
+	D->SetStringField(TEXT("code"), Code.TrimStartAndEnd().ToUpper());
+	Send(TEXT("room.join"), D);
+}
+
+FString UFNNetClient::ResolveJoinCode() const
+{
+	FString Txt;
+	if (!FFileHelper::LoadFileToString(Txt, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7JoinCode.txt")))) return FString();
+	TArray<FString> Lines;
+	Txt.ParseIntoArrayLines(Lines);
+	return Lines.Num() ? Lines[0].TrimStartAndEnd().ToUpper() : FString();
+}
 
 void UFNNetClient::CreateRoom()
 {
@@ -237,6 +283,12 @@ void UFNNetClient::CreateRoom()
 		S->SetNumberField(TEXT("beats_total"), MatchRounds);
 		S->SetNumberField(TEXT("players"), MatchPlayers);
 		S->SetNumberField(TEXT("flow_ms"), MatchFlowMs);
+		S->SetBoolField(TEXT("llm"), true);
+		// Optional per-machine override: Config/FN7RoomSettings.json (any room settings object, merged on top).
+		FString Json;
+		if (FFileHelper::LoadFileToString(Json, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7RoomSettings.json"))))
+			if (TSharedPtr<FJsonObject> Extra = Read(Json))
+				for (const auto& KV : Extra->Values) S->SetField(KV.Key, KV.Value);
 	}
 	else
 	{

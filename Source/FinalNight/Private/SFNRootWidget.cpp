@@ -485,9 +485,11 @@ void SFNRootWidget::OnWorldClick(FName Id)
 	}
 	else if (Id == AFNStudio::WillPanel && State == EState::InRoom)
 	{
+		if (Net->bFn7 && bJoinedOther) { Status = TEXT("Waiting for the host to start the match"); return; }   // only the host starts
 		Net->SetReady(true);
-		Net->StartMatch();   // we are the host; bots are always ready
-		Status = TEXT("Ready");
+		Net->StartMatch();   // we are the host (FN7 host-waits: this second click is the deliberate start)
+		Status = TEXT("Starting the match...");
+		UE_LOG(LogTemp, Warning, TEXT("FN7 host sent room.start for room %s"), *RoomCode);
 	}
 	else if (Id == AFNStudio::WillPanel && (State == EState::Compose
 		|| (Net->bFn7 && (State == EState::Waiting || State == EState::Resolving || State == EState::Submitted))))
@@ -754,17 +756,33 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		SetState(EState::Connected);
 		Status = TEXT("FINAL NIGHT 7  -  connected to the Theatre as ") + Str(D, TEXT("display_name"));
-		if (St) St->ShowEaselText(TEXT("FINAL NIGHT 7"), TEXT("Connected to Chris's Theatre server.\n\nSetting the table: four demigods on the real Earth. The match starts by itself."));
-		if (Net.IsValid() && RoomCode.IsEmpty()) Net->CreateRoom();
+		UE_LOG(LogTemp, Warning, TEXT("FN7 auth.ok player_id=%s display_name=%s"), *Str(D, TEXT("player_id")), *Str(D, TEXT("display_name")));
+		const FString Join = Net.IsValid() ? Net->ResolveJoinCode() : FString();
+		bJoinedOther = !Join.IsEmpty();
+		if (St) St->ShowEaselText(TEXT("FINAL NIGHT 7"), bJoinedOther
+			? FString::Printf(TEXT("Connected to Chris's Theatre server.\n\nJoining room %s. You are READY; the host starts the match."), *Join)
+			: FString(TEXT("Connected to Chris's Theatre server.\n\nSetting the table: four demigods on the real Earth. The match starts by itself.")));
+		if (Net.IsValid() && RoomCode.IsEmpty()) { if (bJoinedOther) Net->JoinRoom(Join); else Net->CreateRoom(); }
 		return true;
 	}
 	if (T == TEXT("room.snapshot") && Str(D, TEXT("state")) == TEXT("open") && Net.IsValid())
 	{
 		RoomCode = Str(D, TEXT("code"));
 		SetState(EState::InRoom);
-		Status = TEXT("FINAL NIGHT 7  -  room ") + RoomCode;
+		Status = FString::Printf(TEXT("FINAL NIGHT 7  -  room %s%s"), *RoomCode, bJoinedOther ? TEXT("  (joined: waiting for the host to start)") : TEXT(""));
+		FString Seats;
+		if (const TArray<TSharedPtr<FJsonValue>>* S = Arr(D, TEXT("seats")))
+			for (const TSharedPtr<FJsonValue>& V : *S) Seats += FString::Printf(TEXT("[%d %s] "), (int32)Numb(V->AsObject(), TEXT("seat")), *Str(V->AsObject(), TEXT("display_name")));
+		UE_LOG(LogTemp, Warning, TEXT("FN7 room.snapshot code=%s seats=%s"), *RoomCode, *Seats);
 		Net->SetReady(true);
-		Net->StartMatch();   // we are the host; the server's AI plays the other demigods
+		const bool bHostWaits = FPaths::FileExists(FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7HostOnly.txt")));
+		if (!bJoinedOther && bHostWaits)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("FN7 room created code=%s (host waits: click again to start)"), *RoomCode);
+			Status = FString::Printf(TEXT("FINAL NIGHT 7  -  ROOM CODE %s  -  you host: click the table again to START"), *RoomCode);
+			if (St) St->ShowEaselText(FString::Printf(TEXT("ROOM %s"), *RoomCode), FString::Printf(TEXT("Your room is open. Give the code %s to the other players.\n\nWhen everyone has joined, click the table to start the match."), *RoomCode));
+		}
+		else if (!bJoinedOther) Net->StartMatch();   // our own room: we are the host; the server's AI plays the other demigods
 		return true;
 	}
 	if (T == TEXT("phase.changed") && State == EState::Writing)

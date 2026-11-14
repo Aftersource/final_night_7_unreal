@@ -83,3 +83,7 @@ Saved/
 Config/*Key.txt
 Config/*Key*.txt
 Config/*Local*.ini
+
+# Per-machine Final Night 7 client files (room code, host flag, name, settings): never commit
+Config/FN7*.txt
+Config/FN7RoomSettings.json

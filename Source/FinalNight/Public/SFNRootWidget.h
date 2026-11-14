@@ -50,6 +50,7 @@ private:
 	void ApplyFn7Public(const TSharedPtr<FJsonObject>& PublicView);
 	FString Fn7Demigod;   // my ref, e.g. "dg:0"
 	FString Fn7Brief;     // the latest brief text, shown on the easel with the narration
+	bool bJoinedOther = false;   // joined someone else's room (Config/FN7JoinCode.txt): never send room.start
 
 	FReply OnSubmitWill();
 	FReply OnToggleNotification();

@@ -57,6 +57,13 @@ public:
 
 	// requests
 	void QuickJoin();
+	/** Join someone else's room by its 6-letter code (room.join). */
+	void JoinRoom(const FString& Code);
+	/**
+	 * A room code to JOIN instead of creating our own match: the first line of Config/FN7JoinCode.txt
+	 * (read at click time, so no rebuild or restart). Empty = create and start our own match.
+	 */
+	FString ResolveJoinCode() const;
 	void CreateRoom();
 	void SetReady(bool bReady);
 	void StartMatch();
