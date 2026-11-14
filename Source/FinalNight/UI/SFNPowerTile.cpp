@@ -187,11 +187,26 @@ int32 SFNPips::OnPaint(const FPaintArgs&, const FGeometry& G, const FSlateRect&,
 	const float H = G.GetLocalSize().Y;
 	for (int32 i = 0; i < Count; ++i)
 	{
-		const FVector2f C(4.5f + i * 9.f, H * 0.5f);
-		TArray<FVector2f> Ring = FN7Icons::Circle(C.X, C.Y, 2.6f, 12);
-		TArray<FVector2f> RingLip = FN7Icons::Circle(C.X, C.Y + 1.f, 2.6f, 12);
-		FSlateDrawElement::MakeLines(Out, Layer, G.ToPaintGeometry(), RingLip, ESlateDrawEffect::None, Lip, true, 1.6f);
-		FSlateDrawElement::MakeLines(Out, Layer + 1, G.ToPaintGeometry(), Ring, ESlateDrawEffect::None, Tint, true, 2.2f);
+		TArray<FVector2f> Mark;
+		if (Kind == 1)        // a carved bolt
+		{
+			const float X = 1.5f + i * 11.f;
+			Mark = { FVector2f(X + 5.5f, 0.5f), FVector2f(X + 1.5f, H * 0.58f), FVector2f(X + 5.f, H * 0.58f), FVector2f(X + 4.f, H - 0.5f), FVector2f(X + 8.5f, H * 0.38f), FVector2f(X + 5.f, H * 0.38f), FVector2f(X + 5.5f, 0.5f) };
+		}
+		else if (Kind == 2)   // a carved spark: a four-point star
+		{
+			const FVector2f C(5.5f + i * 11.f, H * 0.5f);
+			const float R = H * 0.45f, r = H * 0.14f;
+			Mark = { C + FVector2f(0, -R), C + FVector2f(r, -r), C + FVector2f(R, 0), C + FVector2f(r, r), C + FVector2f(0, R), C + FVector2f(-r, r), C + FVector2f(-R, 0), C + FVector2f(-r, -r), C + FVector2f(0, -R) };
+		}
+		else
+		{
+			Mark = FN7Icons::Circle(4.5f + i * 9.f, H * 0.5f, 2.6f, 12);
+		}
+		TArray<FVector2f> LipPts;
+		for (const FVector2f& P : Mark) LipPts.Add(P + FVector2f(0.f, 1.f));
+		FSlateDrawElement::MakeLines(Out, Layer, G.ToPaintGeometry(), LipPts, ESlateDrawEffect::None, Lip, true, 1.4f);
+		FSlateDrawElement::MakeLines(Out, Layer + 1, G.ToPaintGeometry(), Mark, ESlateDrawEffect::None, Tint, true, Kind ? 1.6f : 2.2f);
 	}
 	return Layer + 1;
 }
@@ -201,6 +216,7 @@ int32 SFNPips::OnPaint(const FPaintArgs&, const FGeometry& G, const FSlateRect&,
 void SFNPowerTile::Construct(const FArguments& InArgs)
 {
 	Slug = InArgs._Slug;
+	Tier = InArgs._Tier;
 	TileSize = InArgs._TileSize;
 	bArmed = InArgs._bArmed;
 	bEnabled = InArgs._bEnabled;
@@ -254,7 +270,7 @@ void SFNPowerTile::Construct(const FArguments& InArgs)
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 					[
-						SNew(SFNPips).Count(Cost).Color_Lambda([this]() { return InkColor(); })
+						SNew(SFNPips).Count(Cost).Kind(Tier == TEXT("mega") ? 1 : (Tier == TEXT("mini") ? 2 : 0)).Color_Lambda([this]() { return InkColor(); })
 					]
 				]
 			]
@@ -294,7 +310,7 @@ FReply SFNPowerTile::OnDragDetected(const FGeometry&, const FPointerEvent& Mouse
 {
 	bPressed = false;
 	if (!bEnabled.Get()) return FReply::Handled();
-	return FReply::Handled().BeginDragDrop(FFNPowerDragDrop::New(Slug, MouseEvent.GetScreenSpacePosition()));
+	return FReply::Handled().BeginDragDrop(FFNPowerDragDrop::New(Slug, MouseEvent.GetScreenSpacePosition(), Tier));
 }
 
 FCursorReply SFNPowerTile::OnCursorQuery(const FGeometry&, const FPointerEvent&) const
@@ -315,7 +331,7 @@ void SFNPowerTile::Tick(const FGeometry& G, const double Now, const float Dt)
 bool SFNPowerTile::IsBeingDragged() const
 {
 	const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();
-	return Op.IsValid() && Op->Power == Slug;
+	return Op.IsValid() && Op->Power == Slug && Op->Tier == Tier;
 }
 
 void SFNPowerTile::OnDragEnter(const FGeometry&, const FDragDropEvent& E)

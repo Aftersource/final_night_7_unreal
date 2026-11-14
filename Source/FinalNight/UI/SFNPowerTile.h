@@ -38,20 +38,23 @@ private:
 class FINALNIGHT_API SFNPips : public SLeafWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SFNPips) : _Count(1) {}
+	SLATE_BEGIN_ARGS(SFNPips) : _Count(1), _Kind(0) {}
 		SLATE_ARGUMENT(int32, Count)
+		/** 0 = round pips, 1 = carved bolts (mega), 2 = carved sparks (mini). */
+		SLATE_ARGUMENT(int32, Kind)
 		SLATE_ATTRIBUTE(FLinearColor, Color)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs) { Count = FMath::Clamp(InArgs._Count, 0, 6); Color = InArgs._Color; }
+	void Construct(const FArguments& InArgs) { Count = FMath::Clamp(InArgs._Count, 0, 6); Kind = InArgs._Kind; Color = InArgs._Color; }
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
 		FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 protected:
-	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(FMath::Max(1, Count) * 9.f, 8.f); }
+	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(FMath::Max(1, Count) * (Kind ? 11.f : 9.f), Kind ? 12.f : 8.f); }
 
 private:
 	int32 Count = 1;
+	int32 Kind = 0;
 	TAttribute<FLinearColor> Color;
 };
 
@@ -74,6 +77,8 @@ public:
 		SLATE_ARGUMENT(FString, Slug)
 		SLATE_ARGUMENT(FText, Name)
 		SLATE_ARGUMENT(int32, Cost)
+		/** "mega", "mini" or empty: the pips show bolts, sparks or plain rings, and the drag carries it. */
+		SLATE_ARGUMENT(FString, Tier)
 		SLATE_ATTRIBUTE(bool, bArmed)
 		SLATE_ATTRIBUTE(bool, bEnabled)
 		SLATE_ARGUMENT(float, TileSize)
@@ -96,6 +101,7 @@ public:
 
 private:
 	FString Slug;
+	FString Tier;
 	float TileSize = 88.f;
 	TAttribute<bool> bArmed;
 	TAttribute<bool> bEnabled;

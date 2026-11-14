@@ -10,10 +10,11 @@ namespace FN7PowerDragState
 	FString LastDropPower;
 }
 
-TSharedRef<FFNPowerDragDrop> FFNPowerDragDrop::New(const FString& InPower, const FVector2D& InScreenPosition)
+TSharedRef<FFNPowerDragDrop> FFNPowerDragDrop::New(const FString& InPower, const FVector2D& InScreenPosition, const FString& InTier)
 {
 	TSharedRef<FFNPowerDragDrop> Op = MakeShared<FFNPowerDragDrop>();
 	Op->Power = InPower;
+	Op->Tier = InTier;
 	Op->ScreenPosition = InScreenPosition;
 	Op->Construct();
 	FN7PowerDragState::Active = Op;
@@ -41,9 +42,9 @@ void FFNPowerDragDrop::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEv
 	FN7PowerDragState::LastDropPosition = Landed;
 	FN7PowerDragState::LastDropTime = FSlateApplication::IsInitialized() ? FSlateApplication::Get().GetCurrentTime() : 0.0;
 	FN7PowerDragState::LastDropPower = Power;
-	FN7PowerDragState::Active.Reset();
 
 	if (!bDropWasHandled) OnDroppedOnWorld().Broadcast(Power, ScreenPosition);
+	FN7PowerDragState::Active.Reset();
 	OnDragEnded().Broadcast(Power);
 	FDragDropOperation::OnDrop(bDropWasHandled, MouseEvent);
 }

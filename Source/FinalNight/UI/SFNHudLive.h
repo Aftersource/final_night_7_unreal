@@ -53,6 +53,8 @@ private:
 		bool bAlive = true;
 		FString PortraitHash;
 		FString PortraitUrl;
+		int32 Bolts = -1;
+		int32 Sparks = -1;
 	};
 	TArray<FSeatInfo> Seats;
 	int32 MySeat = -1;
