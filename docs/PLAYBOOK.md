@@ -1,6 +1,6 @@
 # Final Night 7: the playbook (Chris's backend ↔ Benito's frontend)
 
-> Copy of `Aftersource/final_night_7/docs/PLAYBOOK.md` (the source of truth), kept in sync by the backend session.
+
 Read this whole file before acting, and again after every compaction. It is how the two teams work together.
 
 ## 1. The team
@@ -113,11 +113,38 @@ to the backend. Nobody pushes to another team's repo without an instruction.
 5. **Never:** force-push, rewrite `main`'s history, push tags (tags are the backend's: `playtest-N`), or commit secrets (keys and tokens live in env vars and git-ignored local files).
 6. **Committers:**
    - `final_night_7`: the backend.
-   - `final_night_7_unreal`: the bridge, the Windows builder and the Mac verifier may all commit on `main` under rules 1–2. The backend keeps the history straight and relays hashes.
+   - `final_night_7_unreal` (**changed 2026-11-14: branches, not main**): each owner commits ONLY on its own
+     branch (`benito/<topic>` for the bridge and the Windows builder, `mac/<topic>` for the Mac session), pushes it,
+     and reports `<branch> <hash> <message> <files>`. The backend (merge master) merges into `main` with
+     `[ merge <topic> ]`, builds or checks it, and announces the new `main` hash. Only the backend commits to
+     `main` (docs/PLAYBOOK, shared style refs, merges). Proof screenshots go on the owner's branch under
+     `docs/proof/`.
    - `final_night_7_web`: frozen.
    - `theatre`: the theatre_worker session only.
 7. **This playbook exists in both repos:** `final_night_7/docs/PLAYBOOK.md` (the source) and
    `final_night_7_unreal/docs/PLAYBOOK.md` (a copy). The backend updates both together in one commit each.
+
+**Play 10: who owns which layer.** Each file has exactly one owner. Touching another owner's file needs a request
+to the backend first. Interfaces between layers change only by agreement, announced by the backend.
+
+| Layer | Owner | Files | Interface to the next layer |
+|---|---|---|---|
+| Engine | theatre_worker | `Aftersource/theatre` | PROTOCOL.md, PLUGIN_API.md |
+| Game types | backend | `final_night_7/crates/fn7-model` | serde JSON shapes |
+| Rules, society, balance | backend | `fn7-society`, `fn7-plugin` (beat, flow, casts, merge, settings) | `MECHANICS`, settings |
+| Images and media | backend | `fn7-media`, `fn7-plugin/src/visual.rs`, `data/media_style.json`, `data/style_refs/` | image objects in payloads, `/media/*` |
+| Profiles, items, history | backend | `fn7-profile`, `fn7-model/src/manifest.rs` | `game.items/profile/history/library`, `/api/profiles/*` |
+| Server, hosting, releases | backend | `fn7-server`, `runs/` (local), tags | the public URL, release notes |
+| Client contract | backend | `docs/CLIENT_API.md`, `docs/schemas/` | the single source for every payload |
+| Unreal net and data | Benito's side (`benito/*`) | `FNNetClient.*`, `FNTypes.h` | parsed structs consumed by the HUD and the studio |
+| Unreal HUD screens | Benito's side (`benito/*`) | `SFNRootWidget.*` (layout: lower-left demigod cards, banners, text box, power bar) | uses the style kit |
+| Unreal style kit | Mac session (`mac/*`) | `Source/FinalNight/UI/**` (`FNStyle`, `SFNPanel`, `SFNPortraitCard`, `SFNTextBox`) | its public headers, which change only via the backend |
+| Unreal 3D table and studio | Benito's side (`benito/*`) | `FNStudio*`, `FNPlanet.h`, `FNLandMask.h`, `FNSeatPawn.*`, procedural minifigs | reads net structs |
+| Unreal game flow and config | Benito's side (`benito/*`) | `FNGameMode.*`, `FNPlayerController.*`, `Config/DefaultGame.ini` | |
+| Shared docs | backend | `docs/PLAYBOOK.md`, `docs/style-refs/approved/` | |
+
+Benito's agents never write to `final_night_7` (requests via Play 2). The backend never writes Unreal source; it
+merges, builds and verifies only.
 
 **Play 7: the unexpected.** Anything not covered here: ask the backend first, then act. When in doubt, don't push,
 don't deploy, don't delete.
