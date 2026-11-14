@@ -8,6 +8,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Engine/Texture2D.h"
 #include "FNNetClient.h"
 #include "FNPlayerController.h"
@@ -28,6 +29,7 @@
 #include "FNPowerDrag.h"
 #include "SFNDragToken.h"
 #include "SFNPanelMover.h"
+#include "FNPowerRing.h"
 #include "FNStyle.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
@@ -105,6 +107,14 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SOverlay)
+		// Under everything: the power hexes on the table take a press (lift and drag a hex, click the pouch); any other
+		// click falls through to the game.
+		+ SOverlay::Slot()
+		[
+			SAssignNew(RingInput, SFNPowerRingInput)
+			.OnHexClicked_Lambda([this](const FString& Slug) { OnPower(Slug); })
+			.Visibility_Lambda([this]() { return (bInRoom && !bLobbyOpen && !Model.bViewer) ? EVisibility::Visible : EVisibility::Collapsed; })
+		]
 		+ SOverlay::Slot()
 		[
 			SAssignNew(Layout, SFNHudLayout)
@@ -199,7 +209,9 @@ void SFNHudLive::DebugPreview(bool bLobby, bool bFell, bool bWill)
 		OutReason = TEXT("(preview) Both of your demigods have fallen: the Left Hand to Mara's army at Tashkent, the Right Hand to the flood.");
 		OutNote.Reset();
 	}
+	Model.bPowerPanel = FindStudio() == nullptr;
 	if (Layout.IsValid()) Layout->SetModel(Model);   // the sample seats as they are (Publish would rebuild them from the live list)
+	UpdateRing();
 	if (bWill && Layout.IsValid()) Layout->FocusWill();
 	SetLobbyOpen(bLobby);
 }
@@ -771,8 +783,36 @@ void SFNHudLive::Publish()
 	if (Seats.Num() > 0) Model.AliveOf = Seats.Num();
 	for (FFNHudPower& P : Model.Powers) P.bArmed = P.Key() == ArmedPower;
 	if (UFNNetClient* N = Net.Get()) Model.bViewer = N->bViewer;
+	Model.bPowerPanel = FindStudio() == nullptr;   // the powers live on the table; the HUD rows only without one
 	if (Layout.IsValid()) Layout->SetModel(Model);
+	UpdateRing();
 }
+
+double SFNHudLive::RadiusFor(const FString& Slug, const FString& Tier) const
+{
+	if (const double* R = PowerRadiusKm.Find(Slug + TEXT(":") + Tier)) return *R;
+	if (const double* R = PowerRadiusKm.Find(Slug)) return *R;
+	return 0.0;
+}
+
+void SFNHudLive::UpdateRing()
+{
+	AFNStudio* St = FindStudio();
+	if (!St) return;
+	if (RingInput.IsValid()) RingInput->SetStudio(St);
+	const bool bShow = bInRoom && Model.Powers.Num() > 0 && !Model.bViewer;
+	AFNPowerRing* Ring = AFNPowerRing::Get(St, bShow);
+	if (!Ring) return;
+	// One hex per power (the tier is where it lands), in this machine's saved order.
+	TArray<FString> Slugs;
+	TArray<FText> Names;
+	for (const FFNHudPower& P : Model.Powers)
+		if (!Slugs.Contains(P.Slug)) { Slugs.Add(P.Slug); Names.Add(P.Name); }
+	Ring->SetPowers(Slugs, Names);
+	Ring->SetPurse(Model.Bolts, Model.Sparks);
+	Ring->SetShown(bShow);
+}
+
 
 void SFNHudLive::OnTyping()
 {
@@ -864,26 +904,103 @@ TOptional<FVector2D> SFNHudLive::SnapPowerToBoard(const FString&, const FVector2
 	return Abs;
 }
 
+int32 SFNHudLive::RingTarget(const FVector2D& ScreenPosition, double& OutLat, double& OutLon, FVector& OutWorld, FVector2D& OutPixel) const
+{
+	AFNStudio* St = FindStudio();
+	if (!St || !FN7ViewportPx::AbsToPixel(ScreenPosition, OutPixel) || SFNPanelMover::IsOverAnyPanel(ScreenPosition)) return 0;
+	if (St->GlobePointAtScreen(OutPixel, OutLat, OutLon, OutWorld)) return 2;   // MEGA: over the globe
+	double HexM;
+	if (St->HexAtScreen(OutPixel, OutLat, OutLon, OutWorld, HexM)) return 1;   // MINI: on the board
+	return 0;
+}
+
 void SFNHudLive::OnPowerDragOver(const FString& Power, const FVector2D& ScreenPosition)
 {
 	AFNStudio* St = FindStudio();
 	FVector2D Pixel;
 	if (!St) return;
 	const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();
+	if (Op.IsValid() && Op->bFromRing)
+	{
+		// A hex in the hand: over the globe it is a MEGA (its area ringed on the globe), over the board a MINI.
+		double La = 0.0, Lo = 0.0;
+		FVector World;
+		const int32 Where = RingTarget(ScreenPosition, La, Lo, World, Pixel);
+		St->ShowMegaOnGlobe(Where == 2, La, Lo, RadiusFor(Power, TEXT("mega")));
+		St->ShowAreaOfEffect(Where == 1, Pixel, RadiusFor(Power, TEXT("mini")));
+		if ((Where == 2) != bOverGlobe)
+		{
+			bOverGlobe = Where == 2;
+			FFNPowerDragDrop::OnMegaArmed().Broadcast(bOverGlobe, Power);
+		}
+		if (AFNPowerRing* Ring = AFNPowerRing::Get(St, false))
+		{
+			APlayerController* PC = St->GetWorld() ? St->GetWorld()->GetFirstPlayerController() : nullptr;
+			const float S = (float)St->GetActorScale3D().X;
+			if (Where == 2 && PC && PC->PlayerCameraManager)
+				Ring->MoveLifted(World + (PC->PlayerCameraManager->GetCameraLocation() - World).GetSafeNormal() * 14.f * S);
+			else if (Where == 1)
+				Ring->MoveLifted(World + FVector(0, 0, 9.f * S));
+			else if (PC)
+			{
+				// Anywhere else: hover over the table plane under the cursor.
+				FVector O, D, C;
+				double R;
+				FRotator TR;
+				if (PC->DeprojectScreenPositionToWorld(Pixel.X, Pixel.Y, O, D) && St->GetBoardRim(C, R, TR) && D.Z < -1e-3)
+					Ring->MoveLifted(O + D * ((C.Z + 14.f * S - O.Z) / D.Z));
+			}
+		}
+		return;
+	}
 	const FString Key = (Op.IsValid() && !Op->Tier.IsEmpty()) ? Power + TEXT(":") + Op->Tier : Power;
 	const double* Radius = PowerRadiusKm.Find(Key);
 	const bool bOver = FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) && !SFNPanelMover::IsOverAnyPanel(ScreenPosition);
 	St->ShowAreaOfEffect(bOver, Pixel, Radius ? *Radius : 0.0);
 }
 
-void SFNHudLive::OnPowerDragEnded(const FString&)
+void SFNHudLive::OnPowerDragEnded(const FString& Power)
 {
-	if (AFNStudio* St = FindStudio()) St->ShowAreaOfEffect(false, FVector2D::ZeroVector, 0.0);
+	if (AFNStudio* St = FindStudio())
+	{
+		St->ShowAreaOfEffect(false, FVector2D::ZeroVector, 0.0);
+		St->ShowMegaOnGlobe(false, 0.0, 0.0, 0.0);
+		if (AFNPowerRing* Ring = AFNPowerRing::Get(St, false)) Ring->EndLift();   // the hex flies back to its place
+	}
+	if (bOverGlobe)
+	{
+		bOverGlobe = false;
+		FFNPowerDragDrop::OnMegaArmed().Broadcast(false, Power);
+	}
 }
 
 void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPosition)
 {
 	if (SFNPanelMover::IsOverAnyPanel(ScreenPosition)) return;   // let go over a panel: nothing happens
+	{
+		const TSharedPtr<FFNPowerDragDrop> RingOp = FFNPowerDragDrop::GetActive();   // still set while OnDroppedOnWorld runs
+		if (RingOp.IsValid() && RingOp->bFromRing)
+		{
+			// Where the hex lands decides: over the globe a MEGA (a bolt), on the board a MINI (a spark), else nothing.
+			AFNStudio* RSt = FindStudio();
+			UFNNetClient* RN = Net.Get();
+			double La = 0.0, Lo = 0.0;
+			FVector World;
+			FVector2D Pixel;
+			const int32 Where = RingTarget(ScreenPosition, La, Lo, World, Pixel);
+			if (RN && RSt && Where > 0)
+			{
+				const bool bMega = Where == 2;
+				RN->CastAt(Round, Power, Lo, La, bMega ? TEXT("mega") : TEXT("mini"));
+				RSt->FlashAt(Lo, La);
+				SetArmed(FString());
+				AddNews(bMega ? LOCTEXT("Mega", "MEGA") : LOCTEXT("Mini", "MINI"),
+					FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
+				Publish();
+			}
+			return;
+		}
+	}
 	// Dropped on the board: cast at that hex. Anywhere else (the globe, empty table): arm it, write the target, SEND.
 	AFNStudio* St = FindStudio();
 	UFNNetClient* N = Net.Get();
