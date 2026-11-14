@@ -45,10 +45,19 @@ int32 SFNFoil::OnPaint(const FPaintArgs&, const FGeometry& G, const FSlateRect&,
 	const FWidgetStyle& Style, bool) const
 {
 	const float K = FMath::Clamp(Strength.Get(), 0.f, 2.f) * Style.GetColorAndOpacityTint().A;
-	if (K <= 0.f) return Layer;
 	const FVector2f Size = FVector2f(G.GetLocalSize());
 	if (Size.X < 4.f || Size.Y < 4.f) return Layer;
 	const float T = (float)((FSlateApplication::IsInitialized() ? FSlateApplication::Get().GetCurrentTime() : 0.0) - StartTime);
+	if (K <= 0.f)
+	{
+		// No sheen; the gold edge still breathes while time is slowed for you.
+		if (bHot.Get())
+		{
+			const float Pulse = 0.55f + 0.45f * FMath::Sin(T * 5.f);
+			FSlateDrawElement::MakeBox(Out, Layer, G.ToPaintGeometry(), FN7FoilGen::GoldEdge(CornerRadius), ESlateDrawEffect::None, FLinearColor(1.f, 1.f, 1.f, Pulse));
+		}
+		return Layer;
+	}
 
 	// The mouse, in local space, as 0..1 (the sheen leans toward it; outside the widget it just drifts).
 	FVector2f Mouse(0.5f, 0.5f);

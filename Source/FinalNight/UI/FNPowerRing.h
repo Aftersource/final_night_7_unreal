@@ -43,6 +43,7 @@ public:
 	int32 HexAtPixel(const FVector2D& Pixel) const;   // -1 = none
 	bool PouchAtPixel(const FVector2D& Pixel) const;
 	bool HexPixel(int32 Index, FVector2D& OutPixel) const;
+	bool PouchPixel(FVector2D& OutPixel) const;
 
 	int32 Num() const { return Hexes.Num(); }
 	FString SlugOf(int32 Index) const { return Hexes.IsValidIndex(Index) ? Hexes[Index].Slug : FString(); }
@@ -52,7 +53,9 @@ public:
 	bool IsOpen() const { return bOpen; }
 
 	void SetHover(int32 Index) { Hover = Index; }
-	void TogglePouch() { bOpen = !bOpen; }
+	/** Open: the pouch puffs and the hexes burst out onto their places; closed: they fly back into its mouth. */
+	void TogglePouch();
+	void SetPouchHover(bool bHover) { bPouchHover = bHover; }
 	void BeginLift(int32 Index);
 	/** Where the lifted hex should hover (a world point), or follow nothing (stay where it is). */
 	void MoveLifted(const FVector& WorldPoint);
@@ -70,6 +73,7 @@ private:
 		FVector Pos = FVector::ZeroVector;     // current, world
 		FQuat Rot = FQuat::Identity;
 		float Out = 0.f;                       // 0 in the pouch .. 1 on its place
+		float Wait = 0.f;                      // stagger before it moves after the pouch is clicked
 		float Lift = 0.f;
 		float Spin = 0.f;
 		FVector SpinAxis = FVector::UpVector;
@@ -81,12 +85,18 @@ private:
 	UPROPERTY() TObjectPtr<UMaterialInterface> BaseMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> ImageMat;
 	USceneComponent* Pouch = nullptr;
+	USceneComponent* PouchBody = nullptr;       // squashes and stretches
 	UTextRenderComponent* PouchCount = nullptr;
 	TArray<UStaticMeshComponent*> PouchParts;
+	TArray<UStaticMeshComponent*> Motes;        // twinkling around the pouch
+	TArray<UStaticMeshComponent*> Spray;        // the burst's spray
+	TArray<FVector> SprayVel;
+	class UPointLightComponent* PouchGlow = nullptr;
+	float BurstT = -1.f;                        // seconds since the last click (-1 = none)
+	bool bPouchHover = false;
 
 	bool bShown = true;
-	bool bOpen = true;
-	float OpenT = 0.f;
+	bool bOpen = false;                         // the hexes start in the pouch
 	int32 Hover = -1;
 	int32 Lifted = -1;
 	FVector LiftTarget = FVector::ZeroVector;
@@ -142,6 +152,7 @@ private:
 	FOnFNRingHexClicked OnHexClicked;
 	int32 Pressed = -1;
 	int32 HoverHex = -1;
+	bool bHoverPouch = false;
 	AFNPowerRing* Ring() const;
 	bool ToPixel(const FGeometry& G, const FVector2D& Screen, FVector2D& OutPixel) const;
 };
