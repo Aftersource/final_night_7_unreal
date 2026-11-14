@@ -13,6 +13,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "InputCoreTypes.h"
 #include "Misc/FileHelper.h"
@@ -237,10 +238,20 @@ void AFNStudio::UpdateTable(float Dt)
 			const FVector2D Delta = FVector2D(MX, MY) - DragLast;
 			DragLast = FVector2D(MX, MY);
 			DragMoved += Delta.Size();
-			if (DragMoved > 6.f)
+			if (DragMoved > 6.f && PC->PlayerCameraManager && GlobeMesh)
 			{
-				BoardRoot->AddWorldRotation(FQuat(FVector(0, 0, 1), FMath::DegreesToRadians(Delta.X * 0.35f)));
-				BoardRoot->AddWorldRotation(FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(-Delta.Y * 0.35f)));
+				// grab-the-surface: the point under the cursor follows the mouse (right = right, down = down), from any camera angle
+				const FRotator CamRot = PC->PlayerCameraManager->GetCameraRotation();
+				const FVector CamR = FRotationMatrix(CamRot).GetScaledAxis(EAxis::Y), CamU = FRotationMatrix(CamRot).GetScaledAxis(EAxis::Z);
+				const FVector Front = -CamRot.Vector();   // the globe's face toward you
+				// radians per pixel = 1 / (globe radius on screen in pixels), so the surface stays under the cursor
+				const FVector C = GlobeMesh->Bounds.Origin;
+				FVector2D S0, S1;
+				float RadPerPx = FMath::DegreesToRadians(0.2f);
+				if (PC->ProjectWorldLocationToScreen(C, S0) && PC->ProjectWorldLocationToScreen(C + CamU * GlobeMesh->Bounds.SphereRadius, S1) && FVector2D::Distance(S0, S1) > 20.f)
+					RadPerPx = 1.f / FVector2D::Distance(S0, S1);
+				BoardRoot->AddWorldRotation(FQuat(FVector::CrossProduct(Front, CamR).GetSafeNormal(), Delta.X * RadPerPx));
+				BoardRoot->AddWorldRotation(FQuat(FVector::CrossProduct(Front, -CamU).GetSafeNormal(), Delta.Y * RadPerPx));
 				ManualUntil = Time + 12.f;
 			}
 		}
