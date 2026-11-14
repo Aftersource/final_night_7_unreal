@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Widgets/SLeafWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Input/DragAndDrop.h"
 #include "FNPowerRing.generated.h"
 
 class AFNStudio;
@@ -127,6 +128,22 @@ private:
 
 DECLARE_DELEGATE_OneParam(FOnFNRingHexClicked, const FString& /*Slug*/);
 
+/** Dragging one of YOUR demigods (its diorama box or its board piece) to summon it somewhere. */
+class FINALNIGHT_API FFNSummonDragDrop : public FDragDropOperation
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FFNSummonDragDrop, FDragDropOperation)
+	FString Ref;
+	FVector2D ScreenPosition = FVector2D::ZeroVector;
+	static TSharedRef<FFNSummonDragDrop> New(const FString& InRef, const FVector2D& InScreen);
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override { return nullptr; }
+	virtual void OnDragged(const FDragDropEvent& DragDropEvent) override;
+	virtual void OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent) override;
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSummonAt, const FString& /*Ref*/, const FVector2D& /*ScreenPosition*/);
+	static FOnSummonAt& OnOver();
+	static FOnSummonAt& OnDropped();
+};
+
 /**
  * A transparent, full-viewport input layer under the HUD panels: a press on a ring hex starts the power drag (the hex
  * lifts), a click arms it, a click on the pouch opens or closes it; anything else falls through to the game. Over a
@@ -142,6 +159,8 @@ public:
 
 	void Construct(const FArguments& InArgs);
 	void SetStudio(AFNStudio* InStudio) { Studio = InStudio; }
+	/** Which demigod refs are yours (only those can be picked up and summoned). */
+	void SetIsMine(TFunction<bool(const FString&)> InIsMine) { IsMine = MoveTemp(InIsMine); }
 
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
 		FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -161,6 +180,9 @@ private:
 	int32 Pressed = -1;
 	int32 HoverHex = -1;
 	bool bHoverPouch = false;
+	FString PressedRef;          // one of your demigods, pressed
+	bool bHoverMine = false;
+	TFunction<bool(const FString&)> IsMine;
 	AFNPowerRing* Ring() const;
 	bool ToPixel(const FGeometry& G, const FVector2D& Screen, FVector2D& OutPixel) const;
 };

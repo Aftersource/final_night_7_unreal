@@ -610,6 +610,7 @@ void AFNStudio::UpdateTable(float Dt)
 		Projector->SetIntensity(7.f);
 		Projector->SetLightColor(FLinearColor(0.75f, 0.92f, 1.f));
 		Projector->SetAttenuationRadius(600.f);
+		Projector->SetCastShadows(false);   // perf: only the BoardKey spot casts shadows (see AFNStudio::Light)
 		Projector->RegisterComponent();
 		// floats over the left of the table, facing the chair (it used to lie on the table, under the HUD's bottom-left box)
 		TableInfo = Text(TEXT("TableInfo"), FVector(-105.f, 60.f, 140.f), FRotator(0.f, 62.f, 0.f), 3.8f, FColor(170, 230, 255), FString());

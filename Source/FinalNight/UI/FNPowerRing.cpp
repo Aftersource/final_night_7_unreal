@@ -15,6 +15,7 @@
 #include "FNPowerDrag.h"
 #include "FNStudio.h"
 #include "FNStyle.h"
+#include "FNTableGods.h"
 #include "GameFramework/PlayerController.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Rendering/DrawElements.h"
@@ -620,6 +621,34 @@ UTexture2D* AFNPowerRing::IconTexture(const FString& Slug)
 	return Tex;
 }
 
+// --- summon drag -------------------------------------------------------------------
+
+TSharedRef<FFNSummonDragDrop> FFNSummonDragDrop::New(const FString& InRef, const FVector2D& InScreen)
+{
+	TSharedRef<FFNSummonDragDrop> Op = MakeShared<FFNSummonDragDrop>();
+	Op->Ref = InRef;
+	Op->ScreenPosition = InScreen;
+	Op->Construct();
+	return Op;
+}
+
+void FFNSummonDragDrop::OnDragged(const FDragDropEvent& E)
+{
+	ScreenPosition = E.GetScreenSpacePosition();
+	OnOver().Broadcast(Ref, ScreenPosition);
+	FDragDropOperation::OnDragged(E);
+}
+
+void FFNSummonDragDrop::OnDrop(bool bDropWasHandled, const FPointerEvent& E)
+{
+	ScreenPosition = E.GetScreenSpacePosition();
+	OnDropped().Broadcast(Ref, ScreenPosition);
+	FDragDropOperation::OnDrop(bDropWasHandled, E);
+}
+
+FFNSummonDragDrop::FOnSummonAt& FFNSummonDragDrop::OnOver() { static FOnSummonAt D; return D; }
+FFNSummonDragDrop::FOnSummonAt& FFNSummonDragDrop::OnDropped() { static FOnSummonAt D; return D; }
+
 // --- input -----------------------------------------------------------------------
 
 void SFNPowerRingInput::Construct(const FArguments& InArgs)
@@ -649,20 +678,37 @@ FReply SFNPowerRingInput::OnMouseButtonDown(const FGeometry& G, const FPointerEv
 	if (E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
 	AFNPowerRing* R = Ring();
 	FVector2D Px;
-	if (!R || !R->IsShown() || !ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
+	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
+	if (!R || !R->IsShown())
+	{
+		const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
+		if (!Ref.IsEmpty() && IsMine && IsMine(Ref)) { PressedRef = Ref; return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton); }
+		return FReply::Unhandled();
+	}
 	if (R->PouchAtPixel(Px))
 	{
 		R->TogglePouch();
 		return FReply::Handled();
 	}
 	const int32 Hit = R->HexAtPixel(Px);
-	if (Hit < 0) return FReply::Unhandled();   // not ours: the game gets the click
-	Pressed = Hit;
-	return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+	if (Hit >= 0)
+	{
+		Pressed = Hit;
+		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+	}
+	// One of your demigods (its diorama box or board piece): press and drag to summon it.
+	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
+	if (!Ref.IsEmpty() && IsMine && IsMine(Ref))
+	{
+		PressedRef = Ref;
+		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+	}
+	return FReply::Unhandled();   // not ours: the game gets the click
 }
 
 FReply SFNPowerRingInput::OnMouseButtonUp(const FGeometry&, const FPointerEvent& E)
 {
+	if (!PressedRef.IsEmpty() && E.GetEffectingButton() == EKeys::LeftMouseButton) { PressedRef.Reset(); return FReply::Handled(); }
 	if (Pressed < 0 || E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
 	AFNPowerRing* R = Ring();
 	const FString Slug = R ? R->SlugOf(Pressed) : FString();
@@ -673,6 +719,13 @@ FReply SFNPowerRingInput::OnMouseButtonUp(const FGeometry&, const FPointerEvent&
 
 FReply SFNPowerRingInput::OnDragDetected(const FGeometry&, const FPointerEvent& E)
 {
+	if (!PressedRef.IsEmpty())
+	{
+		const FString Ref = PressedRef;
+		PressedRef.Reset();
+		if (AFNTableGods* T = AFNTableGods::GetAny(Studio.IsValid() ? Studio->GetWorld() : nullptr)) T->SetFigureHeld(Ref, true);
+		return FReply::Handled().BeginDragDrop(FFNSummonDragDrop::New(Ref, E.GetScreenSpacePosition()));
+	}
 	AFNPowerRing* R = Ring();
 	if (Pressed < 0 || !R) return FReply::Unhandled();
 	const TSharedRef<FFNPowerDragDrop> Op = FFNPowerDragDrop::New(R->SlugOf(Pressed), E.GetScreenSpacePosition(), FString());
@@ -691,6 +744,12 @@ FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E
 	const bool bCan = R && R->IsShown() && ToPixel(G, E.GetScreenSpacePosition(), Px) && !FFNPowerDragDrop::GetActive().IsValid();
 	bHoverPouch = bCan && R->PouchAtPixel(Px);
 	HoverHex = (bCan && !bHoverPouch) ? R->HexAtPixel(Px) : -1;
+	bHoverMine = false;
+	if (bCan && !bHoverPouch && HoverHex < 0 && IsMine)
+	{
+		const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
+		bHoverMine = !Ref.IsEmpty() && IsMine(Ref);
+	}
 	if (R) { R->SetHover(HoverHex); R->SetPouchHover(bHoverPouch); }
 	if (Was != HoverHex || bWasPouch != bHoverPouch) Invalidate(EInvalidateWidgetReason::Paint);
 	return FReply::Unhandled();
@@ -705,7 +764,7 @@ void SFNPowerRingInput::OnMouseLeave(const FPointerEvent&)
 
 FCursorReply SFNPowerRingInput::OnCursorQuery(const FGeometry&, const FPointerEvent&) const
 {
-	if (HoverHex >= 0) return FCursorReply::Cursor(EMouseCursor::GrabHand);
+	if (HoverHex >= 0 || bHoverMine) return FCursorReply::Cursor(EMouseCursor::GrabHand);
 	return bHoverPouch ? FCursorReply::Cursor(EMouseCursor::Hand) : FCursorReply::Unhandled();
 }
 

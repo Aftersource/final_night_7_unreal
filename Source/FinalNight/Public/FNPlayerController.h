@@ -27,4 +27,5 @@ private:
 	TSharedPtr<class SWidget> RootContainer;
 	FRotator BaseRot;
 	FRotator Lean = FRotator::ZeroRotator;
+	FRotator LeanVel = FRotator::ZeroRotator;   // the head turn's velocity (a critically damped follow, see PlayerTick)
 };

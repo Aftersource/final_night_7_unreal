@@ -172,6 +172,13 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	DragOverHandle = FFNPowerDragDrop::OnDragOverWorld().AddSP(this, &SFNHudLive::OnPowerDragOver);
 	DragEndHandle = FFNPowerDragDrop::OnDragEnded().AddSP(this, &SFNHudLive::OnPowerDragEnded);
 	FFNPowerDragDrop::SnapToBoard().BindSP(this, &SFNHudLive::SnapPowerToBoard);
+	SummonOverHandle = FFNSummonDragDrop::OnOver().AddSP(this, &SFNHudLive::OnSummonOver);
+	SummonDropHandle = FFNSummonDragDrop::OnDropped().AddSP(this, &SFNHudLive::OnSummonDropped);
+	if (RingInput.IsValid())
+	{
+		TWeakPtr<SFNHudLive> WeakSelf = StaticCastSharedRef<SFNHudLive>(AsShared());
+		RingInput->SetIsMine([WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() && Self->IsMyDemigod(Ref); });
+	}
 	RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLive::TickTimer));
 
 	if (FSlateApplication::IsInitialized())
@@ -364,6 +371,8 @@ SFNHudLive::~SFNHudLive()
 	FFNPowerDragDrop::OnDragOverWorld().Remove(DragOverHandle);
 	FFNPowerDragDrop::OnDragEnded().Remove(DragEndHandle);
 	FFNPowerDragDrop::SnapToBoard().Unbind();
+	FFNSummonDragDrop::OnOver().Remove(SummonOverHandle);
+	FFNSummonDragDrop::OnDropped().Remove(SummonDropHandle);
 	if (LobbyKeys.IsValid() && FSlateApplication::IsInitialized()) FSlateApplication::Get().UnregisterInputPreProcessor(LobbyKeys);
 }
 
@@ -953,6 +962,7 @@ void SFNHudLive::PreviewTable()
 		T->SetGods(Gods, 0);
 		T->SetShown(true);
 	}
+	PreviewMine = { TEXT("dg:0"), TEXT("dg:1") };
 }
 
 UTexture2D* SFNHudLive::MediaTexture(const FString& Hash, bool bGrey)
@@ -1143,6 +1153,48 @@ TOptional<FVector2D> SFNHudLive::SnapPowerToBoard(const FString&, const FVector2
 	return Abs;
 }
 
+bool SFNHudLive::IsMyDemigod(const FString& Ref) const
+{
+	if (PreviewMine.Contains(Ref)) return true;
+	for (const FSeatInfo& S : Seats) if (S.Ref == Ref) return S.Seat >= 0 && S.Seat == MySeat;
+	return false;
+}
+
+void SFNHudLive::OnSummonOver(const FString& Ref, const FVector2D& ScreenPosition)
+{
+	AFNStudio* St = FindStudio();
+	if (!St) return;
+	double La = 0.0, Lo = 0.0;
+	FVector World;
+	FVector2D Pixel;
+	const int32 Where = RingTarget(ScreenPosition, La, Lo, World, Pixel);
+	St->ShowAreaOfEffect(Where == 1, Pixel, 0.0);           // the gold target hex on the board
+	St->ShowMegaOnGlobe(Where == 2, La, Lo, 300.0);          // a small ring on the globe
+}
+
+void SFNHudLive::OnSummonDropped(const FString& Ref, const FVector2D& ScreenPosition)
+{
+	AFNStudio* St = FindStudio();
+	UFNNetClient* N = Net.Get();
+	if (!St) return;
+	double La = 0.0, Lo = 0.0;
+	FVector World;
+	FVector2D Pixel;
+	const int32 Where = RingTarget(ScreenPosition, La, Lo, World, Pixel);
+	St->ShowAreaOfEffect(false, FVector2D::ZeroVector, 0.0);
+	St->ShowMegaOnGlobe(false, 0.0, 0.0, 0.0);
+	AFNTableGods* T = AFNTableGods::GetAny(St->GetWorld());
+	if (T) T->SetFigureHeld(Ref, false);
+	if (Where == 0) return;   // let go anywhere else: it goes back
+	if (N) N->Summon(Round, Ref, Lo, La);
+	if (T) T->SetLocalPos(Ref, La, Lo);
+	FString Name = Ref;
+	for (const FSeatInfo& S : Seats) if (S.Ref == Ref && !S.Name.IsEmpty()) Name = S.Name;
+	for (const FFNHudDemigod& D : Model.Mine) if (Name == Ref && !D.Name.IsEmpty() && ((Ref.EndsWith(TEXT("0")) && D.Side != TEXT("right")) || (Ref.EndsWith(TEXT("1")) && D.Side == TEXT("right")))) Name = D.Name.ToString();
+	AddNews(LOCTEXT("Summon", "SUMMON"), FString::Printf(TEXT("%s summoned to %.2f%s %.2f%s (sent)"), *Name, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
+	Publish();
+}
+
 int32 SFNHudLive::RingTarget(const FVector2D& ScreenPosition, double& OutLat, double& OutLon, FVector& OutWorld, FVector2D& OutPixel) const
 {
 	AFNStudio* St = FindStudio();
@@ -1293,6 +1345,20 @@ FText SFNHudLive::GetTimer() const
 
 EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 {
+	// Every 10 s, the real frame rate into the log ("FN7 fps"), so a PIE session's speed can be read afterwards.
+	{
+		static uint64 FpsFrame = 0;
+		static double FpsTime = 0.0;
+		const double Now = FPlatformTime::Seconds();
+		if (FpsTime <= 0.0) { FpsTime = Now; FpsFrame = GFrameCounter; }
+		else if (Now - FpsTime >= 10.0)
+		{
+			const double Fps = (double)(GFrameCounter - FpsFrame) / (Now - FpsTime);
+			UE_LOG(LogTemp, Display, TEXT("FN7 fps %.1f (%.1f ms/frame)"), Fps, Fps > 0.0 ? 1000.0 / Fps : 0.0);
+			FpsTime = Now;
+			FpsFrame = GFrameCounter;
+		}
+	}
 	// TAKE ANOTHER DEMIGOD unanswered for a few seconds: say when the next chance comes.
 	if (bOut && bTakeAsked && FPlatformTime::Seconds() - TakeAskedAt > 6.0)
 	{
@@ -1411,9 +1477,10 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 		const bool bPreview = Args.Contains(TEXT("preview"));
 		const bool bPour = Args.Contains(TEXT("pour"));
 		const bool bMega = Args.Contains(TEXT("mega"));
+		const bool bSummon = Args.Contains(TEXT("summon"));
 		TWeakObjectPtr<UWorld> WeakWorld(World);
 		// Wait for the player controller and its net client, then mount (and optionally connect / photograph).
-		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview, bPour, bMega](float)
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview, bPour, bMega, bSummon](float)
 		{
 			UWorld* W = WeakWorld.Get();
 			AFNPlayerController* PC = W ? Cast<AFNPlayerController>(W->GetFirstPlayerController()) : nullptr;
@@ -1421,6 +1488,21 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 			FN7HudMount::Mount(PC->Net);
 			if (bConnect) PC->Net->Start();
 			if (bLobby || bFell || bWill || bPreview) FN7HudMount::Preview(bLobby, bFell, bWill);
+			if (bSummon)
+			{
+				// Test: your Left Hand held (lifted, glowing) from just before the second shot, and summoned across the board.
+				TWeakObjectPtr<AFNPlayerController> WeakPC(PC);
+				FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudSummon"), 15.2f, [WeakPC](float)
+				{
+					AFNPlayerController* P = WeakPC.Get();
+					if (AFNTableGods* T = P ? AFNTableGods::GetAny(P->GetWorld()) : nullptr)
+					{
+						T->SetFigureHeld(TEXT("dg:0"), true);
+						T->SetLocalPos(TEXT("dg:0"), 45.6, 11.8);
+					}
+					return false;
+				});
+			}
 			if (bMega)
 			{
 				// Test: a mega in hand from just before the second shot (the fault lines fade in), with its ring on the globe.

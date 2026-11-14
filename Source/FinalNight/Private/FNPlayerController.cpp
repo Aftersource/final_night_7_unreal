@@ -76,7 +76,23 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 		const float NY = FMath::Clamp(MY / SY * 2.f - 1.f, -1.f, 1.f);
 		// a gentle lean only: at the old 7/12 degrees a click near the screen edge swung the whole view
 		const FRotator Target(-NY * 2.5f, NX * 4.f, 0.f);
-		Lean = FMath::RInterpTo(Lean, Root->IsTyping() ? FRotator::ZeroRotator : Target, DeltaTime, 3.f);
+		// Chris asked for a gentle motion, like a slow pan slowed by about 8x. A critically damped follow (Unity's SmoothDamp): it starts
+		// moving the moment the pointer moves, eases in and out, never snaps, and doesn't depend on the frame rate (the
+		// old RInterpTo(3) took 60% of the remaining angle per frame at 5 fps: late, then a lurch). ~1.6 s smooth time.
+		auto Damp = [](double Cur, double Goal, double& Vel, double SmoothTime, double Dt)
+		{
+			const double Omega = 2.0 / FMath::Max(SmoothTime, 1e-4);
+			const double X = Omega * Dt;
+			const double E = 1.0 / (1.0 + X + 0.48 * X * X + 0.235 * X * X * X);
+			const double Change = Cur - Goal;
+			const double Temp = (Vel + Omega * Change) * Dt;
+			Vel = (Vel - Omega * Temp) * E;
+			return Goal + (Change + Temp) * E;
+		};
+		const FRotator Goal = Root->IsTyping() ? FRotator::ZeroRotator : Target;
+		const double SmoothTime = 1.6;
+		Lean.Pitch = Damp(Lean.Pitch, Goal.Pitch, LeanVel.Pitch, SmoothTime, DeltaTime);
+		Lean.Yaw = Damp(Lean.Yaw, Goal.Yaw, LeanVel.Yaw, SmoothTime, DeltaTime);
 	}
 	SetControlRotation(BaseRot + Lean + Studio->GetShake());
 

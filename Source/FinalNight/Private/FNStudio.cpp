@@ -130,6 +130,10 @@ UPointLightComponent* AFNStudio::Light(const FName& Name, const FVector& Loc, fl
 	L->SetIntensity(Intensity);
 	L->SetLightColor(Color);
 	L->SetAttenuationRadius(Radius);
+	// Perf (Mac session, approved by the backend while Benito's side was away): only the BoardKey spot casts
+	// shadows. Every shadowed point light re-rendered the whole terraced board (thousands of tree/rock/peak
+	// instances) into six cube faces each frame: about a third of the frame time.
+	L->SetCastShadows(false);
 	L->RegisterComponent();
 	return L;
 }
@@ -147,6 +151,7 @@ void AFNStudio::Spot(const FName& Name, const FVector& Loc, const FRotator& Rot,
 	L->SetAttenuationRadius(1500.f);
 	L->SetOuterConeAngle(28.f);
 	L->SetInnerConeAngle(12.f);
+	L->SetCastShadows(Name == FName(TEXT("BoardKey")));   // the one key light keeps its shadows (see Light())
 	L->RegisterComponent();
 }
 

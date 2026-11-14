@@ -46,6 +46,12 @@ private:
 	TSharedPtr<class SFNPowerRingInput> RingInput;
 	bool bOverGlobe = false;
 	void UpdateRing();
+	// Summoning your demigods: drag its diorama box or board piece onto the board or the globe.
+	FDelegateHandle SummonOverHandle, SummonDropHandle;
+	TSet<FString> PreviewMine;
+	bool IsMyDemigod(const FString& Ref) const;
+	void OnSummonOver(const FString& Ref, const FVector2D& ScreenPosition);
+	void OnSummonDropped(const FString& Ref, const FVector2D& ScreenPosition);
 	/** Where a ring hex would land: over the globe (mega), on a board hex (mini), or neither; and the point to hover it at. */
 	int32 RingTarget(const FVector2D& ScreenPosition, double& OutLat, double& OutLon, FVector& OutWorld, FVector2D& OutPixel) const;
 	TSharedPtr<SFNHudLayout> Layout;

@@ -144,6 +144,8 @@ public:
 	void SetFigureHeld(const FString& Ref, bool bHeld);
 	/** The table's gods in this world, if any. */
 	static AFNTableGods* GetAny(UWorld* World);
+	/** Show a demigod's board piece at a new point right away (a summon sent, before the server's next state). */
+	void SetLocalPos(const FString& Ref, double Lat, double Lon);
 
 private:
 	TWeakObjectPtr<AFNStudio> Studio;
