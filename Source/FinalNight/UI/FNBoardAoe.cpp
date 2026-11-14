@@ -242,3 +242,14 @@ void AFNStudio::ShowMegaOnGlobe(bool bShow, double Lat, double Lon, double Radiu
 		}
 	}
 }
+
+void AFNStudio::HideWillBlock()
+{
+	if (const TObjectPtr<UStaticMeshComponent>* WP = Interactables.Find(WillPanel))
+		if (UStaticMeshComponent* C = WP->Get())
+		{
+			C->SetVisibility(false);
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	if (WillLabel) WillLabel->SetVisibility(false);
+}

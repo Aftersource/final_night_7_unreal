@@ -98,6 +98,8 @@ public:
 	bool BoardPointFor(double Lat, double Lon, FVector& OutWorld) const;
 	bool GetBoardRim(FVector& OutCenter, double& OutRadiusWorld, FRotator& OutTableRot) const;
 	void HideClassicSeats();
+	/** The kit's WILL scroll replaces the table's 3D WILL bar: hide it (and keep it from catching clicks). */
+	void HideWillBlock();
 	/** The point on the floating GLOBE under a viewport pixel (lat/lon on the globe, and the world point), or false;
 	 *  and a ring on the globe around a lat/lon at a radius in km (a MEGA power's area while it hovers over the globe). */
 	bool GlobePointAtScreen(const FVector2D& ViewportPixel, double& OutLat, double& OutLon, FVector& OutWorld) const;
