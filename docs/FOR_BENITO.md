@@ -29,7 +29,7 @@ Written 14 Nov, late afternoon EST, while you slept. The build is due **15 Nov, 
 - **Summon** (drag your demigod anywhere), **god-tier powers** (one per god), **fault lines** for mega powers.
 - **Accounts:** guests now, Google sign-in later, and each player can write their two demigods' personalities. The
   player's words are kept exactly unless they break the content rules.
-- **Meshy:** Chris shared his key with your side. The mannequin, its five skins and 35 fight clips came from it.
+- **Meshy:** Chris shared her key with your side (it is not saved on your PC yet: your machine blocked the write, so that is your call). The mannequin, its five skins and 35 fight clips came from it.
   1,126 credits are left. Nothing is spent without you or Chris saying so.
 
 ## 3. Being built right now
