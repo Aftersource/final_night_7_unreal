@@ -679,12 +679,7 @@ FReply SFNPowerRingInput::OnMouseButtonDown(const FGeometry& G, const FPointerEv
 	AFNPowerRing* R = Ring();
 	FVector2D Px;
 	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
-	if (!R || !R->IsShown())
-	{
-		const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
-		if (!Ref.IsEmpty() && IsMine && IsMine(Ref)) { PressedRef = Ref; return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton); }
-		return FReply::Unhandled();
-	}
+	if (!R || !R->IsShown()) return PressFigure(Px);
 	if (R->PouchAtPixel(Px))
 	{
 		R->TogglePouch();
@@ -696,14 +691,23 @@ FReply SFNPowerRingInput::OnMouseButtonDown(const FGeometry& G, const FPointerEv
 		Pressed = Hit;
 		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
 	}
-	// One of your demigods (its diorama box or board piece): press and drag to summon it.
+	return PressFigure(Px);
+}
+
+FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
+{
+	// A demigod's diorama box or board piece: yours and standing = press and drag to summon; otherwise say why.
 	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
-	if (!Ref.IsEmpty() && IsMine && IsMine(Ref))
+	const FString Why = Ref.IsEmpty() ? FString() : (WhyNot ? WhyNot(Ref) : (IsMine && IsMine(Ref) ? FString() : FString(TEXT("not yours"))));
+	UE_LOG(LogTemp, Display, TEXT("FN7 summon press: figure=%s %s"), Ref.IsEmpty() ? TEXT("none") : *Ref, Ref.IsEmpty() ? TEXT("") : (Why.IsEmpty() ? TEXT("-> drag") : *(TEXT("-> ") + Why)));
+	if (Ref.IsEmpty()) return FReply::Unhandled();   // not a demigod: the game gets the click
+	if (!Why.IsEmpty())
 	{
-		PressedRef = Ref;
-		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+		if (Toast) Toast(Why);
+		return FReply::Handled();
 	}
-	return FReply::Unhandled();   // not ours: the game gets the click
+	PressedRef = Ref;
+	return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
 }
 
 FReply SFNPowerRingInput::OnMouseButtonUp(const FGeometry&, const FPointerEvent& E)

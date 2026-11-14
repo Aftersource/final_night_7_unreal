@@ -27,6 +27,7 @@ struct FFNHudSeat
 /** One of YOUR two demigods (rules 0.7.0: a Left and a Right hand, each with its own health). */
 struct FFNHudDemigod
 {
+	FString Ref;             // "dg:N": drag the card to summon it
 	FText Name;
 	FString Side;            // "left" or "right"
 	int32 Health = 10;
@@ -96,6 +97,8 @@ DECLARE_DELEGATE_OneParam(FOnFNHudPower, const FString& /*Slug*/);
 DECLARE_DELEGATE(FOnFNHudTakeSeat);
 DECLARE_DELEGATE(FOnFNHudLobby);
 DECLARE_DELEGATE(FOnFNHudResetView);
+/** A drag started on one of your demigod cards: return the drag operation (or null when it can't be summoned). */
+DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<class FDragDropOperation>, FOnFNHudCardDrag, const FString& /*Ref*/, const FVector2D& /*Screen*/);
 
 /**
  * The FN7 HUD, screen map v2: four corners around a completely clear centre (the hex board and the globe).
@@ -120,6 +123,8 @@ public:
 		SLATE_EVENT(FOnFNHudLobby, OnLobby)
 		/** RESET VIEW in the header (R / Home do the same). */
 		SLATE_EVENT(FOnFNHudResetView, OnResetView)
+		/** Dragging one of your two demigod cards summons it. */
+		SLATE_EVENT(FOnFNHudCardDrag, OnCardDrag)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -145,6 +150,7 @@ private:
 	FOnFNHudTakeSeat OnTakeSeat;
 	FOnFNHudLobby OnLobby;
 	FOnFNHudResetView OnResetView;
+	FOnFNHudCardDrag OnCardDrag;
 	bool bTypingSignalled = false;
 
 	TSharedPtr<SBox> HeaderHolder, NewsHolder, YouHolder, PowersHolder;
