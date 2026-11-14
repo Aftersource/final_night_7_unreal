@@ -148,7 +148,7 @@ void AFNStudio::Spot(const FName& Name, const FVector& Loc, const FRotator& Rot,
 	L->SetIntensityUnits(ELightUnits::Candelas);
 	L->SetIntensity(Intensity);
 	L->SetLightColor(Color);
-	L->SetAttenuationRadius(1500.f);
+	L->SetAttenuationRadius(900.f);   // perf: 9 m reaches the table and the globe from every spot's mount (was 15 m)
 	L->SetOuterConeAngle(28.f);
 	L->SetInnerConeAngle(12.f);
 	L->SetCastShadows(Name == FName(TEXT("BoardKey")));   // the one key light keeps its shadows (see Light())
@@ -274,7 +274,8 @@ void AFNStudio::BeginPlay()
 		const FVector P(215.f * FMath::Cos(A), 215.f * FMath::Sin(A) - 10.f, 0.f);
 		Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("Candle%d"), i)), P + FVector(0, 0, 92), FVector(0.06f, 0.06f, 0.3f), FNTable::Wax);
 		Shape(TEXT("/Engine/BasicShapes/Sphere.Sphere"), FName(*FString::Printf(TEXT("Flame%d"), i)), P + FVector(0, 0, 110), FVector(0.03f, 0.03f, 0.05f), FLinearColor(1.f, 0.6f, 0.15f))->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Candles.Add(Light(FName(*FString::Printf(TEXT("CandleLight%d"), i)), P + FVector(0, 0, 118), 3.f, FLinearColor(1.f, 0.62f, 0.3f), 420.f));
+		// Perf: a 2 m pool of warm light on the rim, not the whole table (each covered the full screen at 4.2 m).
+		Candles.Add(Light(FName(*FString::Printf(TEXT("CandleLight%d"), i)), P + FVector(0, 0, 118), 3.f, FLinearColor(1.f, 0.62f, 0.3f), 200.f));
 	}
 	Light(TEXT("Moon"), FVector(-200, 200, 650), 4.f, FLinearColor(0.45f, 0.5f, 0.9f), 1600.f);
 	Spot(TEXT("TabletLight"), FVector(0, 100, 420), FRotator(-35, -90, 0), 10.f, FLinearColor(0.8f, 0.9f, 1.f));
