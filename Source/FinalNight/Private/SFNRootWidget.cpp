@@ -755,14 +755,23 @@ void SFNRootWidget::ApplyFn7View(const TSharedPtr<FJsonObject>& View)
 	if (!Me.IsEmpty()) Fn7Demigod = Me;
 	const TSharedPtr<FJsonObject> You = Sub(View, TEXT("you"));
 	if (You.IsValid()) Health = FMath::RoundToInt(Numb(You, TEXT("health"), Health));
-	bool bAliveNow = true; View->TryGetBoolField(TEXT("alive"), bAliveNow);
+	bool bAliveNow = true;
+	const bool bSaysAlive = View->TryGetBoolField(TEXT("alive"), bAliveNow);
 	if (!bAliveNow && !bEliminated)
 	{
 		bEliminated = true;
 		Health = 0;
 		FallPlace = FMath::Max(2, Alive + 1);
-		AddBanner(TEXT("You have fallen. You keep watching the night as a spectator."), UiRed);
+		// Rules 0.9.0: a wiped player is not out mid-match (no seat.eliminated): they can still plead for a revive.
+		AddBanner(TEXT("You have fallen. Plead for your return in a will, or watch the night."), UiRed);
 		SetState(EState::Spectating);
+	}
+	else if (bSaysAlive && bAliveNow && bEliminated && Net.IsValid() && Net->bFn7)
+	{
+		// Raised (demigod.raised): back in play from the same view.
+		bEliminated = false;
+		AddBanner(TEXT("You are raised! Back in the night."), UiGold);
+		SetState(EState::Waiting);
 	}
 	double Lon = 0.0, Lat = 0.0;
 	if (You.IsValid() && LonLat(You, TEXT("pos"), Lon, Lat))
