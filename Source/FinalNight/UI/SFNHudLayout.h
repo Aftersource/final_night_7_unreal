@@ -17,6 +17,8 @@ struct FFNHudSeat
 	EFNSeatRole Role = EFNSeatRole::AI;
 	bool bIsYou = false;
 	bool bHoldsTime = false;
+	int32 Bolts = -1;        // public counts; -1 = not sent
+	int32 Sparks = -1;
 	UTexture2D* PortraitTexture = nullptr;
 	TArray<uint8> PortraitPng;
 };
@@ -35,6 +37,9 @@ struct FFNHudPower
 	FText Name;
 	int32 Cost = 1;
 	bool bArmed = false;
+	FString Tier;            // "mega" (bolts, map scale), "mini" (sparks, the board) or "" (a server without tiers)
+	double RadiusKm = 0.0;
+	FString Key() const { return Tier.IsEmpty() ? Slug : Slug + TEXT(":") + Tier; }
 };
 
 /** Everything the HUD layout draws; SFNHudLive fills it from the payloads. */
@@ -49,6 +54,7 @@ struct FFNHudModel
 	int32 Health = 10;
 	int32 MaxHealth = 10;
 	int32 Bolts = 0;
+	int32 Sparks = -1;       // -1 = the server sends no sparks yet
 	FText Place;            // "Vienna, Western Europe"
 	FText ArenaLine;        // "Time's circle: 8637 km around Kinshasa"
 	FText PowersNote;       // "every bolt you spend gives each rival +2"

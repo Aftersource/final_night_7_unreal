@@ -25,12 +25,16 @@ public:
 	/** The server's power slug. */
 	FString Power;
 
+	/** "mega" (a bolt, map scale), "mini" (a spark, the board), or empty on a server without tiers. */
+	FString Tier;
+
 	/** The latest screen-space cursor position of this drag. */
 	FVector2D ScreenPosition = FVector2D::ZeroVector;
 
-	static TSharedRef<FFNPowerDragDrop> New(const FString& InPower, const FVector2D& InScreenPosition);
+	static TSharedRef<FFNPowerDragDrop> New(const FString& InPower, const FVector2D& InScreenPosition, const FString& InTier = FString());
 
-	/** The drag in progress, if any (the style kit's token layer draws it). */
+	/** The drag in progress, if any (the style kit's token layer draws it). Still set while OnDroppedOnWorld runs, so a
+	 *  listener can read its Tier. */
 	static TSharedPtr<FFNPowerDragDrop> GetActive();
 
 	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override { return nullptr; }

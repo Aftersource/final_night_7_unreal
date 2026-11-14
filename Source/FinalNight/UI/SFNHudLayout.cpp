@@ -172,14 +172,14 @@ FString SFNHudLayout::MakeSeatsSignature() const
 {
 	FString S;
 	for (const FFNHudSeat& Seat : Model.Seats)
-		S += FString::Printf(TEXT("%s|%d|%d|%d|%p|%d;"), *Seat.Name.ToString(), (int32)Seat.Role, Seat.bIsYou ? 1 : 0, Seat.bHoldsTime ? 1 : 0, Seat.PortraitTexture, Seat.PortraitPng.Num());
+		S += FString::Printf(TEXT("%s|%d|%d|%d|%p|%d|%d|%d;"), *Seat.Name.ToString(), (int32)Seat.Role, Seat.bIsYou ? 1 : 0, Seat.bHoldsTime ? 1 : 0, Seat.PortraitTexture, Seat.PortraitPng.Num(), Seat.Bolts, Seat.Sparks);
 	return S;
 }
 
 FString SFNHudLayout::MakePowersSignature() const
 {
 	FString S;
-	for (const FFNHudPower& P : OrderedPowers()) S += FString::Printf(TEXT("%s|%d;"), *P.Slug, P.Cost);
+	for (const FFNHudPower& P : OrderedPowers()) S += FString::Printf(TEXT("%s|%d;"), *P.Key(), P.Cost);
 	return S;
 }
 
@@ -198,7 +198,7 @@ TArray<FFNHudPower> SFNHudLayout::OrderedPowers() const
 void SFNHudLayout::ReorderPower(const FString& Dragged, const FString& Before)
 {
 	TArray<FString> Slugs;
-	for (const FFNHudPower& P : OrderedPowers()) Slugs.Add(P.Slug);
+	for (const FFNHudPower& P : OrderedPowers()) Slugs.AddUnique(P.Slug);
 	if (!Slugs.Contains(Dragged) || !Slugs.Contains(Before)) return;
 	Slugs.Remove(Dragged);
 	Slugs.Insert(Dragged, Slugs.IndexOfByKey(Before));
@@ -326,6 +326,13 @@ TSharedRef<SWidget> SFNHudLayout::MakeYou()
 					[
 						Chip(Brush::PillAccent(), FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), HudInk)
 					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::XS, 0.f, 0.f, 0.f)
+					[
+						SNew(SBox).Visibility(Model.Sparks >= 0 ? EVisibility::Visible : EVisibility::Collapsed)
+						[
+							Chip(Brush::Pill(EFNSeatRole::AI), FText::Format(LOCTEXT("Sparks", "{0} SPARKS"), FMath::Max(0, Model.Sparks)), Color::AIAura())
+						]
+					]
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
 				[
@@ -361,14 +368,31 @@ TSharedRef<SWidget> SFNHudLayout::MakeSeats()
 	for (const FFNHudSeat& S : Model.Seats)
 	{
 		TSharedPtr<SFNPortraitCard> Card;
+		// Under each card: its public bolts and sparks, as carved marks and numbers.
+		TSharedRef<SHorizontalBox> Counts = SNew(SHorizontalBox).Visibility(S.Bolts >= 0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
+		Counts->AddSlot().AutoWidth().VAlign(VAlign_Center)[SNew(SFNPips).Count(1).Kind(1).Color(Color::HumanAura())];
+		Counts->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(2.f, 0.f, Space::S, 0.f)[SNew(STextBlock).TextStyle(&Type::Label()).Text(FText::AsNumber(FMath::Max(0, S.Bolts)))];
+		if (S.Sparks >= 0)
+		{
+			Counts->AddSlot().AutoWidth().VAlign(VAlign_Center)[SNew(SFNPips).Count(1).Kind(2).Color(Color::AIAura())];
+			Counts->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(2.f, 0.f, 0.f, 0.f)[SNew(STextBlock).TextStyle(&Type::Label()).Text(FText::AsNumber(S.Sparks))];
+		}
 		Row->AddSlot().AutoWidth().Padding(0.f, Space::M, Space::S, 0.f)
 		[
-			SAssignNew(Card, SFNPortraitCard)
-			.Name(S.Name)
-			.Role(S.Role)
-			.bIsYou(S.bIsYou)
-			.bShowHourglass(S.bHoldsTime)
-			.CardWidth(Model.Seats.Num() > 5 ? 92.f : 112.f)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SAssignNew(Card, SFNPortraitCard)
+				.Name(S.Name)
+				.Role(S.Role)
+				.bIsYou(S.bIsYou)
+				.bShowHourglass(S.bHoldsTime)
+				.CardWidth(Model.Seats.Num() > 5 ? 92.f : 112.f)
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, Space::XS, 0.f, 0.f)
+			[
+				Counts
+			]
 		];
 		if (S.PortraitTexture) Card->SetTexture(S.PortraitTexture);
 		else if (S.PortraitPng.Num() > 0) Card->SetImageFromPng(S.PortraitPng);
@@ -381,25 +405,64 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 {
 	using namespace FN7Style;
 	using namespace FN7HudParts;
-	TSharedRef<SWrapBox> Powers = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(Space::S, Space::S));
-	for (const FFNHudPower& P : OrderedPowers())
+	const TArray<FFNHudPower> All = OrderedPowers();
+	bool bTiers = false;
+	for (const FFNHudPower& P : All) bTiers |= !P.Tier.IsEmpty();
+
+	auto Row = [this, &All](const FString& Tier) -> TSharedRef<SWrapBox>
 	{
-		const FString Slug = P.Slug;
-		const int32 Cost = P.Cost;
-		Powers->AddSlot()
+		TSharedRef<SWrapBox> Wrap = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(Space::S, Space::S));
+		for (const FFNHudPower& P : All)
+		{
+			if (P.Tier != Tier) continue;
+			const FString Slug = P.Slug, Key = P.Key();
+			const int32 Cost = P.Cost;
+			Wrap->AddSlot()
+			[
+				SNew(SFNPowerTile)
+				.Slug(Slug)
+				.Tier(Tier)
+				.Name(P.Name)
+				.Cost(Cost)
+				.bArmed_Lambda([this, Key]() { for (const FFNHudPower& Q : Model.Powers) if (Q.Key() == Key) return Q.bArmed; return false; })
+				.bEnabled_Lambda([this, Cost, Tier]()
+				{
+					if (Tier == TEXT("mini")) return Model.Sparks < 0 || Model.Sparks >= Cost;
+					return Model.Bolts >= Cost;
+				})
+				.TileSize(Tier == TEXT("mini") ? 84.f : 96.f)
+				.OnClicked_Lambda([this, Key]() { OnPower.ExecuteIfBound(Key); })
+				.OnReorder_Lambda([this, Slug](const FString& Dragged) { ReorderPower(Dragged, Slug); })
+			];
+		}
+		return Wrap;
+	};
+
+	if (!bTiers) return Row(FString());
+
+	auto Label = [](const FText& Title, const FText& Note)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(10, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(Title)
+			]
+			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).TextStyle(&Type::Small()).Font(Type::Font(10, TEXT("Italic"))).ColorAndOpacity(FN7Wood::Ink() * FLinearColor(1.f, 1.f, 1.f, 0.7f)).Text(Note)
+			];
+	};
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, Space::XS)
 		[
-			SNew(SFNPowerTile)
-			.Slug(Slug)
-			.Name(P.Name)
-			.Cost(P.Cost)
-			.bArmed_Lambda([this, Slug]() { for (const FFNHudPower& Q : Model.Powers) if (Q.Slug == Slug) return Q.bArmed; return false; })
-			.bEnabled_Lambda([this, Cost]() { return Model.Bolts >= Cost; })
-			.TileSize(96.f)
-			.OnClicked_Lambda([this, Slug]() { OnPower.ExecuteIfBound(Slug); })
-			.OnReorder_Lambda([this, Slug](const FString& Dragged) { ReorderPower(Dragged, Slug); })
-		];
-	}
-	return Powers;
+			Label(LOCTEXT("Mega", "MEGA"), LOCTEXT("MegaNote", "a bolt each: the whole map, a huge area; every other god gains a bolt"))
+		]
+		+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("mega"))]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, Space::XS)
+		[
+			Label(LOCTEXT("Mini", "MINI"), LOCTEXT("MiniNote", "a spark each: aimed on the board"))
+		]
+		+ SVerticalBox::Slot().AutoHeight()[Row(TEXT("mini"))];
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
@@ -532,10 +595,11 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.YouName = FText::FromString(TEXT("Chris"));
 	M.Health = 10;
 	M.MaxHealth = 10;
-	M.Bolts = 3;
+	M.Bolts = 1;
+	M.Sparks = 5;
 	M.Place = FText::FromString(TEXT("Vienna, Western Europe"));
 	M.ArenaLine = FText::FromString(TEXT("Time's circle: 8637 km around Kinshasa. Stay inside."));
-	M.PowersNote = FText::FromString(TEXT("3 bolts  -  click to arm, or drag a block onto the globe. Every bolt you spend gives each rival +2."));
+	M.PowersNote = FText::FromString(TEXT("Drag a block onto the board to cast it there, or arm it and write its target."));
 	M.ComposeHint = FText::FromString(TEXT("Write what you'll do today. Time slows while you write..."));
 	M.Timer = FText::FromString(TEXT("0:05"));
 
@@ -553,6 +617,8 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.Seats.Add(Seat(TEXT("Oko"), EFNSeatRole::AI, false, true, TEXT("docs/style-refs/approved/event_maxzoom.png")));
 	M.Seats.Add(Seat(TEXT("Mara"), EFNSeatRole::AI, false, false, TEXT("docs/style-refs/approved/diorama_maxzoom.png")));
 	M.Seats.Add(Seat(TEXT("Cortes"), EFNSeatRole::Fallen, false, false, nullptr));
+	const int32 SeatBolts[] = { 1, 3, 2, 0 }, SeatSparks[] = { 5, 4, 2, 0 };
+	for (int32 i = 0; i < M.Seats.Num() && i < 4; ++i) { M.Seats[i].Bolts = SeatBolts[i]; M.Seats[i].Sparks = SeatSparks[i]; }
 
 	auto News = [](const TCHAR* Tag, const TCHAR* Text) { FFNHudNews N; N.Tag = FText::FromString(Tag); N.Text = FText::FromString(Text); return N; };
 	M.News.Add(News(TEXT("BEAT 7"), TEXT("Oko slowed time and the crowds went wild. Tashkent's army pulled back.")));
@@ -560,7 +626,14 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.News.Add(News(TEXT("BEAT 7"), TEXT("The displaced doomsayers of Tashkent take up arms for Mara: 3289 volunteers.")));
 	M.News.Add(News(TEXT("BEAT 6"), TEXT("The Dar es Salaam bread riot breaks open the city's granaries: stores fall to 59%.")));
 
-	auto Power = [](const TCHAR* Slug, const TCHAR* Name, int32 Cost, bool bArmed) { FFNHudPower P; P.Slug = Slug; P.Name = FText::FromString(Name); P.Cost = Cost; P.bArmed = bArmed; return P; };
+	// The powers contract: every power in both tiers, a bolt (mega) or a spark (mini) each.
+	auto Power = [&M](const TCHAR* Slug, const TCHAR* Name, int32, bool bArmed)
+	{
+		FFNHudPower Mega; Mega.Slug = Slug; Mega.Name = FText::FromString(Name); Mega.Cost = 1; Mega.Tier = TEXT("mega"); Mega.bArmed = bArmed;
+		FFNHudPower Mini = Mega; Mini.Tier = TEXT("mini"); Mini.bArmed = false;
+		M.Powers.Add(Mega);
+		return Mini;
+	};
 	M.Powers.Add(Power(TEXT("lightning"), TEXT("Lightning bolt"), 1, true));
 	M.Powers.Add(Power(TEXT("storm_clouds"), TEXT("Storm clouds"), 1, false));
 	M.Powers.Add(Power(TEXT("volcano"), TEXT("Volcano"), 3, false));

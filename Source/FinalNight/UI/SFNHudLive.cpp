@@ -300,6 +300,7 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 	{
 		Model.Health = FMath::Clamp(FMath::RoundToInt(FN7HudJson::Num(You, TEXT("health"), Model.Health)), 0, Model.MaxHealth);
 		Model.Bolts = (int32)FN7HudJson::Num(You, TEXT("bolts"), Model.Bolts);
+		if (FN7HudJson::Has(You, TEXT("sparks"))) Model.Sparks = (int32)FN7HudJson::Num(You, TEXT("sparks"), 0.0);
 	}
 	Model.PowersNote = FText::Format(LOCTEXT("PowersNoteBolts", "{0} bolts  -  arm a power, write its target (place, name or lon,lat), SEND. Every bolt you spend gives each rival +2."), Model.Bolts);
 }
@@ -319,6 +320,8 @@ void SFNHudLive::ReadDemigods(const TSharedPtr<FJsonObject>& PV)
 		bool bAlive = true;
 		if (G.IsValid()) G->TryGetBoolField(TEXT("alive"), bAlive);
 		S.bAlive = bAlive;
+		if (FN7HudJson::Has(G, TEXT("bolts"))) S.Bolts = (int32)FN7HudJson::Num(G, TEXT("bolts"), 0.0);
+		if (FN7HudJson::Has(G, TEXT("sparks"))) S.Sparks = (int32)FN7HudJson::Num(G, TEXT("sparks"), 0.0);
 		if (const TSharedPtr<FJsonObject> Img = FN7HudJson::Obj(G, TEXT("portrait_image")))
 		{
 			S.PortraitHash = FN7HudJson::Str(Img, TEXT("hash"));
@@ -343,18 +346,37 @@ void SFNHudLive::ReadEntropy(const TSharedPtr<FJsonObject>& E)
 
 void SFNHudLive::ReadPowers(const TArray<TSharedPtr<FJsonValue>>& Powers)
 {
+	// The powers contract: every power has a mega tier (a bolt, map scale) and a mini tier (a spark, the board),
+	// each { radius_km, magnitude, cost }. A server without tiers sends cost and radius_km on the power itself.
 	Model.Powers.Reset();
 	for (const TSharedPtr<FJsonValue>& V : Powers)
 	{
 		const TSharedPtr<FJsonObject> P = V->AsObject();
 		const FString Slug = FN7HudJson::Str(P, TEXT("slug"));
 		if (Slug.IsEmpty() || Slug == TEXT("custom")) continue;
-		FFNHudPower Out;
-		Out.Slug = Slug;
-		Out.Name = FText::FromString(FN7HudJson::Str(P, TEXT("name")));
-		Out.Cost = (int32)FN7HudJson::Num(P, TEXT("cost"), 1);
-		PowerRadiusKm.Add(Slug, FN7HudJson::Num(P, TEXT("radius_km"), 0.0));
-		Model.Powers.Add(Out);
+		const FText Name = FText::FromString(FN7HudJson::Str(P, TEXT("name")));
+		const TSharedPtr<FJsonObject> Mega = FN7HudJson::Obj(P, TEXT("mega"));
+		const TSharedPtr<FJsonObject> Mini = FN7HudJson::Obj(P, TEXT("mini"));
+		auto Add = [&](const FString& Tier, const TSharedPtr<FJsonObject>& From)
+		{
+			FFNHudPower Out;
+			Out.Slug = Slug;
+			Out.Name = Name;
+			Out.Tier = Tier;
+			Out.Cost = (int32)FN7HudJson::Num(From, TEXT("cost"), 1);
+			Out.RadiusKm = FN7HudJson::Num(From, TEXT("radius_km"), 0.0);
+			PowerRadiusKm.Add(Out.Key(), Out.RadiusKm);
+			Model.Powers.Add(Out);
+		};
+		if (Mega.IsValid() || Mini.IsValid())
+		{
+			if (Mega.IsValid()) Add(TEXT("mega"), Mega);
+			if (Mini.IsValid()) Add(TEXT("mini"), Mini);
+		}
+		else
+		{
+			Add(FString(), P);
+		}
 	}
 }
 
@@ -429,10 +451,12 @@ void SFNHudLive::Publish()
 		Out.Role = !S.bAlive ? EFNSeatRole::Fallen : (S.Seat >= 0 ? EFNSeatRole::Human : EFNSeatRole::AI);
 		Out.bIsYou = S.Seat >= 0 && S.Seat == MySeat;
 		Out.bHoldsTime = S.Seat >= 0 && S.Seat == WindowSeat;
+		Out.Bolts = S.Bolts;
+		Out.Sparks = S.Sparks;
 		if (const TStrongObjectPtr<UTexture2D>* Tex = Portraits.Find(S.PortraitHash)) Out.PortraitTexture = Tex->Get();
 		Model.Seats.Add(Out);
 	}
-	for (FFNHudPower& P : Model.Powers) P.bArmed = P.Slug == ArmedPower;
+	for (FFNHudPower& P : Model.Powers) P.bArmed = P.Key() == ArmedPower;
 	if (UFNNetClient* N = Net.Get()) Model.bViewer = N->bViewer;
 	if (Layout.IsValid()) Layout->SetModel(Model);
 }
@@ -449,7 +473,11 @@ void SFNHudLive::OnSend(const FString& Text)
 	if (!N) return;
 	if (!ArmedPower.IsEmpty())
 	{
-		N->CastPower(Round, ArmedPower, Text);
+		// ArmedPower is "slug" or "slug:tier"; the cast call carries no tier yet (UFNNetClient needs a Tier argument).
+		FString ArmedSlug = ArmedPower, ArmedTier;
+		ArmedPower.Split(TEXT(":"), &ArmedSlug, &ArmedTier);
+		if (ArmedSlug.IsEmpty()) ArmedSlug = ArmedPower;
+		N->CastPower(Round, ArmedSlug, Text);
 		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %s"), *ArmedPower, *Text));
 		ArmedPower.Reset();
 		Publish();
@@ -528,7 +556,9 @@ void SFNHudLive::OnPowerDragOver(const FString& Power, const FVector2D& ScreenPo
 	AFNStudio* St = FindStudio();
 	FVector2D Pixel;
 	if (!St) return;
-	const double* Radius = PowerRadiusKm.Find(Power);
+	const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();
+	const FString Key = (Op.IsValid() && !Op->Tier.IsEmpty()) ? Power + TEXT(":") + Op->Tier : Power;
+	const double* Radius = PowerRadiusKm.Find(Key);
 	const bool bOver = FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) && !SFNPanelMover::IsOverAnyPanel(ScreenPosition);
 	St->ShowAreaOfEffect(bOver, Pixel, Radius ? *Radius : 0.0);
 }
