@@ -4,6 +4,8 @@
 #include "Containers/Ticker.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SFNFoil.h"
+#include "FNMedia.h"
+#include "Engine/Texture2D.h"
 #include "Styling/CoreStyle.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -181,7 +183,7 @@ FString SFNHudLayout::MakeYouSignature() const
 	FString S = FString::Printf(TEXT("%s|%d|%d|%d|%d|%.1f|%s|%s|%s|%d;"), *Model.YouName.ToString(), Model.Health, Model.MaxHealth, Model.Bolts, Model.Sparks,
 		Model.Debt, *Model.Place.ToString(), *Model.ArenaLine.ToString(), *Model.YourAura.ToFColor(true).ToHex(), Model.bViewer ? 1 : 0);
 	for (const FFNHudDemigod& D : Model.Mine)
-		S += FString::Printf(TEXT("%s|%s|%d|%d|%d|%p|%d;"), *D.Name.ToString(), *D.Side, D.Health, D.MaxHealth, D.bAlive ? 1 : 0, D.PortraitTexture, D.PortraitPng.Num());
+		S += FString::Printf(TEXT("%s|%s|%d|%d|%d|%p|%d|%p|%d;"), *D.Name.ToString(), *D.Side, D.Health, D.MaxHealth, D.bAlive ? 1 : 0, D.PortraitTexture, D.PortraitPng.Num(), D.InsetTexture, D.InsetPng.Num());
 	return S;
 }
 
@@ -352,11 +354,29 @@ const FSlateBrush* SFNHudLayout::AuraFrame()
 	return B.Get();
 }
 
+const FSlateBrush* SFNHudLayout::InsetBrush(const FFNHudDemigod& D)
+{
+	UTexture2D* Tex = D.InsetTexture;
+	if (!Tex && D.InsetPng.Num() > 0)
+		if ((Tex = FN7Media::TextureFromPng(D.InsetPng)) != nullptr) InsetKeep.Add(TStrongObjectPtr<UTexture2D>(Tex));
+	if (!Tex) return nullptr;
+	TSharedPtr<FSlateBrush>& B = InsetBrushes.FindOrAdd(Tex);
+	if (!B.IsValid())
+	{
+		B = MakeShared<FSlateBrush>();
+		B->SetResourceObject(Tex);
+		B->ImageSize = FVector2D(54.f, 54.f);
+		B->DrawAs = ESlateBrushDrawType::RoundedBox;
+		B->OutlineSettings = FSlateBrushOutlineSettings(6.f, FSlateColor(Model.YourAura), 1.5f);
+	}
+	return B.Get();
+}
+
 TSharedRef<SWidget> SFNHudLayout::MakeMine()
 {
 	using namespace FN7Style;
 	using namespace FN7HudParts;
-	const float CardW = 140.f;
+	const float CardW = 166.f;   // about 220 px tall with the name: the diorama has room
 	const FLinearColor Aura = Model.YourAura;
 	TSharedRef<SHorizontalBox> Pair = SNew(SHorizontalBox);
 	for (int32 i = 0; i < Model.Mine.Num() && i < 2; ++i)
@@ -401,6 +421,15 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 				+ SOverlay::Slot()
 				[
 					SNew(SBorder).BorderImage(AuraFrame()).Padding(3.f)[CardW_]
+				]
+				// The portrait, small, when the diorama leads.
+				+ SOverlay::Slot().HAlign(bRight ? HAlign_Left : HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(bRight ? 10.f : 0.f, 10.f, bRight ? 0.f : 10.f, 0.f))
+				[
+					SNew(SBox).WidthOverride(54.f).HeightOverride(54.f)
+					.Visibility(InsetBrush(D) ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
+					[
+						SNew(SImage).Image(InsetBrush(D))
+					]
 				]
 				// The L / R notch.
 				+ SOverlay::Slot().HAlign(bRight ? HAlign_Right : HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(bRight ? 0.f : 8.f, 8.f, bRight ? 8.f : 0.f, 0.f))
@@ -818,7 +847,7 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.Seats.Add(Seat(TEXT("Mara"), EFNSeatRole::AI, false, false, TEXT("docs/style-refs/approved/diorama_maxzoom.png")));
 	M.Seats.Add(Seat(TEXT("Cortes"), EFNSeatRole::Fallen, false, false, nullptr));
 	// Rules 0.7.0: your two demigods, each with its own health.
-	auto Hand = [](const TCHAR* Name, const TCHAR* Side, int32 Health, const TCHAR* Png)
+	auto Hand = [](const TCHAR* Name, const TCHAR* Side, int32 Health, const TCHAR* Diorama, const TCHAR* Portrait)
 	{
 		FFNHudDemigod D;
 		D.Name = FText::FromString(Name);
@@ -826,11 +855,12 @@ FFNHudModel SFNHudLayout::SampleModel()
 		D.Health = Health;
 		D.MaxHealth = 10;
 		D.bAlive = Health > 0;
-		if (Png) FFileHelper::LoadFileToArray(D.PortraitPng, *FPaths::Combine(FPaths::ProjectDir(), Png));
+		if (Diorama) FFileHelper::LoadFileToArray(D.PortraitPng, *FPaths::Combine(FPaths::ProjectDir(), Diorama));
+		if (Portrait) FFileHelper::LoadFileToArray(D.InsetPng, *FPaths::Combine(FPaths::ProjectDir(), Portrait));
 		return D;
 	};
-	M.Mine.Add(Hand(TEXT("Chris's Left Hand"), TEXT("left"), 10, TEXT("docs/style-refs/approved/player_portrait.png")));
-	M.Mine.Add(Hand(TEXT("Chris's Right Hand"), TEXT("right"), 6, TEXT("docs/style-refs/approved/diorama_maxzoom.png")));
+	M.Mine.Add(Hand(TEXT("Chris's Left Hand"), TEXT("left"), 10, TEXT("docs/style-refs/approved/diorama_maxzoom.png"), TEXT("docs/style-refs/approved/player_portrait.png")));
+	M.Mine.Add(Hand(TEXT("Chris's Right Hand"), TEXT("right"), 6, TEXT("docs/style-refs/approved/event_maxzoom.png"), TEXT("docs/style-refs/approved/player_portrait.png")));
 	M.YourAura = FLinearColor::FromSRGBColor(FColor(0xE6, 0x9F, 0x00));
 	M.Debt = 1.2;
 	M.AliveOf = 8;
