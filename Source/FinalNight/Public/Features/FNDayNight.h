@@ -6,13 +6,14 @@
 
 class AFNStudio;
 class ULightComponent;
+class UPostProcessComponent;
 class FJsonObject;
 
 /**
  * Benito's feature 6: day and night on the board (rules 0.8.0 `time_of_day` {day, phase, light 0..1, beat_in_day,
  * beats_per_day}). Tints the studio's own board lights (BoardKey = the sun, Moon, TabletLight) by phase and light:
  * a warm dawn, a white day, an orange dusk, a cool blue night with the moon up. It changes only colour and intensity
- * (never shadows), easing over ~2 s. It leaves alone the lights the studio animates every frame (globe, candles, flashes).
+ * (never shadows), easing over ~2 s, plus a gentle whole-view grade (cooler, darker, less saturated at night). It leaves alone the lights the studio animates every frame (globe, candles, flashes).
  */
 UCLASS()
 class FINALNIGHT_API AFNDayNight : public AActor
@@ -35,6 +36,8 @@ private:
 	struct FLamp { TWeakObjectPtr<ULightComponent> Comp; float BaseIntensity = 0.f; FLinearColor BaseColor = FLinearColor::White; int32 Role = 0; };
 	TArray<FLamp> Lamps;
 	TWeakObjectPtr<AFNStudio> Studio;
+	/** A whole-view colour grade (unbound post-process): the night reads even where the board is lit by lights we don't own. */
+	UPROPERTY() TObjectPtr<UPostProcessComponent> Grade;
 	float Mix = 1.f;          // 0 = the previous look, 1 = the target look
 	float FromLight = 1.f, ToLight = 1.f;
 	FLinearColor FromTint = FLinearColor::White, ToTint = FLinearColor::White;
