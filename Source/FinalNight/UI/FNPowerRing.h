@@ -31,6 +31,8 @@ class FINALNIGHT_API AFNPowerRing : public AActor
 public:
 	AFNPowerRing();
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 	/** The ring for this table (spawned on first use when bCreate). */
 	static AFNPowerRing* Get(AFNStudio* Studio, bool bCreate);
@@ -93,6 +95,9 @@ private:
 	TArray<FVector> SprayVel;
 	class UPointLightComponent* PouchGlow = nullptr;
 	float BurstT = -1.f;                        // seconds since the last click (-1 = none)
+	float PouchFull = 1.f;                      // 1 = holding the hexes (plump, shiny) .. 0 = empty (sagging, dull)
+	float AppliedFull = -1.f;
+	TArray<FLinearColor> PouchBase;             // each pouch part's full colour
 	bool bPouchHover = false;
 
 	bool bShown = true;
@@ -105,6 +110,9 @@ private:
 	int32 Sparks = -1;
 	FString PowersSig;
 	float Time = 0.f;
+	bool bMegaInHand = false;     // FFNPowerDragDrop::OnMegaArmed: the fault lines show only then
+	float FaultAlpha = -1.f;      // -1 = not applied yet (the studio draws them visible)
+	FDelegateHandle MegaHandle;
 
 	void BuildPouch();
 	void ClearHexes();
