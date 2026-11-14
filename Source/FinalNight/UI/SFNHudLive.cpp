@@ -585,6 +585,41 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		}
 		const FString Caption = FN7HudJson::Str(Pub, TEXT("previous_caption"));
 		if (!Caption.IsEmpty()) AddNews(LOCTEXT("Story", "STORY"), Caption);
+		// The DM's decisions and the d20 as WORLD lines (Benito's dice/banners draw in his hidden root HUD): at most two
+		// DM lines a beat, and only the rolls worth a glance (natural 1s and 20s, and your own demigods').
+		if (const TArray<TSharedPtr<FJsonValue>>* Dm = FN7HudJson::Arr(Pub, TEXT("dm_events")))
+		{
+			int32 Shown = 0;
+			for (const TSharedPtr<FJsonValue>& V : *Dm)
+			{
+				const TSharedPtr<FJsonObject> E = V.IsValid() ? V->AsObject() : nullptr;
+				const FString Text = FN7HudJson::Str(E, TEXT("text"));
+				const FString Ev = FN7HudJson::Str(E, TEXT("event"));
+				if (Text.IsEmpty() || Ev == TEXT("summoned")) continue;   // summons have their own banner
+				AddNews(LOCTEXT("DmTag", "DM"), Text);
+				if (++Shown >= 2) break;
+			}
+		}
+		if (const TArray<TSharedPtr<FJsonValue>>* Dice = FN7HudJson::Arr(Pub, TEXT("dice")))
+		{
+			int32 Shown = 0;
+			for (const TSharedPtr<FJsonValue>& V : *Dice)
+			{
+				const TSharedPtr<FJsonObject> R = V.IsValid() ? V->AsObject() : nullptr;
+				if (!R.IsValid()) continue;
+				const FString Who = FN7HudJson::Str(R, TEXT("who"));
+				const FString Verdict = FN7HudJson::Str(R, TEXT("verdict"));
+				const bool bCrit = Verdict.StartsWith(TEXT("crit"));
+				if (!bCrit && !MineRefs.Contains(Who)) continue;
+				const int32 Roll = (int32)FN7HudJson::Num(R, TEXT("roll"), 0.0), Mod = (int32)FN7HudJson::Num(R, TEXT("modifier"), 0.0);
+				const int32 Total = (int32)FN7HudJson::Num(R, TEXT("total"), (double)(Roll + Mod)), Dc = (int32)FN7HudJson::Num(R, TEXT("target_dc"), 0.0);
+				const FString Why = FN7HudJson::Str(R, TEXT("reason"));
+				AddNews(LOCTEXT("D20Tag", "D20"), FString::Printf(TEXT("%s rolls %d%s = %d vs %d: %s%s"), *NameOf(Who), Roll,
+					Mod ? *FString::Printf(TEXT(" %+d"), Mod) : TEXT(""), Total, Dc, *Verdict.Replace(TEXT("_"), TEXT(" ")),
+					Why.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" (%s)"), *Why)));
+				if (++Shown >= 2) break;
+			}
+		}
 		// Summons that landed this beat (rules 0.8.0): the same event comes in summons[], events[] and dm_events[].
 		{
 			const int32 Beat = (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round);
