@@ -55,6 +55,8 @@ private:
 	// The lobby over the game (Esc or the LOBBY pill).
 	bool bLobbyOpen = false;
 	void SetLobbyOpen(bool bOpen);
+	/** RESET VIEW: the table board, the camera at your seat, the HUD panels home. */
+	void ResetView();
 	TSharedPtr<class IInputProcessor> LobbyKeys;
 
 	// Out of the match (both demigods fell): "You fell at beat N", TAKE ANOTHER DEMIGOD, WATCH, RETURN TO LOBBY.

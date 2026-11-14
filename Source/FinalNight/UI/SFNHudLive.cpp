@@ -8,6 +8,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Texture2D.h"
 #include "FNNetClient.h"
@@ -84,11 +85,20 @@ static bool FN7GameHasFocus()
 }
 
 /** Esc (no modifiers) opens and closes the lobby, Enter opens the WILL, while we are in a room and the game has focus. */
+/** True when a text field has the keyboard (the WILL, the lobby's name box): letter keys belong to it then. */
+static bool FN7TypingInText()
+{
+	if (!FSlateApplication::IsInitialized()) return false;
+	const TSharedPtr<SWidget> F = FSlateApplication::Get().GetKeyboardFocusedWidget();
+	return F.IsValid() && F->GetTypeAsString().Contains(TEXT("EditableText"));
+}
+
 class FFN7LobbyKeys : public IInputProcessor
 {
 public:
 	TFunction<bool()> OnEscape;
 	TFunction<bool()> OnEnter;
+	TFunction<bool()> OnReset;
 	virtual void Tick(const float, FSlateApplication&, TSharedRef<ICursor>) override {}
 	virtual bool HandleKeyDownEvent(FSlateApplication&, const FKeyEvent& E) override
 	{
@@ -96,6 +106,7 @@ public:
 		if (!FN7GameHasFocus()) return false;
 		if (E.GetKey() == EKeys::Escape) return OnEscape ? OnEscape() : false;
 		if (E.GetKey() == EKeys::Enter) return OnEnter ? OnEnter() : false;
+		if ((E.GetKey() == EKeys::R || E.GetKey() == EKeys::Home) && !FN7TypingInText()) return OnReset ? OnReset() : false;
 		return false;
 	}
 };
@@ -129,6 +140,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnPower(this, &SFNHudLive::OnPower)
 			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) { N->bWatchOnly = false; N->bSeatAsked = true; N->TakeSeat(); } })
 			.OnLobby_Lambda([this]() { SetLobbyOpen(true); })
+			.OnResetView_Lambda([this]() { ResetView(); })
 		]
 		// Out of the match: a small card under the header, never over the board's centre.
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 92.f, 0.f, 0.f))
@@ -182,6 +194,13 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			Self->Layout->FocusWill();
 			return true;
 		};
+		Keys->OnReset = [Weak]()
+		{
+			TSharedPtr<SFNHudLive> Self = Weak.Pin();
+			if (!Self.IsValid() || !Self->bInRoom || Self->bLobbyOpen) return false;
+			Self->ResetView();
+			return true;
+		};
 		LobbyKeys = Keys;
 		FSlateApplication::Get().RegisterInputPreProcessor(LobbyKeys);
 	}
@@ -218,6 +237,24 @@ void SFNHudLive::DebugPreview(bool bLobby, bool bFell, bool bWill)
 	if (bWill && Layout.IsValid()) Layout->FocusWill();
 	PreviewTable();
 	SetLobbyOpen(bLobby);
+}
+
+void SFNHudLive::ResetView()
+{
+	AFNStudio* St = FindStudio();
+	if (St)
+	{
+		St->ResetView();
+		if (UWorld* W = St->GetWorld())
+			if (APlayerController* PC = W->GetFirstPlayerController())
+			{
+				if (APawn* Me = PC->GetPawn()) Me->SetActorLocation(St->GetSeatLocation());
+				PC->SetControlRotation(St->GetSeatRotation());
+			}
+	}
+	SFNPanelMover::ResetAll();
+	AddNews(LOCTEXT("ViewTag", "VIEW"), TEXT("Back to the start: the board on your demigod, the camera at your seat, the panels home."));
+	Publish();
 }
 
 void SFNHudLive::SetLobbyOpen(bool bOpen)
@@ -1450,3 +1487,33 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 	}));
 
 #undef LOCTEXT_NAMESPACE
+
+// --- FN7.Fps [seconds]: the real frame rate, logged once a second (the log's frame counter wraps every 1000) -------
+static FAutoConsoleCommand GFN7FpsCommand(
+	TEXT("FN7.Fps"),
+	TEXT("FN7.Fps [seconds=20]: log the frame rate and frame time once a second."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		const int32 Secs = Args.Num() > 0 ? FMath::Clamp(FCString::Atoi(*Args[0]), 1, 600) : 20;
+		if (Args.Contains(TEXT("dump")))
+			FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7FpsDump"), 10.f, [](float)
+			{
+				if (GEngine) GEngine->Exec(nullptr, TEXT("stat dumpframe -ms=0.5"));
+				return false;
+			});
+		struct FState { uint64 Frame = 0; double Time = 0.0; int32 Left = 0; };
+		TSharedRef<FState> St = MakeShared<FState>();
+		St->Frame = GFrameCounter;
+		St->Time = FPlatformTime::Seconds();
+		St->Left = Secs;
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7Fps"), 1.f, [St](float)
+		{
+			const uint64 F = GFrameCounter;
+			const double T = FPlatformTime::Seconds();
+			const double Fps = (double)(F - St->Frame) / FMath::Max(T - St->Time, 1e-3);
+			UE_LOG(LogTemp, Display, TEXT("FN7 fps %.1f (%.1f ms/frame)"), Fps, Fps > 0.0 ? 1000.0 / Fps : 0.0);
+			St->Frame = F;
+			St->Time = T;
+			return --St->Left > 0;
+		});
+	}));

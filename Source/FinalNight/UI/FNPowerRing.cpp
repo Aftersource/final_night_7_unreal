@@ -487,7 +487,7 @@ void AFNPowerRing::Tick(float Dt)
 		else H.Out = FMath::Clamp(H.Out + (bOpen ? Dt / RingFlyOut : -Dt / RingFlyIn), 0.f, 1.f);
 		const float T = H.Out;
 		const bool bVisible = T > 0.001f || i == Lifted;
-		H.Root->SetVisibility(bVisible, true);
+		if (H.Root->IsVisible() != bVisible) H.Root->SetVisibility(bVisible, true);
 		if (!bVisible) { H.Pos = Mouth; H.Rot = FQuat::Identity; continue; }
 
 		FQuat SlotRot;
@@ -516,7 +516,9 @@ void AFNPowerRing::Tick(float Dt)
 			H.Pos = FMath::Lerp(H.Pos, Target, K);
 			H.Rot = FQuat::Slerp(H.Rot, TargetRot, K);
 		}
-		H.Root->SetWorldLocationAndRotation(H.Pos, H.Rot);
+		// At rest: don't touch the transform (each move re-registers 7 parts with the renderer).
+		if (!H.Pos.Equals(H.Root->GetComponentLocation(), 0.02) || !H.Rot.Equals(H.Root->GetComponentQuat(), 1e-4))
+			H.Root->SetWorldLocationAndRotation(H.Pos, H.Rot);
 	}
 	St->HideWillBlock();
 	// Fault lines: invisible, fading in while a mega is in hand, out after.

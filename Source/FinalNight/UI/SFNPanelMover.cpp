@@ -183,3 +183,13 @@ bool SFNPanelMover::IsOverAnyPanel(const FVector2D& P)
 	}
 	return false;
 }
+
+void SFNPanelMover::ResetAll()
+{
+	for (const TWeakPtr<SFNPanelMover>& W : FN7Mover::All)
+		if (const TSharedPtr<SFNPanelMover> M = W.Pin())
+		{
+			M->Target = FVector2D::ZeroVector;
+			FN7HudPrefs::SetPanelOffset(M->Id, FVector2D::ZeroVector);
+		}
+}
