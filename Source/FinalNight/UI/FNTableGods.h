@@ -93,12 +93,11 @@ public:
 	void SetHeld(bool bInHeld) { bHeld = bInHeld; }
 	/** The card's centre and half-size in world units, for hit tests. */
 	bool CardBounds(FVector& OutCenter, float& OutHalf) const;
-	/** A piece on the board: its card rides on a pole above the board's towers, trees and peaks, so nothing hides it. */
+	/** A piece on the board: its card floats above the board's towers, trees and peaks, so nothing hides it. */
 	void SetOnBoard(bool bInOnBoard) { bOnBoard = bInOnBoard; }
 
 private:
 	bool bOnBoard = false;
-	UStaticMeshComponent* Pole = nullptr;
 	bool bHeld = false;
 	float HeldT = 0.f;
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Parts;
@@ -165,7 +164,7 @@ public:
 	void ResetSummons();
 	/** The warp-in played at once on the server's accept (before the resolve): arc + big diorama card after the column
 	 *  has risen (Delay s), no damage yet. */
-	void PlayWarpIn(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, const FLinearColor& Aura, float Delay);
+	void PlayWarpIn(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, const FLinearColor& Aura, float Delay, float HealthLost = 0.f, int32 Roll = 0);
 	/** The resolve after a warp-in: settle on the real landing (glide if the server nudged it), the red "-N", the d20. */
 	void PlaySummonResult(const FString& Ref, double ToLat, double ToLon, float HealthLost, int32 Roll);
 	/** A refused summon: the piece comes back where it was, with a red shake. */

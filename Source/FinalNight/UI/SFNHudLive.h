@@ -83,6 +83,10 @@ private:
 	void FetchProfileArt(const FString& Player);
 	TMap<FString, FString> ProfileArt;   // "<player>|<side>|dio|por" -> hash
 	TSet<FString> ProfileAsked;
+	double GlobeHoldLat = 0.0, GlobeHoldLon = 0.0, GlobeHoldUntil = 0.0;   // a double-click's centring holds the globe a while
+	TSet<FString> WarpRolled;            // warp-ins whose d20 and -N already showed at the accept
+	FString PendingChallengeRef;         // a challenge sent, waiting for the server
+	double PendingChallengeAt = 0.0;
 	FString SelectedRef;                 // your demigod last double-clicked (a brief glow; it also picks who challenges)
 	double SelectedUntil = 0.0;
 public:

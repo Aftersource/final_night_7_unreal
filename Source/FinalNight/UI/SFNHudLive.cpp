@@ -262,6 +262,7 @@ void SFNHudLive::DebugPreview(bool bLobby, bool bFell, bool bWill)
 
 void SFNHudLive::ResetView()
 {
+	GlobeHoldUntil = 0.0;
 	AFNStudio* St = FindStudio();
 	if (St)
 	{
@@ -589,6 +590,21 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 				{ TEXT("cooldown"), TEXT("Once a beat: that demigod was just summoned.") },
 				{ TEXT("bad_target"), TEXT("It can't be summoned there.") },
 				{ TEXT("summon_disabled"), TEXT("Summoning is off in this room.") } };
+			static const TMap<FString, FString> ChallengeWhy = {
+				{ TEXT("too_far"), TEXT("Too far: get one of yours into its hex to challenge.") },
+				{ TEXT("busy"), TEXT("Already in a duel.") },
+				{ TEXT("cooldown"), TEXT("Not yet: you challenged a moment ago.") },
+				{ TEXT("fallen"), TEXT("That demigod has fallen.") },
+				{ TEXT("not_yours"), TEXT("That's not your demigod.") } };
+			if (!PendingChallengeRef.IsEmpty() && FPlatformTime::Seconds() - PendingChallengeAt < 8.0)
+			{
+				const FString* Why = ChallengeWhy.Find(Reason);
+				UE_LOG(LogTemp, Display, TEXT("FN7 challenge refused: %s %s"), *PendingChallengeRef, *Reason);
+				PendingChallengeRef.Reset();
+				Toast(Why ? *Why : FString::Printf(TEXT("Challenge refused: %s"), *Reason));
+				Publish();
+				return;
+			}
 			const bool bPending = !PendingSummonRef.IsEmpty() && FPlatformTime::Seconds() - PendingSummonAt < 8.0;
 			if (bPending && (SummonWhy.Contains(Reason) || (D.IsValid() && D->HasField(TEXT("instant")))))
 			{
@@ -605,6 +621,26 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("error"))
 	{
+		if (!PendingChallengeRef.IsEmpty() && FPlatformTime::Seconds() - PendingChallengeAt < 8.0)
+		{
+			const FString Msg = FN7HudJson::Str(D, TEXT("message"));
+			UE_LOG(LogTemp, Display, TEXT("FN7 challenge error: %s %s"), *PendingChallengeRef, *Msg);
+			PendingChallengeRef.Reset();
+			Toast(Msg.Contains(TEXT("challenge")) || FN7HudJson::Str(D, TEXT("code")) == TEXT("bad_request") ? FString(TEXT("Challenges aren't live on the server yet.")) : Msg);
+			Publish();
+			return;
+		}
+		// A summon refused with an error frame (e.g. wrong_phase "you join the match at the next round"): it comes back.
+		if (!PendingSummonRef.IsEmpty() && FPlatformTime::Seconds() - PendingSummonAt < 8.0)
+		{
+			const FString Msg = FN7HudJson::Str(D, TEXT("message"));
+			UE_LOG(LogTemp, Display, TEXT("FN7 summon refused: %s %s"), *PendingSummonRef, *Msg);
+			if (AFNTableGods* Tg = AFNTableGods::GetAny(FindStudio() ? FindStudio()->GetWorld() : nullptr)) Tg->CancelSummon(PendingSummonRef);
+			PendingSummonRef.Reset();
+			Toast(Msg.IsEmpty() ? FString(TEXT("Summon refused.")) : Msg);
+			Publish();
+			return;
+		}
 		if (bOut && bTakeAsked)
 		{
 			bTakeAsked = false;
@@ -1343,6 +1379,7 @@ void SFNHudLive::NewMatch(const FString& Id)
 	LastMineLog.Reset();
 	PendingSummonRef.Reset();
 	WarpedAt.Reset();
+	WarpRolled.Reset();
 	SeenSummons.Reset();
 	SelectedRef.Reset();
 	SelectedUntil = 0.0;
@@ -1384,8 +1421,11 @@ void SFNHudLive::HandleSummoning(const TSharedPtr<FJsonObject>& Pub)
 	{
 		FVector Probe;
 		if (IsMyDemigod(Ref) && !St->BoardPointFor(ToLa, ToLo, Probe)) St->FocusBoard(ToLa, ToLo, 3);   // your own, off the board
-		T->PlayWarpIn(Ref, La, Lo, ToLa, ToLo, Aura, 0.6f);
+		const float AccLost = (float)FN7HudJson::Num(Pub, TEXT("health_lost"), 0.0);
+		const int32 AccRoll = (int32)FN7HudJson::Num(Pub, TEXT("roll"), 0.0);
+		T->PlayWarpIn(Ref, La, Lo, ToLa, ToLo, Aura, 0.6f, AccLost, AccRoll);
 		WarpedAt.Add(Ref, FPlatformTime::Seconds());
+		if (AccRoll > 0 || AccLost > 0.f) WarpRolled.Add(Ref); else WarpRolled.Remove(Ref);
 		UE_LOG(LogTemp, Display, TEXT("FN7 warp-in: %s -> %.4f, %.4f"), *Ref, ToLa, ToLo);
 	}
 }
@@ -1419,7 +1459,9 @@ void SFNHudLive::HandleSummoned(const TSharedPtr<FJsonObject>& E, const TArray<T
 	const double* Warped = WarpedAt.Find(Ref);
 	const bool bWarped = Warped && FPlatformTime::Seconds() - *Warped < 40.0;
 	WarpedAt.Remove(Ref);
-	if (bWarped) T->PlaySummonResult(Ref, ToLa, ToLo, Lost, Roll);   // already warped in: settle, -N, d20
+	const bool bRolled = WarpRolled.Contains(Ref);
+	WarpRolled.Remove(Ref);
+	if (bWarped) T->PlaySummonResult(Ref, ToLa, ToLo, bRolled ? 0.f : Lost, bRolled ? 0 : Roll);   // settle (+ -N, d20 unless shown at the accept)
 	else T->PlaySummoned(Ref, FromLa, FromLo, ToLa, ToLo, Lost, Roll, Aura);
 	if (Ref == PendingSummonRef) PendingSummonRef.Reset();
 	FString Deed = FN7HudJson::Str(E, TEXT("deed"));
@@ -1507,22 +1549,54 @@ void SFNHudLive::FetchProfileArt(const FString& Player)
 
 void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 {
-	// Double-click: select your demigod (it glows); a rival = the challenge trigger. Never moves the board view.
+	// Double-click a demigod: centre the table (same zoom) and the globe on it; yours also glows. A single click never moves anything.
 	AFNStudio* St = FindStudio();
 	AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr);
 	double La = 0.0, Lo = 0.0;
 	bool bPos = T && T->GetBoardPos(Ref, La, Lo);
 	for (const FSeatInfo& S : Seats) if (!bPos && S.Ref == Ref && S.bHasPos && S.bAlive) { La = S.Lat; Lo = S.Lon; bPos = true; }
 	const bool bMine = IsMyDemigod(Ref);
-	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: %s %s %s"), *Ref, bMine ? TEXT("(yours)") : TEXT("(rival)"), bPos ? TEXT("-> zoom") : TEXT("(not on the map)"));
+	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: %s %s %s"), *Ref, bMine ? TEXT("(yours)") : TEXT("(rival)"), bPos ? *FString::Printf(TEXT("-> centre %.4f, %.4f"), La, Lo) : TEXT("(not on the map)"));
 	if (!St || !bPos) { Toast(TEXT("That demigod isn't on the map.")); return; }
+	// Chris reported that double clicking does not centre the globe map and table map: the table centres on it at the zoom you're at
+	// (no deeper zoom), and the globe turns to face it (held there ~30 s against the auto-turn to your lead demigod).
+	St->CenterBoardAndGlobe(La, Lo);
+	GlobeHoldLat = La;
+	GlobeHoldLon = Lo;
+	GlobeHoldUntil = FPlatformTime::Seconds() + 30.0;
 	if (!bMine)
 	{
-		// A rival: the challenge (Archon-style duel) comes with the server's challenge mode. Never moves your view.
-		Toast(TEXT("Challenges arrive with the next server update: double-click a rival in your hex to duel."));
+		// A rival: one of YOUR living demigods within this zoom level's hex of it = a CHALLENGE (contract v1.1: the
+		// server checks great-circle distance <= the level's hex size). The one you selected last goes first.
+		static const double HexKm[4] = { 0.003, 0.03, 3.0, 120.0 };
+		static const TCHAR* LevelName[4] = { TEXT("people"), TEXT("houses"), TEXT("villages"), TEXT("regions") };
+		const int32 Lv = FMath::Clamp(St->GetMapLevel(), 0, 3);
+		auto Km = [](double A1, double O1, double A2, double O2)
+		{
+			const double L1 = FMath::DegreesToRadians(A1), L2 = FMath::DegreesToRadians(A2), DO = FMath::DegreesToRadians(O2 - O1);
+			return FMath::Acos(FMath::Clamp(FMath::Sin(L1) * FMath::Sin(L2) + FMath::Cos(L1) * FMath::Cos(L2) * FMath::Cos(DO), -1.0, 1.0)) * 6371.0;
+		};
+		FString Mine;
+		double Best = TNumericLimits<double>::Max();
+		for (const FSeatInfo& S : Seats)
+		{
+			if (!MineRefs.Contains(S.Ref) || !S.bAlive || !S.bHasPos) continue;
+			const double D = Km(S.Lat, S.Lon, La, Lo) - (S.Ref == SelectedRef ? 1e6 : 0.0);
+			if (Km(S.Lat, S.Lon, La, Lo) <= HexKm[Lv] && D < Best) { Best = D; Mine = S.Ref; }
+		}
+		if (Mine.IsEmpty())
+		{
+			UE_LOG(LogTemp, Display, TEXT("FN7 challenge: %s too far at %s (%.3f km hex)"), *Ref, LevelName[Lv], HexKm[Lv]);
+			Toast(FString::Printf(TEXT("Too far to challenge %s: get one of yours into its hex (at this zoom: %s)."), *NameOf(Ref), *FString(LevelName[Lv])));
+			return;
+		}
+		if (UFNNetClient* N = Net.Get()) N->Challenge(Round, Mine, Ref, LevelName[Lv]);
+		PendingChallengeRef = Ref;
+		PendingChallengeAt = FPlatformTime::Seconds();
+		UE_LOG(LogTemp, Display, TEXT("FN7 challenge sent: %s -> %s (%s)"), *Mine, *Ref, LevelName[Lv]);
+		Toast(FString::Printf(TEXT("CHALLENGE!  %s  vs  %s"), *NameOf(Mine), *NameOf(Ref)));
 		return;
 	}
-	// Yours: selected (a glow). No zoom: nothing but the wheel, right-click and RESET VIEW moves the board.
 	if (T && bMine)
 	{
 		if (!SelectedRef.IsEmpty() && SelectedRef != Ref) T->SetFigureHeld(SelectedRef, false);
@@ -1750,6 +1824,7 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 	if (ToastUntil > 0.0 && FPlatformTime::Seconds() > ToastUntil) { ToastUntil = 0.0; Model.Status = FText::GetEmpty(); Publish(); }
 	{
 		const double Now = FPlatformTime::Seconds();
+		if (GlobeHoldUntil > Now) { if (AFNStudio* Sg = FindStudio()) Sg->SetGlobeFocus(GlobeHoldLat, GlobeHoldLon); }
 		if (SelectedUntil > 0.0 && Now > SelectedUntil)
 		{
 			SelectedUntil = 0.0;
@@ -1890,9 +1965,10 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 		const bool bPour = Args.Contains(TEXT("pour"));
 		const bool bMega = Args.Contains(TEXT("mega"));
 		const bool bSummon = Args.Contains(TEXT("summon"));
+		const bool bClose = Args.Contains(TEXT("close"));
 		TWeakObjectPtr<UWorld> WeakWorld(World);
 		// Wait for the player controller and its net client, then mount (and optionally connect / photograph).
-		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview, bPour, bMega, bSummon](float)
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview, bPour, bMega, bSummon, bClose](float)
 		{
 			UWorld* W = WeakWorld.Get();
 			AFNPlayerController* PC = W ? Cast<AFNPlayerController>(W->GetFirstPlayerController()) : nullptr;
@@ -1900,6 +1976,16 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 			FN7HudMount::Mount(PC->Net);
 			if (bConnect) PC->Net->Start();
 			if (bLobby || bFell || bWill || bPreview) FN7HudMount::Preview(bLobby, bFell, bWill);
+			if (bClose)
+			{
+				// Gate: the table close in (villages level) over the preview's Benito pieces, before the first shot.
+				TWeakObjectPtr<AFNPlayerController> WeakPC(PC);
+				FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudClose"), 5.f, [WeakPC](float)
+				{
+					if (AFNPlayerController* P = WeakPC.Get()) if (AFNStudio* S = P->Studio.Get()) S->PreviewFocus(46.05, 10.9, 2);
+					return false;
+				});
+			}
 			if (bSummon)
 			{
 				// Test: the summon sequence, timed so shot 2 catches the big diorama card and shot 3 the landing, -N and d20.

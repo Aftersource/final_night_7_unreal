@@ -305,10 +305,7 @@ void AFNDemigodFigure::SetDemigod(const FFNTableDemigod& D, const FLinearColor& 
 		Back = Part(Card, GodPlane, FVector(0, 0, -0.7f), FVector(0.345f, 0.345f, 1.f), FRotator::ZeroRotator, FLinearColor(0.01f, 0.01f, 0.015f));
 		Matte = Part(Card, GodPlane, FVector(0, 0, -0.35f), FVector(0.33f, 0.33f, 1.f), FRotator::ZeroRotator, FLinearColor::White);
 		Image = Part(Card, GodPlane, FVector::ZeroVector, FVector(0.30f, 0.30f, 1.f), FRotator::ZeroRotator, FLinearColor(0.03f, 0.03f, 0.05f));
-		Pole = Part(nullptr, GodCyl, FVector(0, 0, 24.f), FVector(0.014f, 0.014f, 0.40f), FRotator::ZeroRotator, FLinearColor::White);
-		Pole->SetVisibility(false);
 	}
-	GodSetColor(Pole, (D.bAlive && bOwnerAlive ? InAura : GodGrey) * 0.8f);
 	Ref = D.Ref;
 	Side = D.Side;
 	Aura = InAura;
@@ -397,10 +394,10 @@ void AFNDemigodFigure::Tick(float Dt)
 	const FQuat Flat = FRotationMatrix::MakeFromZY(FVector::UpVector, ToH).ToQuat();
 	Card->SetWorldRotation(FQuat::Slerp(Upright, Flat, Tip));
 	HeldT = FMath::FInterpTo(HeldT, bHeld ? 1.f : 0.f, Dt, 10.f);
-	// On the board the card stands on a pole ~16 cm of table above its hex (the props top out around 14 cm), so towers,
-	// trees and peaks in front of it never cover it (Chris asked that portraits stay in front of buildings).
+	// On the board the card floats ~16 cm of table above its hex (the props top out around 14 cm), so towers, trees and
+	// peaks in front of it never cover it (portraits should not be in front of buildings). Nothing stands in front of it:
+	// no pole. The poles should not be in front.
 	const float Raise = bOnBoard ? 40.f : 0.f;
-	if (Pole && Pole->IsVisible() != bOnBoard) Pole->SetVisibility(bOnBoard);
 	Card->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(4.2f + 17.f + Raise, 4.2f + 0.8f, Tip) + 9.f * HeldT + 1.2f * HeldT * FMath::Sin(Time * 6.f)));
 	Card->SetRelativeScale3D(FVector(1.f + 0.18f * HeldT));
 	if (Matte && HeldT > 0.001f) GodSetColor(Matte, (bAlive ? Aura : GodGrey) * (1.f + 1.5f * HeldT));
@@ -661,9 +658,9 @@ void AFNTableGods::SpawnLanding(const FVector& At, float HealthLost, int32 Roll,
 				}
 }
 
-void AFNTableGods::PlayWarpIn(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, const FLinearColor& Aura, float Delay)
+void AFNTableGods::PlayWarpIn(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, const FLinearColor& Aura, float Delay, float HealthLost, int32 Roll)
 {
-	PlaySummoned(Ref, FromLat, FromLon, ToLat, ToLon, 0.f, 0, Aura, Delay);
+	PlaySummoned(Ref, FromLat, FromLon, ToLat, ToLon, HealthLost, Roll, Aura, Delay);
 }
 
 void AFNTableGods::PlaySummonResult(const FString& Ref, double ToLat, double ToLon, float HealthLost, int32 Roll)
