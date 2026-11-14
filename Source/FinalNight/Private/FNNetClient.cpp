@@ -261,6 +261,12 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 	OnServerMessage.Broadcast(T, D);
 }
 
+void UFNNetClient::Query(const FString& Name, TSharedPtr<FJsonObject> Args)
+{
+	if (!bFn7 || !Name.StartsWith(TEXT("game."))) return;
+	Send(Name, Args);
+}
+
 void UFNNetClient::Send(const FString& T, TSharedPtr<FJsonObject> D)
 {
 	const FString Id = FString::Printf(TEXT("c-%d"), NextId++);

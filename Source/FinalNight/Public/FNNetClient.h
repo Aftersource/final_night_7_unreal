@@ -102,6 +102,8 @@ public:
 	void CastPower(int32 Round, const FString& Power, const FString& Target, const FString& Tier = TEXT("mini"));
 	/** Summon one of your demigods to a point (instant): action.submit {fields:{summon:{demigod, target:[lon, lat]}}}. */
 	void Summon(int32 Round, const FString& DemigodRef, double Lon, double Lat);
+	/** A public game query ("game.encounters", "game.region", ...): {t, id, d: Args}; the reply comes back as a message of the same t. */
+	void Query(const FString& Name, TSharedPtr<FJsonObject> Args = nullptr);
 	/** Challenge mode (rules 0.8.1, the Mac kit): force a duel between your demigod and a rival sharing its hex. */
 	void Challenge(int32 Round, const FString& MineRef, const FString& TargetRef, const FString& Level);
 	/** One typed attack line in a duel. */
