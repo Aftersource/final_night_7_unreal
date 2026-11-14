@@ -210,12 +210,26 @@ private:
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> HeadSet;    // heads on the people
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> RoofSet;    // roofs on the houses
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TowerSet;   // buildings / towers
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> CoastSet;   // real coastlines
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PlateSet;   // tectonic plate edges
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> CitySet;    // real cities over 1 million
+	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> EarthSets;   // brown terrain sides, per fog level
+	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> StoneSets;   // grey rock sides, per fog level
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TrunkSet;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PineSet;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> LeafSet;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> RockSet;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PeakSet;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> SnowSet;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> PickRing;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PickPin;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> BeamRays;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> FogPuffs;
 	UPROPERTY() TObjectPtr<USpotLightComponent> Projector;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> TableInfo;
+	UPROPERTY() TObjectPtr<USceneComponent> MapPivot;   // parent of the map's tiles and pieces, scaled for the zoom animation
+	float ZoomAnimT = -1.f, ZoomAnimS0 = 1.f;
+	FVector ZoomAnchor = FVector::ZeroVector;
 	double PickLat = 46.5, PickLon = 9.0, PickRadiusM = 300000.0;
 	// the scene now on the table (set by BuildTable): cube face, centre on that face's plane (m), cm per m, hex size, relief range
 	int32 TableFace = -1;
@@ -223,6 +237,7 @@ private:
 	void PlaceTableHeroes();   // demigods standing on the table map at true scale
 	bool MapPointUnderCursor(double& Px, double& Py) const;   // the face-plane point (m) under the mouse, on top of the hexes
 	void ZoomMapAt(double Px, double Py, int32 Step);          // one zoom level (-1 closer), keeping that point under the cursor
+	float NextZoomAt = 0.f;                                     // earliest time the next zoom step may happen
 	int32 MapLevel = 3;                                         // 0 people, 1 houses, 2 villages, 3 regions (FNStudioTable.cpp)
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> HeroMarks;
 	UPROPERTY() TArray<TObjectPtr<UTextRenderComponent>> HeroLabels;
