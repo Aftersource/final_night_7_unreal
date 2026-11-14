@@ -4,6 +4,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "FNStyle.h"
+#include "UObject/StrongObjectPtr.h"
 
 class SBox;
 class SFNPortraitCard;
@@ -31,8 +32,10 @@ struct FFNHudDemigod
 	int32 Health = 10;
 	int32 MaxHealth = 10;
 	bool bAlive = true;
-	UTexture2D* PortraitTexture = nullptr;
+	UTexture2D* PortraitTexture = nullptr;   // the card's main image: the DIORAMA when there is one
 	TArray<uint8> PortraitPng;
+	UTexture2D* InsetTexture = nullptr;      // the portrait, small, when the diorama leads
+	TArray<uint8> InsetPng;
 };
 
 /** One line of news: a short tag (e.g. "BEAT 7", "YOU") and the text. */
@@ -148,6 +151,9 @@ private:
 	TSharedPtr<FSlateBrush> AuraFrameBrush;
 	FLinearColor AuraFrameColor = FLinearColor::Transparent;
 	const FSlateBrush* AuraFrame();
+	TMap<const UTexture2D*, TSharedPtr<FSlateBrush>> InsetBrushes;
+	TArray<TStrongObjectPtr<UTexture2D>> InsetKeep;   // textures made here from PNG bytes (previews)
+	const FSlateBrush* InsetBrush(const FFNHudDemigod& D);
 	TSharedRef<SWidget> MakeMine();
 	void OpenWill();
 	FString MakePowersSignature() const;

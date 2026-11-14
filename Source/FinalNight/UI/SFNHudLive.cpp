@@ -21,6 +21,7 @@
 #include "Containers/Ticker.h"
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
 #include "UnrealClient.h"
 #include "Widgets/SViewport.h"
 #include "Widgets/SWeakWidget.h"
@@ -30,6 +31,8 @@
 #include "SFNDragToken.h"
 #include "SFNPanelMover.h"
 #include "FNPowerRing.h"
+#include "FNTableGods.h"
+#include "FNMedia.h"
 #include "FNStyle.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
@@ -213,6 +216,7 @@ void SFNHudLive::DebugPreview(bool bLobby, bool bFell, bool bWill)
 	if (Layout.IsValid()) Layout->SetModel(Model);   // the sample seats as they are (Publish would rebuild them from the live list)
 	UpdateRing();
 	if (bWill && Layout.IsValid()) Layout->FocusWill();
+	PreviewTable();
 	SetLobbyOpen(bLobby);
 }
 
@@ -579,6 +583,7 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 	{
 		Model.Mine.Reset();
 		MinePortraitHash.Reset();
+		MineDioramaHash.Reset();
 		double DebtSum = 0.0;
 		bool bDebt = false;
 		for (const TSharedPtr<FJsonValue>& V : *Hands)
@@ -594,20 +599,28 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 			G->TryGetBoolField(TEXT("alive"), bAliveHand);
 			Dg.bAlive = bAliveHand;
 			if (FN7HudJson::Has(G, TEXT("debt_open"))) { DebtSum += FN7HudJson::Num(G, TEXT("debt_open"), 0.0); bDebt = true; }
-			FString Hash;
+			FString Hash, DioHash;
 			if (const TSharedPtr<FJsonObject> Img = FN7HudJson::Obj(G, TEXT("portrait_image")))
 			{
 				Hash = FN7HudJson::Str(Img, TEXT("hash"));
 				const FString Url = FN7HudJson::Str(Img, TEXT("status")) == TEXT("ready") ? FN7HudJson::Str(Img, TEXT("url")) : FString();
 				if (!Hash.IsEmpty() && !Url.IsEmpty()) RequestPortrait(Hash, Url);
 			}
+			if (const TSharedPtr<FJsonObject> Dio = FN7HudJson::Obj(G, TEXT("diorama_image")))
+			{
+				DioHash = FN7HudJson::Str(Dio, TEXT("hash"));
+				const FString Url = FN7HudJson::Str(Dio, TEXT("status")) == TEXT("ready") ? FN7HudJson::Str(Dio, TEXT("url")) : FString();
+				if (!DioHash.IsEmpty() && !Url.IsEmpty()) RequestPortrait(DioHash, Url);
+			}
 			Model.Mine.Add(Dg);
 			MinePortraitHash.Add(Hash);
+			MineDioramaHash.Add(DioHash);
 		}
 		if (Model.Mine.Num() == 2 && Model.Mine[0].Side == TEXT("right"))   // Left first
 		{
 			Model.Mine.Swap(0, 1);
 			MinePortraitHash.Swap(0, 1);
+			MineDioramaHash.Swap(0, 1);
 		}
 		if (bDebt) Model.Debt = DebtSum;
 	}
@@ -650,6 +663,20 @@ void SFNHudLive::ReadDemigods(const TSharedPtr<FJsonObject>& PV)
 			if (FN7HudJson::Str(Img, TEXT("status")) == TEXT("ready")) S.PortraitUrl = FN7HudJson::Str(Img, TEXT("url"));
 			if (!S.PortraitHash.IsEmpty() && !S.PortraitUrl.IsEmpty()) RequestPortrait(S.PortraitHash, S.PortraitUrl);
 		}
+		S.Side = FN7HudJson::Str(G, TEXT("side"));
+		S.Player = FN7HudJson::Str(G, TEXT("player"));
+		const FString AuraHex = FN7HudJson::Str(G, TEXT("aura"));
+		if (AuraHex.StartsWith(TEXT("#")) && AuraHex.Len() >= 7) { S.Aura = FLinearColor::FromSRGBColor(FColor::FromHex(AuraHex)); S.bHasAura = true; }
+		S.Controller = FN7HudJson::Str(G, TEXT("controller"));
+		if (G.IsValid()) G->TryGetBoolField(TEXT("connected"), S.bConnected);
+		if (const TArray<TSharedPtr<FJsonValue>>* Pos = FN7HudJson::Arr(G, TEXT("pos")))
+			if (Pos->Num() >= 2) { S.Lon = (*Pos)[0]->AsNumber(); S.Lat = (*Pos)[1]->AsNumber(); S.bHasPos = true; }
+		if (const TSharedPtr<FJsonObject> Dio = FN7HudJson::Obj(G, TEXT("diorama_image")))
+		{
+			S.DioramaHash = FN7HudJson::Str(Dio, TEXT("hash"));
+			const FString Url = FN7HudJson::Str(Dio, TEXT("status")) == TEXT("ready") ? FN7HudJson::Str(Dio, TEXT("url")) : FString();
+			if (!S.DioramaHash.IsEmpty() && !Url.IsEmpty()) RequestPortrait(S.DioramaHash, Url);
+		}
 		if (S.Seat >= 0 && S.Seat == MySeat)
 		{
 			const FString Place = FN7HudJson::Str(G, TEXT("place"));
@@ -657,6 +684,25 @@ void SFNHudLive::ReadDemigods(const TSharedPtr<FJsonObject>& PV)
 			Model.Place = FText::FromString(Place == Region || Region.IsEmpty() ? Place : Place + TEXT(", ") + Region);
 		}
 		Seats.Add(S);
+	}
+	// The players (gods): public_state.players[] when the server sends it.
+	if (const TArray<TSharedPtr<FJsonValue>>* PL = FN7HudJson::Arr(PV, TEXT("players")))
+	{
+		Players.Reset();
+		for (const TSharedPtr<FJsonValue>& V : *PL)
+		{
+			const TSharedPtr<FJsonObject> O = V.IsValid() ? V->AsObject() : nullptr;
+			if (!O.IsValid()) continue;
+			FPlayerInfo P;
+			P.Seat = FN7HudJson::Has(O, TEXT("seat")) ? (int32)FN7HudJson::Num(O, TEXT("seat"), -1) : -1;
+			P.Player = FN7HudJson::Str(O, TEXT("player"));
+			const FString A = FN7HudJson::Str(O, TEXT("aura"));
+			if (A.StartsWith(TEXT("#")) && A.Len() >= 7) { P.Aura = FLinearColor::FromSRGBColor(FColor::FromHex(A)); P.bHasAura = true; }
+			O->TryGetBoolField(TEXT("alive"), P.bAlive);
+			P.Controller = FN7HudJson::Str(O, TEXT("controller"));
+			O->TryGetBoolField(TEXT("connected"), P.bConnected);
+			Players.Add(P);
+		}
 	}
 }
 
@@ -743,6 +789,17 @@ void SFNHudLive::RequestPortrait(const FString& Hash, const FString& Url)
 {
 	UFNNetClient* N = Net.Get();
 	if (!N || Portraits.Contains(Hash) || PortraitRequests.Contains(Hash)) return;
+	// The disk cache first (Saved/FN7Media): full fidelity, a full mip chain.
+	{
+		TArray<uint8> Cached;
+		if (FN7Media::LoadCached(Hash, Cached))
+			if (UTexture2D* Tex = FN7Media::TextureFromPng(Cached))
+			{
+				Portraits.Add(Hash, TStrongObjectPtr<UTexture2D>(Tex));
+				MediaPng.Add(Hash, MoveTemp(Cached));
+				return;
+			}
+	}
 	PortraitRequests.Add(Hash);
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
 	Req->SetURL(N->MediaUrl(Url));
@@ -755,8 +812,12 @@ void SFNHudLive::RequestPortrait(const FString& Hash, const FString& Url)
 		if (!Self.IsValid()) return;
 		Self->PortraitRequests.Remove(Hash);
 		if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) return;
-		UTexture2D* Tex = FImageUtils::ImportBufferAsTexture2D(Resp->GetContent());
+		const TArray<uint8> Png = Resp->GetContent();
+		UTexture2D* Tex = FN7Media::TextureFromPng(Png);
+		if (!Tex) Tex = FImageUtils::ImportBufferAsTexture2D(Png);
 		if (!Tex) return;
+		FN7Media::SaveCached(Hash, Png);
+		Self->MediaPng.Add(Hash, Png);
 		Self->Portraits.Add(Hash, TStrongObjectPtr<UTexture2D>(Tex));
 		Self->Publish();
 	});
@@ -778,14 +839,155 @@ void SFNHudLive::Publish()
 		if (const TStrongObjectPtr<UTexture2D>* Tex = Portraits.Find(S.PortraitHash)) Out.PortraitTexture = Tex->Get();
 		Model.Seats.Add(Out);
 	}
-	for (int32 i = 0; i < Model.Mine.Num() && i < MinePortraitHash.Num(); ++i)
-		if (const TStrongObjectPtr<UTexture2D>* Tex = Portraits.Find(MinePortraitHash[i])) Model.Mine[i].PortraitTexture = Tex->Get();
+	// Your cards lead with the diorama (the dioramas should lead), the portrait as a small inset.
+	for (int32 i = 0; i < Model.Mine.Num(); ++i)
+	{
+		UTexture2D* Portrait = MinePortraitHash.IsValidIndex(i) ? MediaTexture(MinePortraitHash[i]) : nullptr;
+		UTexture2D* Dio = MineDioramaHash.IsValidIndex(i) ? MediaTexture(MineDioramaHash[i], !Model.Mine[i].bAlive) : nullptr;
+		Model.Mine[i].PortraitTexture = Dio ? Dio : Portrait;
+		Model.Mine[i].InsetTexture = Dio ? Portrait : nullptr;
+	}
 	if (Seats.Num() > 0) Model.AliveOf = Seats.Num();
 	for (FFNHudPower& P : Model.Powers) P.bArmed = P.Key() == ArmedPower;
 	if (UFNNetClient* N = Net.Get()) Model.bViewer = N->bViewer;
 	Model.bPowerPanel = FindStudio() == nullptr;   // the powers live on the table; the HUD rows only without one
 	if (Layout.IsValid()) Layout->SetModel(Model);
 	UpdateRing();
+	UpdateTable();
+}
+
+void SFNHudLive::PreviewTable()
+{
+	AFNStudio* St = FindStudio();
+	if (!St) return;
+	auto Load = [this](const TCHAR* Rel) -> FString
+	{
+		const FString Key = FString(TEXT("preview:")) + Rel;
+		if (!Portraits.Contains(Key))
+		{
+			TArray<uint8> Png;
+			if (FFileHelper::LoadFileToArray(Png, *FPaths::Combine(FPaths::ProjectDir(), Rel)))
+				if (UTexture2D* T = FN7Media::TextureFromPng(Png))
+				{
+					Portraits.Add(Key, TStrongObjectPtr<UTexture2D>(T));
+					MediaPng.Add(Key, Png);
+				}
+		}
+		return Key;
+	};
+	const FString DioA = Load(TEXT("docs/style-refs/approved/diorama_maxzoom.png"));
+	const FString DioB = Load(TEXT("docs/style-refs/approved/event_maxzoom.png"));
+	struct FSample { const TCHAR* Name; int32 Seat; uint32 Aura; bool bHuman; bool bConnected; bool bRightFallen; double La, Lo; };
+	const FSample Samples[] = {
+		{ TEXT("Chris"), 0, 0xE69F00, true, true, false, 46.9, 8.2 },
+		{ TEXT("Benito"), 1, 0x009E73, true, true, false, 45.8, 10.6 },
+		{ TEXT("Vex"), 2, 0xF0E442, false, true, false, 47.6, 10.1 },
+		{ TEXT("Mara"), 3, 0xF28CC0, false, false, true, 46.2, 7.4 },
+	};
+	TArray<FFNTableGod> Gods;
+	int32 Ref = 0;
+	for (const FSample& Sm : Samples)
+	{
+		FFNTableGod G;
+		G.Seat = Sm.Seat;
+		G.Player = Sm.Name;
+		G.Aura = FLinearColor::FromSRGBColor(FColor((Sm.Aura >> 16) & 255, (Sm.Aura >> 8) & 255, Sm.Aura & 255));
+		G.bHuman = Sm.bHuman;
+		G.bConnected = Sm.bConnected;
+		G.bMine = Sm.Seat == 0;
+		for (int32 h = 0; h < 2; ++h)
+		{
+			FFNTableDemigod D;
+			D.Ref = FString::Printf(TEXT("dg:%d"), Ref++);
+			D.Name = FString::Printf(TEXT("%s's %s Hand"), Sm.Name, h == 0 ? TEXT("Left") : TEXT("Right"));
+			D.Side = h == 0 ? TEXT("left") : TEXT("right");
+			D.bAlive = !(h == 1 && Sm.bRightFallen);
+			D.bHasPos = true;
+			D.Lat = Sm.La + h * 0.5;
+			D.Lon = Sm.Lo + h * 0.6;
+			D.Diorama = MediaTexture(h == 0 ? DioA : DioB);
+			D.DioramaGrey = D.bAlive ? nullptr : MediaTexture(h == 0 ? DioA : DioB, true);
+			G.Demigods.Add(D);
+		}
+		Gods.Add(G);
+	}
+	if (AFNTableGods* T = AFNTableGods::Get(St, true))
+	{
+		T->SetGods(Gods, 0);
+		T->SetShown(true);
+	}
+}
+
+UTexture2D* SFNHudLive::MediaTexture(const FString& Hash, bool bGrey)
+{
+	if (Hash.IsEmpty()) return nullptr;
+	const TStrongObjectPtr<UTexture2D>* Tex = Portraits.Find(Hash);
+	if (!Tex) return nullptr;
+	if (!bGrey) return Tex->Get();
+	if (const TStrongObjectPtr<UTexture2D>* G = GreyMedia.Find(Hash)) return G->Get();
+	if (const TArray<uint8>* Png = MediaPng.Find(Hash))
+		if (UTexture2D* G = FN7Media::TextureFromPng(*Png, true))
+		{
+			GreyMedia.Add(Hash, TStrongObjectPtr<UTexture2D>(G));
+			return G;
+		}
+	return Tex->Get();
+}
+
+void SFNHudLive::UpdateTable()
+{
+	AFNStudio* St = FindStudio();
+	if (!St || Seats.Num() == 0) return;
+	// Gods: the players list, else the demigods grouped by their player.
+	TArray<FFNTableGod> Gods;
+	auto GodFor = [&Gods](const FString& Player, int32 Seat) -> FFNTableGod&
+	{
+		for (FFNTableGod& G : Gods) if ((!Player.IsEmpty() && G.Player == Player) || (Player.IsEmpty() && Seat >= 0 && G.Seat == Seat)) return G;
+		FFNTableGod& G = Gods.AddDefaulted_GetRef();
+		G.Player = Player;
+		G.Seat = Seat;
+		return G;
+	};
+	for (const FPlayerInfo& P : Players)
+	{
+		FFNTableGod& G = GodFor(P.Player, P.Seat);
+		G.Seat = P.Seat;
+		if (P.bHasAura) G.Aura = P.Aura;
+		G.bAlive = P.bAlive;
+		G.bConnected = P.bConnected;
+		G.bHuman = P.Controller == TEXT("human");
+	}
+	for (const FSeatInfo& S : Seats)
+	{
+		FFNTableGod& G = GodFor(S.Player.IsEmpty() ? S.Name : S.Player, S.Seat);
+		if (G.Seat < 0) G.Seat = S.Seat;
+		if (S.bHasAura && Players.Num() == 0) G.Aura = S.Aura;
+		if (Players.Num() == 0)
+		{
+			G.bHuman = S.Controller.IsEmpty() ? S.Seat >= 0 : S.Controller == TEXT("human");
+			G.bConnected = S.bConnected;
+			G.bAlive = G.Demigods.Num() == 0 ? S.bAlive : (G.bAlive || S.bAlive);
+		}
+		FFNTableDemigod D;
+		D.Ref = S.Ref;
+		D.Name = S.Name;
+		D.Side = S.Side;
+		D.bAlive = S.bAlive;
+		D.bHasPos = S.bHasPos;
+		D.Lat = S.Lat;
+		D.Lon = S.Lon;
+		D.Diorama = MediaTexture(S.DioramaHash);
+		D.DioramaGrey = S.bAlive ? nullptr : MediaTexture(S.DioramaHash, true);
+		if (D.Side == TEXT("right") && G.Demigods.Num() == 1 && G.Demigods[0].Side != TEXT("right")) G.Demigods.Add(D);
+		else if (D.Side != TEXT("right")) G.Demigods.Insert(D, 0);
+		else G.Demigods.Add(D);
+	}
+	for (FFNTableGod& G : Gods) G.bMine = MySeat >= 0 && G.Seat == MySeat;
+	if (AFNTableGods* T = AFNTableGods::Get(St, true))
+	{
+		T->SetGods(Gods, MySeat);
+		T->SetShown(bInRoom);
+	}
 }
 
 double SFNHudLive::RadiusFor(const FString& Slug, const FString& Tier) const

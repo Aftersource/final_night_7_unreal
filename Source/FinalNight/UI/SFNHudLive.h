@@ -79,7 +79,35 @@ private:
 		FString PortraitUrl;
 		int32 Bolts = -1;
 		int32 Sparks = -1;
+		// rules 0.7.0
+		FString Side;          // left / right
+		FString Player;        // the player (god) this demigod belongs to
+		FLinearColor Aura = FLinearColor::White;
+		bool bHasAura = false;
+		FString Controller;    // human / ai / bot
+		bool bConnected = true;
+		FString DioramaHash;
+		bool bHasPos = false;
+		double Lat = 0.0, Lon = 0.0;
 	};
+	struct FPlayerInfo
+	{
+		int32 Seat = -1;
+		FString Player;
+		FLinearColor Aura = FLinearColor::White;
+		bool bHasAura = false;
+		bool bAlive = true;
+		FString Controller;
+		bool bConnected = true;
+	};
+	TArray<FPlayerInfo> Players;
+	TArray<FString> MineDioramaHash;   // per Model.Mine entry
+	TMap<FString, TArray<uint8>> MediaPng;                   // raw /media bytes by hash (for the grey variants)
+	TMap<FString, TStrongObjectPtr<UTexture2D>> GreyMedia;  // desaturated dioramas, by hash
+	UTexture2D* MediaTexture(const FString& Hash, bool bGrey = false);
+	void UpdateTable();
+	/** The sample table for previews: four gods, two diorama boxes each. */
+	void PreviewTable();
 	TArray<FSeatInfo> Seats;
 	int32 MySeat = -1;
 	int32 Round = 0;
