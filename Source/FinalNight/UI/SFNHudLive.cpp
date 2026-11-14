@@ -76,6 +76,13 @@ namespace FN7HudJson
 	{
 		return O.IsValid() && O->HasField(K) && !O->GetField<EJson::None>(K)->IsNull();
 	}
+	/** A JSON boolean (true / false); Num() never reads those. */
+	bool Flag(const TSharedPtr<FJsonObject>& O, const TCHAR* K, bool Default = false)
+	{
+		bool V = Default;
+		if (O.IsValid()) O->TryGetBoolField(K, V);
+		return V;
+	}
 }
 
 /** True when keyboard focus is in the game viewport or the HUD over it (not in an editor panel). */
@@ -566,10 +573,18 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		ReadEntropy(FN7HudJson::Obj(PV, TEXT("entropy")));
 		ReadDemigods(PV);
 	}
+	else if (T == TEXT("round.started"))
+	{
+		// The built-in AI challenges too (0.8.1): its locks come at the beat's start, same shape as challenge.lock.
+		if (const TArray<TSharedPtr<FJsonValue>>* Ch = FN7HudJson::Arr(FN7HudJson::Obj(D, TEXT("public")), TEXT("challenges")))
+			for (const TSharedPtr<FJsonValue>& V : *Ch)
+				if (const TSharedPtr<FJsonObject> Lk = V.IsValid() ? V->AsObject() : nullptr) HandleChallengeLock(Lk);
+	}
 	else if (T == TEXT("round.outcome"))
 	{
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
 		ReadEntropy(FN7HudJson::Obj(Pub, TEXT("entropy")));
+		HandleDuelsOutcome(Pub);   // duels_open[] (the live score) and duels[] (challenge.end)
 		const FText BeatTag = FText::Format(LOCTEXT("BeatTag", "BEAT {0}"), (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round));
 		if (const TArray<TSharedPtr<FJsonValue>>* Events = FN7HudJson::Arr(Pub, TEXT("events")))
 		{
@@ -656,19 +671,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
 		// A summon accepted (rules 0.8.0): the piece lifts and dissolves at its origin, for everyone.
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("summoning")) { HandleSummoning(Pub); return; }
-		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("challenge.lock"))
-		{
-			const TSharedPtr<FJsonObject> A = FN7HudJson::Obj(Pub, TEXT("a")), B = FN7HudJson::Obj(Pub, TEXT("b"));
-			const FString An = FN7HudJson::Str(A, TEXT("name")), Bn = FN7HudJson::Str(B, TEXT("name"));
-			UE_LOG(LogTemp, Display, TEXT("FN7 challenge.lock: %s vs %s"), *An, *Bn);
-			PendingChallengeRef.Reset();
-			ShowBanner(LOCTEXT("Clash", "CLASH!"), FText::FromString(FString::Printf(TEXT("%s  vs  %s"), *An, *Bn)), FLinearColor(1.f, 0.42f, 0.25f), 0.0, 5.0);
-			AddNews(LOCTEXT("ClashTag", "CLASH"), FString::Printf(TEXT("%s challenges %s"), *An, *Bn));
-			double La = 0.0, Lo = 0.0;
-			if (FN7LonLat(Pub, TEXT("at"), La, Lo)) if (AFNStudio* Sc = FindStudio()) Sc->CenterBoardAndGlobe(La, Lo);   // glides there
-			Publish();
-			return;
-		}
+		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("challenge.lock")) { HandleChallengeLock(Pub); return; }
 		// Time slowed: when it is you, the Slowed event carries the bill's terms (rules 0.7.0).
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("slowed") && (int32)FN7HudJson::Num(Pub, TEXT("by_seat"), -2) == MySeat && MySeat >= 0)
 		{
@@ -1559,11 +1562,102 @@ static bool FN7LonLat(const TSharedPtr<FJsonObject>& O, const TCHAR* Key, double
 	return true;
 }
 
+void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock)
+{
+	const FString DuelId = FN7HudJson::Str(Lock, TEXT("duel_id"));
+	const TSharedPtr<FJsonObject> A = FN7HudJson::Obj(Lock, TEXT("a")), B = FN7HudJson::Obj(Lock, TEXT("b"));
+	FDuelInfo Info;
+	Info.A = FN7HudJson::Str(A, TEXT("demigod"));
+	Info.B = FN7HudJson::Str(B, TEXT("demigod"));
+	Info.AName = FN7HudJson::Str(A, TEXT("name"));
+	Info.BName = FN7HudJson::Str(B, TEXT("name"));
+	if (Info.AName.IsEmpty()) Info.AName = NameOf(Info.A);
+	if (Info.BName.IsEmpty()) Info.BName = NameOf(Info.B);
+	Info.HpA = (float)FN7HudJson::Num(A, TEXT("health"), 0.0);
+	Info.HpB = (float)FN7HudJson::Num(B, TEXT("health"), 0.0);
+	Info.bMine = MineRefs.Contains(Info.A) || MineRefs.Contains(Info.B);
+	const bool bAi = FN7HudJson::Flag(Lock, TEXT("ai"));
+	UE_LOG(LogTemp, Display, TEXT("FN7 challenge.lock: %s %s vs %s%s%s"), *DuelId, *Info.AName, *Info.BName, bAi ? TEXT(" (AI)") : TEXT(""), Info.bMine ? TEXT(" (yours)") : TEXT(""));
+	if (!DuelId.IsEmpty() && Duels.Contains(DuelId)) return;   // already shown
+	if (!DuelId.IsEmpty()) Duels.Add(DuelId, Info);
+	if (!PendingChallengeRef.IsEmpty() && Info.B == PendingChallengeRef) PendingChallengeRef.Reset();   // ours: no refusal is coming
+	// The AI teleported beside its rival first: the red pulse and the warp-in, as for any summon.
+	if (const TSharedPtr<FJsonObject> Leap = FN7HudJson::Obj(Lock, TEXT("leap"))) HandleSummoning(Leap);
+	AddNews(LOCTEXT("ClashTag", "CLASH"), FString::Printf(TEXT("%s challenges %s"), *Info.AName, *Info.BName));
+	if (Info.bMine)
+	{
+		// Your fight: the banner, and the board and globe glide to it. Other duels never move your view (a WORLD line only).
+		ShowBanner(LOCTEXT("Clash", "CLASH!"), FText::FromString(FString::Printf(TEXT("%s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.42f, 0.25f), 0.0, 5.0);
+		double La = 0.0, Lo = 0.0;
+		if (FN7LonLat(Lock, TEXT("at"), La, Lo)) if (AFNStudio* Sc = FindStudio()) Sc->CenterBoardAndGlobe(La, Lo);
+	}
+	Publish();
+}
+
+void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
+{
+	auto Hp = [](const TSharedPtr<FJsonObject>& O, const TCHAR* Side, float Def) { return (float)FN7HudJson::Num(FN7HudJson::Obj(O, TEXT("hp")), Side, Def); };
+	// Under way: the live score of your duel, in the status line (refreshed at every resolve while it lasts).
+	if (const TArray<TSharedPtr<FJsonValue>>* Open = FN7HudJson::Arr(Pub, TEXT("duels_open")))
+		for (const TSharedPtr<FJsonValue>& V : *Open)
+		{
+			const TSharedPtr<FJsonObject> O = V.IsValid() ? V->AsObject() : nullptr;
+			const FString DuelId = FN7HudJson::Str(O, TEXT("duel_id"));
+			if (DuelId.IsEmpty()) continue;
+			FDuelInfo& Info = Duels.FindOrAdd(DuelId);
+			if (Info.A.IsEmpty())
+			{
+				// Joined mid-duel: no lock seen.
+				Info.A = FN7HudJson::Str(O, TEXT("a"));
+				Info.B = FN7HudJson::Str(O, TEXT("b"));
+				Info.AName = NameOf(Info.A);
+				Info.BName = NameOf(Info.B);
+				Info.bMine = MineRefs.Contains(Info.A) || MineRefs.Contains(Info.B);
+			}
+			Info.HpA = Hp(O, TEXT("a"), Info.HpA);
+			Info.HpB = Hp(O, TEXT("b"), Info.HpB);
+			Info.Blows = (int32)FN7HudJson::Num(O, TEXT("blows"), Info.Blows);
+			if (Info.bMine)
+				Toast(FString::Printf(TEXT("DUEL  %s %.1f  -  %s %.1f   (%d blows)"), *Info.AName, Info.HpA, *Info.BName, Info.HpB, Info.Blows));
+		}
+	// Over: the result and its deed (everyone's in WORLD; yours as a banner too).
+	if (const TArray<TSharedPtr<FJsonValue>>* Ended = FN7HudJson::Arr(Pub, TEXT("duels")))
+		for (const TSharedPtr<FJsonValue>& V : *Ended)
+		{
+			const TSharedPtr<FJsonObject> O = V.IsValid() ? V->AsObject() : nullptr;
+			if (!O.IsValid()) continue;
+			const FString DuelId = FN7HudJson::Str(O, TEXT("duel_id"));
+			const FString Ar = FN7HudJson::Str(O, TEXT("a")), Br = FN7HudJson::Str(O, TEXT("b"));
+			FString An = FN7HudJson::Str(O, TEXT("a_name")), Bn = FN7HudJson::Str(O, TEXT("b_name"));
+			if (An.IsEmpty()) An = NameOf(Ar);
+			if (Bn.IsEmpty()) Bn = NameOf(Br);
+			const FString Winner = FN7HudJson::Str(O, TEXT("winner")), Reason = FN7HudJson::Str(O, TEXT("reason"));
+			const bool bKo = FN7HudJson::Flag(O, TEXT("ko"));
+			const FString Deed = FN7HudJson::Str(O, TEXT("deed"));
+			const bool bMine = MineRefs.Contains(Ar) || MineRefs.Contains(Br);
+			const FString WinName = Winner == Ar ? An : Winner == Br ? Bn : FString();
+			const FString Line = !Deed.IsEmpty() ? Deed
+				: WinName.IsEmpty() ? FString::Printf(TEXT("%s and %s fight to a draw"), *An, *Bn)
+				: FString::Printf(TEXT("%s beats %s%s"), *WinName, *(Winner == Ar ? Bn : An), bKo ? TEXT(" (knockout)") : TEXT(""));
+			UE_LOG(LogTemp, Display, TEXT("FN7 challenge.end: %s %s vs %s winner=%s reason=%s%s"), *DuelId, *An, *Bn, Winner.IsEmpty() ? TEXT("draw") : *Winner, *Reason, bMine ? TEXT(" (yours)") : TEXT(""));
+			AddNews(LOCTEXT("DuelTag", "DUEL"), Line);
+			if (bMine)
+			{
+				const bool bWon = !Winner.IsEmpty() && MineRefs.Contains(Winner);
+				const FText Title = Winner.IsEmpty() ? LOCTEXT("DuelDraw", "DRAW") : bWon ? LOCTEXT("DuelWon", "VICTORY!") : LOCTEXT("DuelLost", "DEFEAT");
+				const FLinearColor Col = Winner.IsEmpty() ? FLinearColor(0.75f, 0.75f, 0.78f) : bWon ? FLinearColor(1.f, 0.82f, 0.3f) : FLinearColor(0.95f, 0.25f, 0.2f);
+				ShowBanner(Title, FText::FromString(Line), Col, 0.0, 6.0);
+			}
+			Duels.Remove(DuelId);
+		}
+}
+
 void SFNHudLive::NewMatch(const FString& Id)
 {
 	if (Id == MatchId) return;
 	UE_LOG(LogTemp, Display, TEXT("FN7 match: %s -> %s (summon state reset)"), MatchId.IsEmpty() ? TEXT("none") : *MatchId, *Id);
 	MatchId = Id;
+	Duels.Reset();
 	MineRefs.Reset();
 	MineAlive.Reset();
 	LastMineLog.Reset();
