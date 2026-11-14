@@ -373,6 +373,9 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			// In a duel of yours, Enter goes to your line, not the WILL.
 			if (Self.IsValid() && Self->Duel.IsValid() && !Self->Duel->MySide.IsEmpty() && !Self->Duel->bOver && Self->Tray.IsValid())
 			{
+				// Already typing in the tray: let Enter reach it (it strikes). Chris's first duel on the tray lost every line
+				// here: this handler took the Enter to re-focus the box, so the box never committed.
+				if (Self->Tray->HasInputFocus() || FN7TypingInText()) return false;
 				Self->Tray->FocusInput();
 				return true;
 			}
@@ -2439,17 +2442,18 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		};
 		FString Mine;
 		double Best = TNumericLimits<double>::Max();
-		bool bReach = false;
+		bool bReach = false, bDuelling = false;
 		for (const FSeatInfo& S : Seats)
 		{
 			if (!MineRefs.Contains(S.Ref) || !S.bAlive || !S.bHasPos) continue;
+			if (Duel.IsValid() && !Duel->bOver && (Duel->A == S.Ref || Duel->B == S.Ref)) { bDuelling = true; continue; }   // busy: the other one goes
 			const double K = Km(S.Lat, S.Lon, La, Lo);
 			const bool bIn = (T && T->PiecesTouch(S.Ref, Ref)) || K <= Reach;
 			// The one you selected goes first, then one already in reach, then the nearest.
 			const double Score = K - (S.Ref == SelectedRef ? 1e7 : 0.0) - (bIn ? 1e6 : 0.0);
 			if (Score < Best) { Best = Score; Mine = S.Ref; bReach = bIn; }
 		}
-		if (Mine.IsEmpty()) { Toast(TEXT("Both of your demigods have fallen: no one to send into a challenge.")); return; }
+		if (Mine.IsEmpty()) { Toast(bDuelling ? TEXT("Your demigod is already in a duel: finish this one first.") : TEXT("Both of your demigods have fallen: no one to send into a challenge.")); return; }
 		ConfirmMine = Mine;
 		ConfirmTarget = Ref;
 		ConfirmLevel = LevelName[Lv];
@@ -2494,6 +2498,12 @@ void SFNHudLive::ConfirmChallenge()
 	bConfirmOpen = false;
 	UFNNetClient* N = Net.Get();
 	if (!N || ConfirmMine.IsEmpty() || ConfirmTarget.IsEmpty()) return;
+	// A demigod already in a duel can't take another (the server answers "busy", after the teleport has already moved it).
+	if (Duel.IsValid() && !Duel->bOver && (Duel->A == ConfirmMine || Duel->B == ConfirmMine))
+	{
+		Toast(FString::Printf(TEXT("%s is already in a duel."), *NameOf(ConfirmMine)));
+		return;
+	}
 	if (!N->CanSendInstants(bConfirmTeleport ? 2 : 1)) { bConfirmOpen = true; Toast(TEXT("The gods need a breath: try again in a moment.")); return; }   // the card stays: click again
 	if (bConfirmTeleport)
 	{
