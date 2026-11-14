@@ -26,11 +26,11 @@
 
 namespace FN7Ring
 {
-	static const TCHAR* RingCube = TEXT("/Engine/BasicShapes/RingCube.RingCube");
+	static const TCHAR* RingCube = TEXT("/Engine/BasicShapes/Cube.Cube");
 	static const TCHAR* RingCyl = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	static const TCHAR* RingSph = TEXT("/Engine/BasicShapes/Sphere.Sphere");
-	static const TCHAR* RingCone = TEXT("/Engine/BasicShapes/RingCone.RingCone");
-	static const TCHAR* RingPlane = TEXT("/Engine/BasicShapes/RingPlane.RingPlane");
+	static const TCHAR* RingCone = TEXT("/Engine/BasicShapes/Cone.Cone");
+	static const TCHAR* RingPlane = TEXT("/Engine/BasicShapes/Plane.Plane");
 
 	// Sizes in table cm (scaled with the table): a hex of circumradius RingHexR, RingHexH thick, arcs just outside the board rim.
 	// Measured on the real camera: the board's near-right edge runs off the screen and the table's WILL bar sits there,
