@@ -260,7 +260,7 @@ namespace FN7ClothGen
 	FLinearColor Rod(int32 X, int32 Y, int32 W, int32 H)
 	{
 		using FN7WoodGen::Hex;
-		static const FLinearColor Wood = Hex(TEXT("7A4A28"));
+		static const FLinearColor RodWood = Hex(TEXT("7A4A28"));
 		static const FLinearColor Knob = Hex(TEXT("5A3219"));
 		const float N = ((float)Y + 0.5f) / H * 2.f - 1.f;   // -1 top .. 1 bottom
 		const int32 KnobW = 40;
@@ -273,11 +273,11 @@ namespace FN7ClothGen
 		}
 		if (FMath::Abs(N) > Radius) return FLinearColor(0.f, 0.f, 0.f, 0.f);
 		const float Nn = N / Radius;
-		const float Cyl = FMath::Sqrt(FMath::Max(0.f, 1.f - Nn * Nn));
+		const float RodRound = FMath::Sqrt(FMath::Max(0.f, 1.f - Nn * Nn));
 		const float Spec = FMath::Pow(FMath::Max(0.f, 1.f - FMath::Abs(Nn + 0.45f) * 3.2f), 3.f);
 		const float Grain = 0.5f + 0.5f * FMath::Sin(((float)X / 9.f + Noise((float)X / 60.f, Nn * 2.f) * 3.f) * 2.f * PI);
-		FLinearColor C = bKnob ? Knob : Wood;
-		C *= 0.45f + 0.65f * Cyl;
+		FLinearColor C = bKnob ? Knob : RodWood;
+		C *= 0.45f + 0.65f * RodRound;
 		C = FMath::Lerp(C, C * 0.82f, Grain * 0.35f);
 		C += FLinearColor(1.f, 0.9f, 0.7f, 0.f) * Spec * 0.35f;
 		const float Alpha = FMath::Clamp((Radius - FMath::Abs(N)) * H * 0.5f, 0.f, 1.f);
