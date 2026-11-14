@@ -101,6 +101,8 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 {
 	Net = InArgs._Net;
 	Studio = InArgs._Studio;
+	// A click on a point of the globe: the studio reports [lon, lat]; with an Entropy power armed, it is cast there.
+	if (AFNStudio* St = Studio.Get()) St->OnUserPickedSpot = [this](double Lon, double Lat) { OnGlobePicked(Lon, Lat); };
 	if (Net.IsValid())
 	{
 		MsgHandle = Net->OnServerMessage.AddSP(this, &SFNRootWidget::OnServerMessage);
@@ -160,6 +162,21 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 		[
 			SNew(SBox).WidthOverride(380.f).Visibility(EVisibility::HitTestInvisible)[SAssignNew(BannerBox, SVerticalBox)]
 		]
+		// Final Night 7: ENTROPY power bar, bottom centre. Pick a power, then click the globe.
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0.f, 0.f, 0.f, 92.f)
+		[
+			SNew(SVerticalBox).Visibility_Lambda([this]() { return (Net.IsValid() && Net->bFn7 && Day > 0 && !bEliminated && PowersShown > 0) ? EVisibility::Visible : EVisibility::Collapsed; })
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, 6)
+			[
+				SNew(STextBlock).Font(Font(12, TEXT("Bold"))).ColorAndOpacity(Orange).Text_Lambda([this]()
+				{
+					return FText::FromString(ArmedPower.IsEmpty()
+						? FString::Printf(TEXT("ENTROPY POWERS  -  %d bolts  -  every bolt you spend gives each rival +2"), Fn7Bolts)
+						: FString::Printf(TEXT("%s ARMED  -  click the globe where it should strike  (click the power again to cancel)"), *ArmedPowerName.ToUpper()));
+				})
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[SAssignNew(PowerBar, SHorizontalBox)]
+		]
 		// Step hint + timer, bottom centre (kept off the tablet so it never covers the story)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0.f, 0.f, 0.f, 18.f)
 		[
@@ -202,6 +219,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 						.Text_Lambda([this]()
 						{
 							if (State == EState::DuelWriting) return FText::FromString(DuelPrompt + TEXT("\n") + DuelOdds);
+							if (Net.IsValid() && Net->bFn7) return FText::FromString(TEXT("TIME: you are slowing time. Speak to your two hands (lines starting r: go to the right hand). Enter seals your orders and cuts off anyone slower."));
 							return FText::FromString(DropCities.Num()
 								? FString::Printf(TEXT("Day 1: name a city to drop into: %s"), *FString::Join(DropCities, TEXT(" / ")))
 								: FString(TEXT("Ordered intentions. Teleport first and you search at the destination.")));
@@ -387,6 +405,11 @@ FText SFNRootWidget::HintText() const
 
 FText SFNRootWidget::TimerText() const
 {
+	if (Net.IsValid() && Net->bFn7 && Fn7WindowDeadline > 0.0)
+	{
+		const int32 Secs = FMath::Max(0, (int32)((Fn7WindowDeadline - Net->NowServerMs()) / 1000.0));
+		return FText::FromString(FString::Printf(TEXT("TIME IS SLOWED by %s  -  %d:%02d left"), *Fn7WindowBy, Secs / 60, Secs % 60));
+	}
 	if (Deadline <= 0.0 || !Net.IsValid() || (State != EState::Compose && State != EState::Writing && State != EState::Choose && State != EState::DuelWriting)) return FText::GetEmpty();
 	const int32 Secs = FMath::Max(0, (int32)((Deadline - Net->NowServerMs()) / 1000.0));
 	return FText::FromString(FString::Printf(TEXT("%d:%02d"), Secs / 60, Secs % 60));
@@ -424,6 +447,14 @@ FText SFNRootWidget::NotificationText() const
 
 FText SFNRootWidget::HudText() const
 {
+	if (Net.IsValid() && Net->bFn7)
+	{
+		FString H;
+		for (int32 i = 0; i < 10; ++i) H += i < Health ? TEXT("\u25A0") : TEXT("\u25A1");
+		if (bEliminated) return FText::FromString(FString::Printf(TEXT("BEAT %d / %d    %d demigods alive\nYOU HAVE FALLEN  -  watching the rest of the night"), Day, Days, Alive));
+		return FText::FromString(FString::Printf(TEXT("BEAT %d / %d    %d demigods alive    ENTROPY: %s\nHEALTH  %s  %d/10      LIGHTNING BOLTS: %d\nYou stand in %s\n%s"),
+			Day, Days, Alive, *Fn7Entropy, *H, FMath::Max(0, Health), Fn7Bolts, Place.IsEmpty() ? TEXT("...") : *Place, *Fn7Arena));
+	}
 	FString Hearts;
 	for (int32 i = 0; i < 10; ++i) Hearts += i < Health ? TEXT("■") : TEXT("□");
 	FString S = FString::Printf(TEXT("DAY %d / %d    %d alive    THE CRISIS: %s\nHEALTH  %s  %d/10\nYou are in %s\n%s"),
@@ -566,7 +597,7 @@ void SFNRootWidget::Choose(int32 Index)
 void SFNRootWidget::AddBanner(const FString& Text, const FLinearColor& Color)
 {
 	Banners.Add({ Day > 0 ? FString::Printf(TEXT("Day %d  -  %s"), Day, *Text) : Text, Color, Clock });
-	if (Banners.Num() > 7) Banners.RemoveAt(0);
+	while (Banners.Num() > ((Net.IsValid() && Net->bFn7) ? 5 : 7)) Banners.RemoveAt(0);
 	RebuildBanners();
 }
 
@@ -587,7 +618,8 @@ EActiveTimerReturnType SFNRootWidget::TickAnim(double Time, float Dt)
 	if (IntroShown < Intro.Len()) IntroShown += Dt * 60.f;
 	if (DiceBannerAt >= 0.0 && Clock >= DiceBannerAt) { DiceBannerAt = -1.0; AddBanner(DiceBanner, Gold); ProgressNote = TEXT("The Dungeon Master is deciding your fate..."); }
 	const int32 Before = Banners.Num();
-	Banners.RemoveAll([this](const FBanner& B) { return Clock - B.Born > 75.0; });
+	const double Life = (Net.IsValid() && Net->bFn7) ? 30.0 : 75.0;
+	Banners.RemoveAll([this, Life](const FBanner& B) { return Clock - B.Born > Life; });
 	if (Banners.Num() != Before) RebuildBanners();
 	if (Net.IsValid() && Net->bAutoTest && !bAutoDone && Clock >= AutoNext)
 	{
@@ -731,6 +763,7 @@ void SFNRootWidget::ApplyFn7Public(const TSharedPtr<FJsonObject>& PV)
 			FFNPiece Pc;
 			if (!O.IsValid() || !LonLat(O, TEXT("pos"), Pc.Lon, Pc.Lat)) continue;   // the fallen have no position
 			const bool bMine = Str(O, TEXT("ref")) == Fn7Demigod;
+			if (bMine) { const FString Pl = Str(O, TEXT("place")), Rg = Str(O, TEXT("region")); Place = Rg.IsEmpty() || Rg == Pl ? Pl : Pl + TEXT(", ") + Rg; }
 			const TSharedPtr<FJsonValue> SeatV = O->TryGetField(TEXT("seat"));
 			const bool bAi = !SeatV.IsValid() || SeatV->IsNull();   // seat null = the built-in AI's demigod
 			Pc.Name = bMine ? FString::Printf(TEXT("YOU  %d/10"), Health) : Str(O, TEXT("name"));
@@ -739,6 +772,45 @@ void SFNRootWidget::ApplyFn7Public(const TSharedPtr<FJsonObject>& PV)
 			Board.Add(Pc);
 		}
 	if (AFNStudio* St = Studio.Get()) St->ShowWorld(Board);
+}
+
+void SFNRootWidget::RebuildPowerBar(const TArray<TSharedPtr<FJsonValue>>& Powers)
+{
+	if (!PowerBar.IsValid()) return;
+	PowerBar->ClearChildren();
+	PowersShown = Powers.Num();
+	for (const TSharedPtr<FJsonValue>& V : Powers)
+	{
+		const TSharedPtr<FJsonObject> P = V->AsObject();
+		const FString Slug = Str(P, TEXT("slug")), Name = Str(P, TEXT("name"));
+		if (Slug.IsEmpty() || Slug == TEXT("custom")) continue;   // a custom power needs words: type it as "c: custom ..." in the box
+		const int32 Cost = (int32)Numb(P, TEXT("cost"), 1);
+		PowerBar->AddSlot().AutoWidth().Padding(3.f, 0.f)
+		[
+			SNew(SButton).ContentPadding(FMargin(10.f, 6.f))
+			.ButtonColorAndOpacity_Lambda([this, Slug]() { return ArmedPower == Slug ? FLinearColor(1.f, 0.55f, 0.2f) : FLinearColor(0.25f, 0.22f, 0.2f); })
+			.IsEnabled_Lambda([this, Cost]() { return Fn7Bolts >= Cost; })
+			.ToolTipText(FText::FromString(FString::Printf(TEXT("%s: costs %d bolt(s), strikes %d km around the point"), *Name, Cost, (int32)Numb(P, TEXT("radius_km")))))
+			.OnClicked_Lambda([this, Slug, Name]()
+			{
+				ArmedPower = ArmedPower == Slug ? FString() : Slug;
+				ArmedPowerName = Name;
+				if (AFNStudio* St = Studio.Get()) St->PlaySfx(EFNSfx::Click, 0.6f);
+				return FReply::Handled();
+			})
+			[
+				SNew(STextBlock).Font(Font(11, TEXT("Bold"))).ColorAndOpacity(Pale).Text(FText::FromString(FString::Printf(TEXT("%s  %d"), *Name, Cost)))
+			]
+		];
+	}
+}
+
+void SFNRootWidget::OnGlobePicked(double Lon, double Lat)
+{
+	if (ArmedPower.IsEmpty() || !Net.IsValid() || !Net->bFn7 || bEliminated) return;   // otherwise a globe click only moves the table view
+	Net->CastAt(Day, ArmedPower, Lon, Lat);
+	AddBanner(FString::Printf(TEXT("You throw %s at %.1f, %.1f"), *ArmedPowerName, Lat, Lon), Orange);
+	ArmedPower.Reset();
 }
 
 bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
@@ -815,6 +887,10 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		if (Arena.IsValid() && LonLat(Arena, TEXT("center"), Lon, Lat) && St) St->ShowZoneOnGlobe(Lon, Lat, Numb(Arena, TEXT("radius_km"), 20000));
 		const TSharedPtr<FJsonObject> You = Sub(Priv, TEXT("you"));
 		const TSharedPtr<FJsonObject> Ent = Sub(Pub, TEXT("entropy"));
+		Fn7Bolts = (int32)Numb(You, TEXT("bolts"), Fn7Bolts);
+		if (const TArray<TSharedPtr<FJsonValue>>* Pw = Arr(Pub, TEXT("powers"))) if (Pw->Num() != PowersShown) RebuildPowerBar(*Pw);
+		Fn7Entropy = Str(Ent, TEXT("key")).ToUpper();
+		Fn7Arena = FString::Printf(TEXT("Time's circle: %d km around %s (stay inside)"), (int32)Numb(Arena, TEXT("radius_km")), *Str(Arena, TEXT("city")));
 		Fn7Brief = FString::Printf(TEXT("%d demigods alive. Time's circle: %d km, closing on %s.\nYou: health %d, %d lightning bolts.  Entropy: %s.\n\n"
 			"Type orders to your hands (left by default; start a line with r: for the right hand).\nb: <place or lon,lat> throws a lightning bolt.  c: <power> <place> casts a power."),
 			Alive, (int32)Numb(Arena, TEXT("radius_km")), *Str(Arena, TEXT("city")), Health, (int32)Numb(You, TEXT("bolts")), *Str(Ent, TEXT("key")));
@@ -830,7 +906,13 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		if (const TArray<TSharedPtr<FJsonValue>>* Om = Arr(Pub, TEXT("omens")))
 			for (int32 i = 0; i < Om->Num() && i < 2; ++i) AddBanner(Str((*Om)[i]->AsObject(), TEXT("god")) + TEXT(": ") + Str((*Om)[i]->AsObject(), TEXT("speech")), Gold);
 		if (const TArray<TSharedPtr<FJsonValue>>* Ev = Arr(Pub, TEXT("events")))
-			for (int32 i = 0; i < Ev->Num() && i < 3; ++i) AddBanner(Str((*Ev)[i]->AsObject(), TEXT("text")), FLinearColor(0.55f, 0.85f, 1.f));
+			for (int32 i = 0; i < Ev->Num(); ++i)
+			{
+				const TSharedPtr<FJsonObject> E = (*Ev)[i]->AsObject();
+				if (i < 3) AddBanner(Str(E, TEXT("text")), FLinearColor(0.55f, 0.85f, 1.f));
+				double Lo = 0.0, La = 0.0;   // the big world events strike the globe too
+				if (St && Numb(E, TEXT("magnitude")) >= 6 && Str(E, TEXT("kind")) != TEXT("cast") && LonLat(E, TEXT("at"), Lo, La)) St->FlashAt(Lo, La);
+			}
 		if (const TArray<TSharedPtr<FJsonValue>>* E = Arr(Pub, TEXT("eliminated")))
 		{
 			if (St && E->Num() > 0) St->PlaySfx(EFNSfx::Snuff, 0.8f, 2.5f);
@@ -870,15 +952,24 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		ApplyFn7View(Sub(Sub(D, TEXT("you")), TEXT("private_state")));
 		return true;
 	}
-	if (T == TEXT("window.opened") || T == TEXT("window.closed")) return true;   // the phase.event names who slowed time
+	if (T == TEXT("window.opened")) { Fn7WindowDeadline = Numb(D, TEXT("deadline"), 0.0); return true; }
+	if (T == TEXT("window.closed"))
+	{
+		Fn7WindowDeadline = 0.0;
+		const FString Why = Str(D, TEXT("reason"));
+		AddBanner(Why == TEXT("submitted") ? TEXT("Time snaps back: the orders are sealed") : TEXT("Time snaps back"), Dim);
+		return true;
+	}
 	if (T == TEXT("phase.event"))
 	{
 		const TSharedPtr<FJsonObject> P = Sub(D, TEXT("public"));
 		const FString Ev = Str(P, TEXT("event"));
-		if (Ev == TEXT("slowed")) AddBanner(Str(P, TEXT("text")), Dim);
+		if (Ev == TEXT("slowed")) { Fn7WindowBy = Str(P, TEXT("by")); AddBanner(Str(P, TEXT("text")).ToUpper() + TEXT(": anyone may write now, until they press Enter"), Cyan); if (St) St->PlaySfx(EFNSfx::Whoosh, 0.7f); }
 		else if (Ev == TEXT("streak"))
 		{
 			AddBanner(FString::Printf(TEXT("%s casts %s at %s (%s)"), *Str(P, TEXT("by")), *Str(P, TEXT("power_name")), *Str(P, TEXT("place")), *Str(P, TEXT("region"))), Orange);
+			double Lo = 0.0, La = 0.0;
+			if (St && LonLat(P, TEXT("at"), Lo, La)) St->FlashAt(Lo, La);
 			if (St) St->PlaySfx(EFNSfx::Boom, 0.6f);
 		}
 		return true;
@@ -887,7 +978,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		bool bOk = true; D->TryGetBoolField(TEXT("accepted"), bOk);
 		const FString Why = Str(D, TEXT("reason"));
-		if (!bOk && Why == TEXT("cut")) AddBanner(TEXT("TOO LATE: whoever slowed time pressed Enter first. Your orders were cut off."), Red);
+		if (!bOk && Why == TEXT("cut")) { AddBanner(TEXT("YOUR ORDERS WERE CUT! Whoever slowed time pressed Enter first."), Red); AddBanner(TEXT("CUT OFF  -  write faster next time"), Red); if (St) St->PlaySfx(EFNSfx::Snuff, 1.f); }
 		else if (!bOk) AddBanner(TEXT("Refused: ") + Why, Red);
 		else Status = TEXT("Orders received");
 		return true;
@@ -1282,6 +1373,7 @@ FText SFNRootWidget::QuestText() const
 
 FText SFNRootWidget::ProfileText() const
 {
+	if (Net.IsValid() && Net->bFn7) return FText::GetEmpty();   // the old game's hero level / XP mean nothing in Final Night 7
 	// read the file at most once a second (this text is drawn every frame)
 	static FNProfile::FData P; static double LastRead = -10.0;
 	const double Now = FPlatformTime::Seconds();

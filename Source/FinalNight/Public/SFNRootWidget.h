@@ -10,6 +10,8 @@
 class UFNNetClient;
 class AFNStudio;
 class SVerticalBox;
+class SHorizontalBox;
+class FJsonValue;
 class SMultiLineEditableTextBox;
 class FJsonObject;
 
@@ -50,7 +52,20 @@ private:
 	void ApplyFn7Public(const TSharedPtr<FJsonObject>& PublicView);
 	FString Fn7Demigod;   // my ref, e.g. "dg:0"
 	FString Fn7Brief;     // the latest brief text, shown on the easel with the narration
-	bool bJoinedOther = false;   // joined someone else's room (Config/FN7JoinCode.txt): never send room.start
+	bool bJoinedOther = false;
+	int32 Fn7Bolts = 0;
+	FString Fn7Entropy, Fn7Arena;   // for the Final Night 7 status box
+	// Final Night 7 superpowers: TIME = the text box (a slow window), ENTROPY = the power bar (instant casts)
+	double Fn7WindowDeadline = 0.0;   // epoch ms of the open slow window, 0 = none
+	FString Fn7WindowBy;
+	TSharedPtr<SHorizontalBox> PowerBar;
+	int32 PowersShown = 0;
+	FString ArmedPower, ArmedPowerName;
+	void RebuildPowerBar(const TArray<TSharedPtr<FJsonValue>>& Powers);
+public:
+	/** Called by the studio when the player clicks a point on the globe: casts the armed power there. */
+	void OnGlobePicked(double Lon, double Lat);
+private:   // joined someone else's room (Config/FN7JoinCode.txt): never send room.start
 
 	FReply OnSubmitWill();
 	FReply OnToggleNotification();
