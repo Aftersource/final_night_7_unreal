@@ -191,6 +191,14 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 	{
 		if ((int32)WinNum == OpenWindowId) OpenWindowId = -1;
 	}
+	if (T == TEXT("room.snapshot"))
+	{
+		const TSharedPtr<FJsonObject>* You = nullptr;
+		bool bV = false;
+		if (D->TryGetObjectField(TEXT("you"), You) && You && You->IsValid()) (*You)->TryGetBoolField(TEXT("viewer"), bV);
+		bViewer = bV;
+	}
+	else if (T == TEXT("seat.joined")) bViewer = false;
 	if (T == TEXT("server.hello"))
 	{
 		FString Game; D->TryGetStringField(TEXT("game"), Game);
@@ -286,6 +294,15 @@ FString UFNNetClient::MediaUrl(const FString& Path) const
 	if (Base.EndsWith(TEXT("/ws"))) Base.LeftChopInline(3);
 	const FString P = Path.StartsWith(TEXT("/")) ? Path : TEXT("/") + Path;
 	return Base + P + (P.Contains(TEXT("?")) ? TEXT("&key=") : TEXT("?key=")) + ResolveAccessKey();
+}
+
+void UFNNetClient::TakeSeat() { Send(TEXT("room.take_seat"), Obj()); }
+
+void UFNNetClient::JoinHouse()
+{
+	TSharedRef<FJsonObject> D = Obj();
+	D->SetBoolField(TEXT("house"), true);
+	Send(TEXT("room.join"), D);
 }
 
 FString UFNNetClient::ResolveJoinCode() const
