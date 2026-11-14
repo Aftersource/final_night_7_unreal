@@ -46,19 +46,19 @@ namespace FN7Style
 
 	namespace Radius
 	{
-		constexpr float Panel = 10.f;
-		constexpr float Card = 14.f;
-		constexpr float Image = 10.f;
-		constexpr float Glow = 18.f;
+		constexpr float Panel = 6.f;
+		constexpr float Card = 8.f;
+		constexpr float Image = 6.f;
+		constexpr float Glow = 10.f;
 	}
 
 	namespace Brush
 	{
-		FINALNIGHT_API const FSlateBrush* Panel();               // radius 10, 1.5 px border
-		FINALNIGHT_API const FSlateBrush* Card();                // radius 14, 1.5 px border
-		FINALNIGHT_API const FSlateBrush* CardFrame(EFNSeatRole Role);  // radius 14, 2 px aura border
-		FINALNIGHT_API const FSlateBrush* AuraGlow(EFNSeatRole Role);   // radius 18, soft aura fill behind a card
-		FINALNIGHT_API const FSlateBrush* ImageWell();           // radius 10, deep violet: where a portrait sits
+		FINALNIGHT_API const FSlateBrush* Panel();               // radius 6, 1.5 px border
+		FINALNIGHT_API const FSlateBrush* Card();                // radius 8, 1.5 px border
+		FINALNIGHT_API const FSlateBrush* CardFrame(EFNSeatRole Role);  // radius 8, 2 px aura border
+		FINALNIGHT_API const FSlateBrush* AuraGlow(EFNSeatRole Role);   // radius 10, soft aura fill behind a card
+		FINALNIGHT_API const FSlateBrush* ImageWell();           // radius 6, deep violet: where a portrait sits
 		FINALNIGHT_API const FSlateBrush* Pill(EFNSeatRole Role);       // fully rounded, aura outline
 		FINALNIGHT_API const FSlateBrush* PillAccent();          // fully rounded, orange fill (badges, timers)
 		FINALNIGHT_API const FSlateBrush* PillYou();             // fully rounded, gold fill ("YOU")
