@@ -1071,9 +1071,9 @@ void AFNTableGods::Tick(float Dt)
 	Super::Tick(Dt);
 	TickFx(Dt);
 	AFNStudio* St = Studio.Get();
+	if (St) St->HideWillBlock();   // the kit's WILL scroll replaces the 3D WILL bar: hidden always, lobby included
 	if (!St || !bHasGods || !bShown) return;
 	St->HideClassicSeats();
-	St->HideWillBlock();   // the kit's WILL scroll replaces the 3D WILL bar even when the power ring isn't up
 	// The small boxes on the board follow the map as it zooms and pans.
 	const float S = (float)St->GetActorScale3D().X;
 	for (auto& KV : OnBoard)

@@ -180,6 +180,10 @@ private:
 	void AddNews(const FText& Tag, const FString& Text);
 	void RequestPortrait(const FString& Hash, const FString& Url);
 	void FetchGlobe();
+	/** The power palette from GET /api/rooms/{code}/query/powers (when no brief has brought it yet). */
+	void FetchPowers();
+	bool bPowersPending = false;
+	double PowersAskedAt = -100.0;
 	bool bGlobePending = false;
 	void Publish();
 

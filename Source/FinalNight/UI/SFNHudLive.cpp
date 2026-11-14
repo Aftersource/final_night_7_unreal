@@ -458,6 +458,9 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		ReadEntropy(FN7HudJson::Obj(PV, TEXT("entropy")));
 		ReadSeatView(FN7HudJson::Obj(FN7HudJson::Obj(D, TEXT("you")), TEXT("private_state")));
 		ReadDemigods(PV);
+		// The power hexes at once on joining (not a beat later): the snapshot's brief, else ask the powers query.
+		if (const TArray<TSharedPtr<FJsonValue>>* P = FN7HudJson::Arr(FN7HudJson::Obj(D, TEXT("brief")), TEXT("powers"))) ReadPowers(*P);
+		if (Model.Powers.Num() == 0) FetchPowers();
 		Model.Status = FText::GetEmpty();
 	}
 	else if (T == TEXT("match.started"))
@@ -911,6 +914,34 @@ void SFNHudLive::AddNews(const FText& Tag, const FString& Text)
 	if (Model.News.Num() > 6) Model.News.SetNum(6);
 }
 
+void SFNHudLive::FetchPowers()
+{
+	UFNNetClient* N = Net.Get();
+	const FString Room = Model.Room.ToString();
+	if (!N || Room.IsEmpty() || bPowersPending || FPlatformTime::Seconds() - PowersAskedAt < 10.0) return;   // at most every 10 s
+	bPowersPending = true;
+	PowersAskedAt = FPlatformTime::Seconds();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(N->MediaUrl(FString::Printf(TEXT("/api/rooms/%s/query/powers"), *Room)));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetTimeout(15.f);
+	TWeakPtr<SFNHudLive> Weak = StaticCastSharedRef<SFNHudLive>(AsShared());
+	Req->OnProcessRequestComplete().BindLambda([Weak](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		TSharedPtr<SFNHudLive> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		Self->bPowersPending = false;
+		if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200 || Self->Model.Powers.Num() > 0) return;
+		TSharedPtr<FJsonObject> O;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+		if (!FJsonSerializer::Deserialize(Reader, O) || !O.IsValid()) return;
+		if (const TArray<TSharedPtr<FJsonValue>>* P = FN7HudJson::Arr(O, TEXT("powers"))) Self->ReadPowers(*P);
+		UE_LOG(LogTemp, Display, TEXT("FN7 ring: powers from the query: %d"), Self->Model.Powers.Num());
+		Self->Publish();
+	});
+	Req->ProcessRequest();
+}
+
 void SFNHudLive::FetchGlobe()
 {
 	UFNNetClient* N = Net.Get();
@@ -1168,6 +1199,7 @@ void SFNHudLive::UpdateRing()
 	AFNStudio* St = FindStudio();
 	if (!St) return;
 	if (RingInput.IsValid()) RingInput->SetStudio(St);
+	if (bInRoom && Model.Powers.Num() == 0) FetchPowers();
 	const bool bShow = bInRoom && Model.Powers.Num() > 0 && !Model.bViewer;
 	{
 		// Why the ring is up or not, once per change (live diagnosis instead of guessing).
@@ -1572,10 +1604,11 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 	GlobeHoldUntil = FPlatformTime::Seconds() + 30.0;
 	if (!bMine)
 	{
-		// A rival: one of YOUR living demigods within this zoom level's hex of it = a CHALLENGE (contract v1.1: the
-		// server checks great-circle distance <= the level's hex size). The one you selected last goes first.
-		static const double HexKm[4] = { 0.003, 0.03, 3.0, 120.0 };
-		static const TCHAR* LevelName[4] = { TEXT("people"), TEXT("houses"), TEXT("villages"), TEXT("regions") };
+		// A rival: one of YOUR living demigods within a REGION hex (120 km) of it = a CHALLENGE, at ANY zoom (Chris,
+		// Challenge range was reported as too far: a zoom-dependent range made it 3 m at people zoom). The zoom only
+		// frames the fight. The one you selected last goes first.
+		static const double HexKm[4] = { 120.0, 120.0, 120.0, 120.0 };
+		static const TCHAR* LevelName[4] = { TEXT("regions"), TEXT("regions"), TEXT("regions"), TEXT("regions") };
 		const int32 Lv = FMath::Clamp(St->GetMapLevel(), 0, 3);
 		auto Km = [](double A1, double O1, double A2, double O2)
 		{
@@ -1593,7 +1626,7 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		if (Mine.IsEmpty())
 		{
 			UE_LOG(LogTemp, Display, TEXT("FN7 challenge: %s too far at %s (%.3f km hex)"), *Ref, LevelName[Lv], HexKm[Lv]);
-			Toast(FString::Printf(TEXT("Too far to challenge %s: get one of yours into its hex (at this zoom: %s)."), *NameOf(Ref), *FString(LevelName[Lv])));
+			Toast(FString::Printf(TEXT("Too far to challenge %s: bring one of yours within 120 km of it."), *NameOf(Ref)));
 			return;
 		}
 		if (UFNNetClient* N = Net.Get()) N->Challenge(Round, Mine, Ref, LevelName[Lv]);

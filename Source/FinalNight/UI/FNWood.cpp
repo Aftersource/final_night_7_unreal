@@ -285,6 +285,40 @@ namespace FN7ClothGen
 		return C;
 	}
 
+	FLinearColor Stone(int32 X, int32 Y, int32 W, int32 H)
+	{
+		const float Fx = (float)X, Fy = (float)Y;
+		// Mottled slate: a few octaves of noise.
+		float N = 0.f, Amp = 0.5f, F = 1.f / 90.f;
+		for (int32 o = 0; o < 5; ++o) { N += Amp * Noise(Fx * F + o * 13.1f, Fy * F - o * 7.7f); Amp *= 0.5f; F *= 2.1f; }
+		FLinearColor C = FLinearColor(0.085f, 0.088f, 0.095f) * (0.82f + 0.55f * N);
+		// Specks of quartz and pits.
+		const float Speck = FMath::Frac(FMath::Sin(Fx * 12.9898f + Fy * 78.233f) * 43758.5453f);
+		if (Speck > 0.988f) C *= 1.45f; else if (Speck < 0.012f) C *= 0.55f;
+		// Hairline cracks: thin ridges of a low-frequency noise.
+		const float Cr = FMath::Abs(Noise(Fx / 150.f + 5.f, Fy / 150.f - 2.f) + 0.35f * Noise(Fx / 40.f, Fy / 40.f + 9.f) * 0.1f);
+		if (Cr < 0.010f) C *= 0.5f; else if (Cr < 0.018f) C *= 0.8f;
+		// The chiselled bevel (lit from the top left) and a carved groove inside it.
+		const float Bev = 14.f;
+		const float L = Fx, T = Fy, R = W - 1 - Fx, B = H - 1 - Fy;
+		const float D = FMath::Min(FMath::Min(L, T), FMath::Min(R, B));
+		if (D < Bev)
+		{
+			const bool bLit = (L <= T && L <= R && L <= B) || (T <= L && T <= R && T <= B);
+			const float K = 1.f - D / Bev;
+			C *= bLit ? (1.f + 0.55f * K) : (1.f - 0.5f * K);
+		}
+		const float G = D - (Bev + 7.f);
+		if (G > -1.3f && G < 0.f) C *= 0.45f; else if (G >= 0.f && G < 1.2f) C *= 1.35f;
+		// Rounded corners.
+		const float Rad = 12.f;
+		float A = 1.f;
+		const float Cx = FMath::Min(L, R), Cy = FMath::Min(T, B);
+		if (Cx < Rad && Cy < Rad) A = FMath::Clamp(Rad - FVector2D::Distance(FVector2D(Cx, Cy), FVector2D(Rad, Rad)) + 0.5f, 0.f, 1.f);
+		C.A = A;
+		return C;
+	}
+
 	FSlateBrush ImageBrush(UTexture2D* Tex, int32 W, int32 H, ESlateBrushDrawType::Type Draw, const FMargin& Margin = FMargin(0.f))
 	{
 		FSlateBrush B;
@@ -361,4 +395,15 @@ const FEditableTextBoxStyle& FN7Wood::InkTextBox()
 		return T;
 	}();
 	return S;
+}
+
+const FSlateBrush* FN7Wood::StoneBrush()
+{
+	static const FSlateBrush B = []()
+	{
+		const int32 W = 512, H = 512;
+		return FN7ClothGen::ImageBrush(FN7ClothGen::MakeRGBA(W, H, [W, H](int32 X, int32 Y) { return FN7ClothGen::Stone(X, Y, W, H); }), W, H,
+			ESlateBrushDrawType::Box, FMargin(36.f / W));
+	}();
+	return &B;
 }
