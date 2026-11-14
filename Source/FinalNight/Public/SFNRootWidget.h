@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Containers/Ticker.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "FNTypes.h"
 #include "Styling/SlateBrush.h"
@@ -47,6 +48,13 @@ private:
 	void ApplyZone(const TSharedPtr<FJsonObject>& Zone);
 	/** Final Night 7 payloads (CLIENT_API.md). Returns true when the message was fully handled. */
 	bool HandleFn7(const FString& T, TSharedPtr<FJsonObject> D);
+	// --- the visible d20 (rules 0.8.0: round.outcome.public.dice[]): a few of the beat's rolls tumble on the table, one after another ---
+	void ShowDieRoll(const TSharedPtr<FJsonObject>& D);
+	void QueueOutcomeDice(const TSharedPtr<FJsonObject>& Pub);
+	bool TickDiceQueue(float Dt);
+	TArray<TSharedPtr<FJsonObject>> DiceQueue;
+	float DiceWait = 0.f;
+	FTSTicker::FDelegateHandle DiceTicker;
 	/** A Final Night 7 SeatView: health, position, alive. */
 	void ApplyFn7View(const TSharedPtr<FJsonObject>& View);
 	/** The Final Night 7 demigods from a PublicView, as pieces on the globe. */
