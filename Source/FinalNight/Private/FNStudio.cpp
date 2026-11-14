@@ -347,7 +347,11 @@ void AFNStudio::Tick(float DeltaSeconds)
 			if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
 		const FVector F = (Cam - GCw).GetSafeNormal();
 		if (Time < ManualUntil) {}   // you spun it by hand: leave it where you put it for a while
-		else if (bHasFocus && FatesAmt < 0.5f)
+		// FN7 globe rule (Chris noted the rotation might be inverted and that it often spins oddly, and suggested quaternions; Mac session
+		// under the backend's view go-ahead): a focused globe keeps facing its spot through every beat's resolve (the
+		// fates spin used to pull it away and swing it back each beat), and the idle spin below turns it about its own
+		// pole, eastward like the real Earth (it used to turn about the world's vertical, westward = backwards).
+		else if (bHasFocus)
 		{
 			const FVector A = FocusDir;
 			FVector B = FVector(0, 0, 1) - A * A.Z; if (B.SizeSquared() < 1e-4) B = FVector(1, 0, 0); B.Normalize();
@@ -358,7 +362,13 @@ void AFNStudio::Tick(float DeltaSeconds)
 			const FQuat Target(Lm.GetTransposed() * Wm);
 			BoardRoot->SetWorldRotation(FQuat::Slerp(BoardRoot->GetComponentQuat(), Target, FMath::Min(1.f, DeltaSeconds * 1.8f)));
 		}
-		else BoardRoot->AddWorldRotation(FRotator(0.f, (6.f + 80.f * FatesAmt) * DeltaSeconds, 0.f));
+		else
+		{
+			// Board space is Z = north and east = -Y (PickSpot: lon = atan2(-Y, X)): a negative turn about local +Z moves
+			// the surface eastward. A quaternion about the globe's own axis: no gimbal, no wobble when it's tilted.
+			const float Rad = FMath::DegreesToRadians((6.f + 80.f * FatesAmt) * DeltaSeconds);
+			BoardRoot->AddLocalRotation(FQuat(FVector::UpVector, -Rad));
+		}
 	}
 	UpdateLabels();
 	UpdateTable(DeltaSeconds);
