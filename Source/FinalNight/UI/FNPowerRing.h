@@ -165,12 +165,15 @@ public:
 	void SetSummonCheck(TFunction<FString(const FString&)> InWhyNot, TFunction<void(const FString&)> InToast) { WhyNot = MoveTemp(InWhyNot); Toast = MoveTemp(InToast); }
 	/** A double-click on any demigod's box or board piece (yours: zoom to it; a rival's: zoom, later challenge). */
 	void SetOnFigureDoubleClick(TFunction<void(const FString&)> InDouble) { OnFigureDouble = MoveTemp(InDouble); }
+	/** The wheel over/near a demigod: zoom centred on it (return false to let the studio's own wheel zoom happen). */
+	void SetOnFigureWheel(TFunction<bool(const FString&, float)> InWheel) { OnFigureWheel = MoveTemp(InWheel); }
 
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
 		FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -190,6 +193,7 @@ private:
 	bool bHoverMine = false;
 	bool bHoverFigure = false;
 	TFunction<void(const FString&)> OnFigureDouble;
+	TFunction<bool(const FString&, float)> OnFigureWheel;
 	TFunction<bool(const FString&)> IsMine;
 	TFunction<FString(const FString&)> WhyNot;
 	TFunction<void(const FString&)> Toast;

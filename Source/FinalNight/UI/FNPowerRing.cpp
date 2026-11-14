@@ -747,6 +747,16 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	return FReply::Handled();
 }
 
+FReply SFNPowerRingInput::OnMouseWheel(const FGeometry& G, const FPointerEvent& E)
+{
+	// Zooming in near any demigod's portrait should zoom to that demigod's exact position.
+	FVector2D Px;
+	if (!OnFigureWheel || !ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
+	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
+	if (Ref.IsEmpty()) return FReply::Unhandled();   // not near a demigod: the studio's wheel zoom
+	return OnFigureWheel(Ref, E.GetWheelDelta()) ? FReply::Handled() : FReply::Unhandled();
+}
+
 FReply SFNPowerRingInput::OnDragDetected(const FGeometry&, const FPointerEvent& E)
 {
 	if (!PressedRef.IsEmpty())

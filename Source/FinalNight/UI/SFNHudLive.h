@@ -77,6 +77,7 @@ private:
 	void HandleSummoned(const TSharedPtr<FJsonObject>& E, const TArray<TSharedPtr<FJsonValue>>* Dice, int32 Beat);
 	void ShowBanner(const FText& Title, const FText& Text, const FLinearColor& Color, double Delay, double Secs);
 	void OnDemigodDoubleClick(const FString& Ref);
+	bool OnDemigodWheel(const FString& Ref, float Delta);
 	/** The image hash to show for a demigod: its own when loaded, else the same name's without " (N)", else its
 	 *  player's profile art for that hand (the server can mark a renamed demigod's art "off"). */
 	FString LoadedArt(const FString& Ref, bool bDiorama);
