@@ -205,6 +205,7 @@ void SFNPowerTile::Construct(const FArguments& InArgs)
 	bArmed = InArgs._bArmed;
 	bEnabled = InArgs._bEnabled;
 	OnClicked = InArgs._OnClicked;
+	OnReorder = InArgs._OnReorder;
 	const FText Name = InArgs._Name;
 	const int32 Cost = InArgs._Cost;
 
@@ -237,7 +238,7 @@ void SFNPowerTile::Construct(const FArguments& InArgs)
 					if (!bEnabled.Get()) return FSlateColor(FLinearColor(0.42f, 0.42f, 0.44f));
 					return FSlateColor(FMath::Lerp(FLinearColor::White, FLinearColor(1.07f, 1.05f, 1.02f), HoverAlpha));
 				})
-				.RenderTransform_Lambda([this]() { return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FVector2f(0.f, -2.f * HoverAlpha))); })
+				.RenderTransform_Lambda([this]() { return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FVector2f(12.f * DropAlpha, -2.f * HoverAlpha))); })
 				.ColorAndOpacity_Lambda([this]() { return FLinearColor(1.f, 1.f, 1.f, IsBeingDragged() ? 0.4f : 1.f); })
 				.Padding(FMargin(6.f, 9.f, 6.f, 8.f))
 				[
@@ -307,10 +308,38 @@ void SFNPowerTile::Tick(const FGeometry& G, const double Now, const float Dt)
 	const float K = 1.f - FMath::Exp(-12.f * Dt);
 	HoverAlpha = FMath::Lerp(HoverAlpha, (IsHovered() && bEnabled.Get() && !IsBeingDragged()) ? 1.f : 0.f, K);
 	ArmedAlpha = FMath::Lerp(ArmedAlpha, bArmed.Get() ? 1.f : 0.f, 1.f - FMath::Exp(-9.f * Dt));
+	if (!FFNPowerDragDrop::GetActive().IsValid()) bDropHover = false;
+	DropAlpha = FMath::Lerp(DropAlpha, bDropHover ? 1.f : 0.f, 1.f - FMath::Exp(-12.f * Dt));
 }
 
 bool SFNPowerTile::IsBeingDragged() const
 {
 	const TSharedPtr<FFNPowerDragDrop> Op = FFNPowerDragDrop::GetActive();
 	return Op.IsValid() && Op->Power == Slug;
+}
+
+void SFNPowerTile::OnDragEnter(const FGeometry&, const FDragDropEvent& E)
+{
+	const TSharedPtr<FFNPowerDragDrop> Op = E.GetOperationAs<FFNPowerDragDrop>();
+	bDropHover = Op.IsValid() && Op->Power != Slug;
+}
+
+void SFNPowerTile::OnDragLeave(const FDragDropEvent&)
+{
+	bDropHover = false;
+}
+
+FReply SFNPowerTile::OnDragOver(const FGeometry&, const FDragDropEvent& E)
+{
+	const TSharedPtr<FFNPowerDragDrop> Op = E.GetOperationAs<FFNPowerDragDrop>();
+	return Op.IsValid() ? FReply::Handled() : FReply::Unhandled();
+}
+
+FReply SFNPowerTile::OnDrop(const FGeometry&, const FDragDropEvent& E)
+{
+	bDropHover = false;
+	const TSharedPtr<FFNPowerDragDrop> Op = E.GetOperationAs<FFNPowerDragDrop>();
+	if (!Op.IsValid()) return FReply::Unhandled();
+	if (Op->Power != Slug) OnReorder.ExecuteIfBound(Op->Power);
+	return FReply::Handled();   // a drop on the panel never casts
 }

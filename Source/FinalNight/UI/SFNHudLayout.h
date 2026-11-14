@@ -100,6 +100,8 @@ private:
 	FString SeatsSignature, PowersSignature;   // rebuild those sections only when their content changes
 	FString MakeSeatsSignature() const;
 	FString MakePowersSignature() const;
+	TArray<FFNHudPower> OrderedPowers() const;     // the server's powers in this machine's saved order
+	void ReorderPower(const FString& Dragged, const FString& Before);
 	TSharedPtr<SFNTextBox> Compose;
 	TArray<TSharedPtr<SFNPortraitCard>> Cards;
 

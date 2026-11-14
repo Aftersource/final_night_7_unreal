@@ -60,6 +60,8 @@ private:
  * its name and its bolt cost as carved pips. Click to arm it; drag it to cast (an FFNPowerDragDrop carrying the
  * slug, see FNPowerDrag.h). Disabled tiles (not enough bolts) are greyed wood and can't be dragged.
  */
+DECLARE_DELEGATE_OneParam(FOnFNTileReorder, const FString& /*DraggedSlug*/);
+
 class FINALNIGHT_API SFNPowerTile : public SCompoundWidget
 {
 public:
@@ -76,6 +78,8 @@ public:
 		SLATE_ATTRIBUTE(bool, bEnabled)
 		SLATE_ARGUMENT(float, TileSize)
 		SLATE_EVENT(FSimpleDelegate, OnClicked)
+		/** Another tile was dropped on this one: move it here. */
+		SLATE_EVENT(FOnFNTileReorder, OnReorder)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -85,6 +89,10 @@ public:
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 
 private:
 	FString Slug;
@@ -92,6 +100,9 @@ private:
 	TAttribute<bool> bArmed;
 	TAttribute<bool> bEnabled;
 	FSimpleDelegate OnClicked;
+	FOnFNTileReorder OnReorder;
+	bool bDropHover = false;
+	float DropAlpha = 0.f;
 	bool bPressed = false;
 	float HoverAlpha = 0.f;   // eased, so nothing pops
 	float ArmedAlpha = 0.f;

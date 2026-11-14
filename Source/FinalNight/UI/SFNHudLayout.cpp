@@ -12,6 +12,8 @@
 #include "SFNPowerTile.h"
 #include "FNWood.h"
 #include "SFNScroll.h"
+#include "SFNPanelMover.h"
+#include "FNHudPrefs.h"
 #include "UnrealClient.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -83,11 +85,11 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 		SNew(SOverlay)
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(Space::XL)
 		[
-			SAssignNew(HeaderHolder, SBox)
+			SNew(SFNPanelMover).Id(TEXT("header"))[SAssignNew(HeaderHolder, SBox)]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(Space::XL)
 		[
-			SAssignNew(NewsHolder, SBox)
+			SNew(SFNPanelMover).Id(TEXT("news"))[SAssignNew(NewsHolder, SBox)]
 		]
 		// Bottom row: you + seats on the left, the composer centred in what is left. One row, so they never overlap.
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Bottom).Padding(Space::XL)
@@ -95,13 +97,16 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom)
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(SeatsHolder, SBox)]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)[SAssignNew(YouHolder, SBox)]
+				SNew(SFNPanelMover).Id(TEXT("seats"))
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight()[SAssignNew(SeatsHolder, SBox)]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)[SAssignNew(YouHolder, SBox)]
+				]
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.f).HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(Space::XL, 0.f, 0.f, 0.f)
 			[
-				MakeComposePanel()
+				SNew(SFNPanelMover).Id(TEXT("scroll"))[MakeComposePanel()]
 			]
 		]
 	];
@@ -141,8 +146,32 @@ FString SFNHudLayout::MakeSeatsSignature() const
 FString SFNHudLayout::MakePowersSignature() const
 {
 	FString S;
-	for (const FFNHudPower& P : Model.Powers) S += FString::Printf(TEXT("%s|%d;"), *P.Slug, P.Cost);
+	for (const FFNHudPower& P : OrderedPowers()) S += FString::Printf(TEXT("%s|%d;"), *P.Slug, P.Cost);
 	return S;
+}
+
+TArray<FFNHudPower> SFNHudLayout::OrderedPowers() const
+{
+	const TArray<FString>& Order = FN7HudPrefs::GetPowerOrder();
+	TArray<FFNHudPower> Out = Model.Powers;
+	Out.StableSort([&Order](const FFNHudPower& A, const FFNHudPower& B)
+	{
+		const int32 IA = Order.IndexOfByKey(A.Slug), IB = Order.IndexOfByKey(B.Slug);
+		return (IA == INDEX_NONE ? MAX_int32 : IA) < (IB == INDEX_NONE ? MAX_int32 : IB);
+	});
+	return Out;
+}
+
+void SFNHudLayout::ReorderPower(const FString& Dragged, const FString& Before)
+{
+	TArray<FString> Slugs;
+	for (const FFNHudPower& P : OrderedPowers()) Slugs.Add(P.Slug);
+	if (!Slugs.Contains(Dragged) || !Slugs.Contains(Before)) return;
+	Slugs.Remove(Dragged);
+	Slugs.Insert(Dragged, Slugs.IndexOfByKey(Before));
+	FN7HudPrefs::SetPowerOrder(Slugs);
+	PowersSignature = MakePowersSignature();
+	PowersHolder->SetContent(MakePowers());
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeHeader()
@@ -320,7 +349,7 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 	using namespace FN7Style;
 	using namespace FN7HudParts;
 	TSharedRef<SWrapBox> Powers = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(Space::S, Space::S));
-	for (const FFNHudPower& P : Model.Powers)
+	for (const FFNHudPower& P : OrderedPowers())
 	{
 		const FString Slug = P.Slug;
 		const int32 Cost = P.Cost;
@@ -334,6 +363,7 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 			.bEnabled_Lambda([this, Cost]() { return Model.Bolts >= Cost; })
 			.TileSize(96.f)
 			.OnClicked_Lambda([this, Slug]() { OnPower.ExecuteIfBound(Slug); })
+			.OnReorder_Lambda([this, Slug](const FString& Dragged) { ReorderPower(Dragged, Slug); })
 		];
 	}
 	return Powers;

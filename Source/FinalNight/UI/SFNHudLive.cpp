@@ -27,6 +27,7 @@
 #include "SFNStartPanel.h"
 #include "FNPowerDrag.h"
 #include "SFNDragToken.h"
+#include "SFNPanelMover.h"
 
 #define LOCTEXT_NAMESPACE "SFNHudLive"
 
@@ -490,6 +491,7 @@ AFNStudio* SFNHudLive::FindStudio() const
 
 TOptional<FVector2D> SFNHudLive::SnapPowerToBoard(const FString&, const FVector2D& ScreenPosition)
 {
+	if (SFNPanelMover::IsOverAnyPanel(ScreenPosition)) return {};   // over the HUD: the token follows the cursor
 	AFNStudio* St = FindStudio();
 	UFNNetClient* N = Net.Get();
 	APlayerController* PC = N ? Cast<APlayerController>(N->GetOuter()) : nullptr;
@@ -507,7 +509,7 @@ void SFNHudLive::OnPowerDragOver(const FString& Power, const FVector2D& ScreenPo
 	FVector2D Pixel;
 	if (!St) return;
 	const double* Radius = PowerRadiusKm.Find(Power);
-	const bool bOver = FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel);
+	const bool bOver = FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) && !SFNPanelMover::IsOverAnyPanel(ScreenPosition);
 	St->ShowAreaOfEffect(bOver, Pixel, Radius ? *Radius : 0.0);
 }
 
@@ -518,6 +520,7 @@ void SFNHudLive::OnPowerDragEnded(const FString&)
 
 void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPosition)
 {
+	if (SFNPanelMover::IsOverAnyPanel(ScreenPosition)) return;   // let go over a panel: nothing happens
 	// Dropped on the board: cast at that hex. Anywhere else (the globe, empty table): arm it, write the target, SEND.
 	AFNStudio* St = FindStudio();
 	UFNNetClient* N = Net.Get();
