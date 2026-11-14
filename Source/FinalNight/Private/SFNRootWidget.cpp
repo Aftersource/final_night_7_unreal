@@ -2,6 +2,7 @@
 #include "FNNetClient.h"
 #include "FNStudio.h"
 #include "Features/FNDayNight.h"
+#include "Features/FNEncounters.h"
 #include "../UI/SFNHudLive.h"   // FN7HudMount::IsMounted(): hide this classic HUD when the style-kit HUD is up
 
 #include "Widgets/SBoxPanel.h"
@@ -1030,6 +1031,9 @@ void SFNRootWidget::PushSeats()
 
 bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 {
+	// Benito's features 4 + 5: the encounter and loot markers read the game queries' replies (game.encounters / region / node)
+	if (T == TEXT("game.encounters") || T == TEXT("game.region") || T == TEXT("game.node"))
+		if (AFNEncounters* En = Encounters()) En->Apply(D);
 	AFNStudio* St = Studio.Get();
 	// Chris's rule: JOINING = TAKING A SEAT. If the house made us a viewer (it is replaying) and we didn't choose WATCH, ask once.
 	if (T == TEXT("match.ended") && Net.IsValid()) Net->bSeatAsked = false;   // a new match: JOIN may ask for a seat again
@@ -1157,14 +1161,20 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		QueueOutcomeDice(Pub);
 		if (AFNDayNight* Dn = DayNight()) Dn->Apply(Pub);
 		if (const TArray<TSharedPtr<FJsonValue>>* Dm = Arr(Pub, TEXT("dm_events")))   // the DM's decisions this beat (rules 0.8.0), one line each
-			for (int32 i = 0, Shown = 0; i < Dm->Num() && Shown < 3; ++i)
+		{
+			AFNDayNight* Dn = DayNight();
+			AFNEncounters* En = Encounters();
+			for (int32 i = 0, Shown = 0; i < Dm->Num(); ++i)
 			{
 				const TSharedPtr<FJsonObject> E = (*Dm)[i].IsValid() ? (*Dm)[i]->AsObject() : nullptr;
 				if (!E.IsValid() || Str(E, TEXT("event")) == TEXT("summoned")) continue;   // the kit HUD shows summons
-				if (AFNDayNight* Dn = DayNight()) Dn->ApplyEvent(E);
+				if (Dn) Dn->ApplyEvent(E);
+				if (En) En->ApplyEvent(E);
 				const FString Line = Str(E, TEXT("text"));
-				if (!Line.IsEmpty()) { AddBanner(Line, UiCyan); ++Shown; }
+				if (!Line.IsEmpty() && Shown < 3) { AddBanner(Line, UiCyan); ++Shown; }
 			}
+		}
+		if (Net.IsValid()) Net->Query(TEXT("game.encounters"));   // feature 4: the marked hexes, refreshed each beat
 		const FString Cap = Str(Pub, TEXT("previous_caption"));
 		if (!Cap.IsEmpty()) { AddBanner(Cap, UiPale); CutLines.Add(Cap); CutSpots.Add(FVector2D(MyLon, MyLat)); }
 		if (const TArray<TSharedPtr<FJsonValue>>* Om = Arr(Pub, TEXT("omens")))
@@ -1924,4 +1934,18 @@ AFNDayNight* SFNRootWidget::DayNight()
 	if (Dn) Dn->Bind(St);
 	DayNightActor = Dn;
 	return Dn;
+}
+
+AFNEncounters* SFNRootWidget::Encounters()
+{
+	if (AFNEncounters* En = EncountersActor.Get()) return En;
+	AFNStudio* St = Studio.Get();
+	UWorld* W = St ? St->GetWorld() : nullptr;
+	if (!W) return nullptr;
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AFNEncounters* En = W->SpawnActor<AFNEncounters>(AFNEncounters::StaticClass(), FTransform::Identity, P);
+	if (En) En->Bind(St);
+	EncountersActor = En;
+	return En;
 }
