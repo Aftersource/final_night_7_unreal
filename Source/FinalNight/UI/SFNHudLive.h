@@ -27,6 +27,9 @@ public:
 	void Construct(const FArguments& InArgs);
 	virtual ~SFNHudLive() override;
 
+	/** Screenshots without joining a game: the sample table behind, then the lobby over the game and/or the "you fell" card. */
+	void DebugPreview(bool bLobby, bool bFell);
+
 private:
 	TWeakObjectPtr<UFNNetClient> Net;
 	FDelegateHandle MessageHandle;
@@ -43,6 +46,22 @@ private:
 	bool bInRoom = false;
 	bool bWantSeat = true;     // JOIN = take a seat; WATCH = stay a viewer
 	bool bSeatAsked = false;
+
+	// The lobby over the game (Esc or the LOBBY pill).
+	bool bLobbyOpen = false;
+	void SetLobbyOpen(bool bOpen);
+	TSharedPtr<class IInputProcessor> LobbyKeys;
+
+	// Out of the match (both demigods fell): "You fell at beat N", TAKE ANOTHER DEMIGOD, WATCH, RETURN TO LOBBY.
+	bool bOut = false;
+	bool bOutDismissed = false;
+	bool bTakeAsked = false;
+	double TakeAskedAt = 0.0;
+	int32 OutBeat = 0;
+	FString OutReason;
+	FString OutNote;
+	TSharedRef<SWidget> MakeOutCard();
+	void ResetForNewRoom();
 	FFNHudModel Model;
 
 	struct FSeatInfo
@@ -90,4 +109,6 @@ namespace FN7HudMount
 	FINALNIGHT_API bool Mount(UFNNetClient* Net);
 	FINALNIGHT_API void Unmount();
 	FINALNIGHT_API bool IsMounted();
+	/** FN7.Hud ... lobby / fell: show those states on the mounted HUD for a screenshot. */
+	FINALNIGHT_API void Preview(bool bLobby, bool bFell);
 }
