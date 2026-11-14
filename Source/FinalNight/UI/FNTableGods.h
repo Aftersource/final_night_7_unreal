@@ -160,7 +160,14 @@ public:
 	/** In sequence: the arc from origin to target (0.8 s), the demigod's DIORAMA popping up big over the target (a card
 	 *  zooming in, held, then shrinking into its piece, 1.3 s), the piece dropping onto its hex, a red "-N" and the d20
 	 *  tumbling beside it (Roll 0 = no die). */
-	void PlaySummoned(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, float HealthLost, int32 Roll, const FLinearColor& Aura);
+	void PlaySummoned(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, float HealthLost, int32 Roll, const FLinearColor& Aura, float Delay = 0.f);
+	/** A new match: forget every summon in flight and every local place (refs are reused across matches). */
+	void ResetSummons();
+	/** The warp-in played at once on the server's accept (before the resolve): arc + big diorama card after the column
+	 *  has risen (Delay s), no damage yet. */
+	void PlayWarpIn(const FString& Ref, double FromLat, double FromLon, double ToLat, double ToLon, const FLinearColor& Aura, float Delay);
+	/** The resolve after a warp-in: settle on the real landing (glide if the server nudged it), the red "-N", the d20. */
+	void PlaySummonResult(const FString& Ref, double ToLat, double ToLon, float HealthLost, int32 Roll);
 	/** A refused summon: the piece comes back where it was, with a red shake. */
 	void CancelSummon(const FString& Ref);
 	bool IsSummoning(const FString& Ref) const { return Dissolved.Contains(Ref); }
@@ -195,10 +202,13 @@ private:
 	TMap<FString, float> Shake;          // a refused summon's red shake (seconds left)
 	TMap<FString, TWeakObjectPtr<UTexture2D>> DioramaOf;   // every demigod's diorama, for the summon card
 	TMap<FString, FVector> PieceLL;      // each board piece's lat/lon as last placed (Z: seconds gliding, -1 settled)
+	TMap<FString, float> PulseOut;       // teleporting away: the piece pulses out (seconds so far)
+	TMap<FString, float> PulseIn;        // teleporting in: the piece pulses in (seconds so far)
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> FxParts;
 	UPROPERTY() TObjectPtr<UMaterialInterface> FxMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> CardMat;
 	UStaticMeshComponent* FxShape(const TCHAR* Mesh, const FVector& At, const FVector& Scale, const FLinearColor& Color);
+	void SpawnLanding(const FVector& At, float HealthLost, int32 Roll, TArray<FFx>& Out);
 	UStaticMeshComponent* FxChild(USceneComponent* Parent, const TCHAR* Mesh, const FVector& Loc, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color);
 	USceneComponent* FxRoot(const FVector& At);
 	void TickFx(float Dt);

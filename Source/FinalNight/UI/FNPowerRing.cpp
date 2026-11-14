@@ -703,7 +703,7 @@ FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
 	if (Ref.IsEmpty())
 	{
 		// A plain click on the board does nothing. The view should not keep warping around the map: the studio's board click
-		// zoomed in at the cursor). A double-click on the board zooms there; right-click still zooms out (passes through).
+		// zoomed in at the cursor). Right-click still zooms out (passes through).
 		double La, Lo, HexM;
 		FVector W;
 		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM)) return FReply::Handled();
@@ -735,10 +735,10 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s"), Ref.IsEmpty() ? TEXT("none") : *Ref);
 	if (Ref.IsEmpty())
 	{
-		// The board: zoom in one level at that point (the studio's own zoom, which keeps the point under the cursor).
+		// The board: nothing (a double-click never moves the view; Chris asked that the view stop warping around).
 		double La, Lo, HexM;
 		FVector W;
-		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM)) { Studio->MapClick(true); return FReply::Handled(); }
+		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM)) return FReply::Handled();
 		return FReply::Unhandled();
 	}
 	PressedRef.Reset();
