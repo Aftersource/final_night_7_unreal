@@ -167,6 +167,20 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		[
 			MakeOutCard()
 		]
+		// A challenge's triple flash (0.75 s), over the board and HUD, never taking input.
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage(FN7Style::Brush::Segment(FLinearColor::White))
+			.Visibility(EVisibility::HitTestInvisible)
+			.BorderBackgroundColor_Lambda([this]()
+			{
+				const double T = FlashStart < 0.0 ? 1.0 : FPlatformTime::Seconds() - FlashStart;
+				if (T < 0.0 || T >= 0.75) return FLinearColor(1.f, 1.f, 1.f, 0.f);
+				const double Local = FMath::Fmod(T, 0.25) / 0.25;
+				return FLinearColor(1.f, 0.96f, 0.9f, (float)(0.55 * (1.0 - Local)));
+			})
+		]
 		// The challenge confirm box: a dark veil and a stone tablet with the choice.
 		+ SOverlay::Slot()
 		[
@@ -1584,14 +1598,59 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock)
 	// The AI teleported beside its rival first: the red pulse and the warp-in, as for any summon.
 	if (const TSharedPtr<FJsonObject> Leap = FN7HudJson::Obj(Lock, TEXT("leap"))) HandleSummoning(Leap);
 	AddNews(LOCTEXT("ClashTag", "CLASH"), FString::Printf(TEXT("%s challenges %s"), *Info.AName, *Info.BName));
-	if (Info.bMine)
+	// Every duel, everyone's (flashes ... everyone centers on the fight ... the clash banner ... the globe
+	// has spun there as well"): the flash and the banner at once, the glide as soon as you aren't typing or dragging.
+	FlashStart = FPlatformTime::Seconds();
+	ShowBanner(LOCTEXT("Clash", "CLASH!"), FText::FromString(FString::Printf(TEXT("%s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.42f, 0.25f), 0.0, 5.0);
+	double La = 0.0, Lo = 0.0;
+	if (FN7LonLat(Lock, TEXT("at"), La, Lo))
 	{
-		// Your fight: the banner, and the board and globe glide to it. Other duels never move your view (a WORLD line only).
-		ShowBanner(LOCTEXT("Clash", "CLASH!"), FText::FromString(FString::Printf(TEXT("%s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.42f, 0.25f), 0.0, 5.0);
-		double La = 0.0, Lo = 0.0;
-		if (FN7LonLat(Lock, TEXT("at"), La, Lo)) if (AFNStudio* Sc = FindStudio()) Sc->CenterBoardAndGlobe(La, Lo);
+		bGlidePending = true;
+		GlideLat = La;
+		GlideLon = Lo;
+		GlideDuel = DuelId;
+		TickDuelView();
 	}
 	Publish();
+}
+
+bool SFNHudLive::IsBusyForGlide() const
+{
+	if (Layout.IsValid() && Layout->IsWillOpen()) return true;   // writing the WILL
+	if (FN7TypingInText()) return true;
+	if (!FSlateApplication::IsInitialized()) return false;
+	FSlateApplication& App = FSlateApplication::Get();
+	return App.IsDragDropping() || App.GetPressedMouseButtons().Contains(EKeys::LeftMouseButton);   // dragging a piece or a power
+}
+
+void SFNHudLive::TickDuelView()
+{
+	AFNStudio* St = FindStudio();
+	if (!St) return;
+	const double Now = FPlatformTime::Seconds();
+	if (bGlidePending && !IsBusyForGlide())
+	{
+		if (!bHaveSavedView) { St->GetViewSpot(SavedLat, SavedLon, bSavedPicked); bHaveSavedView = true; }
+		St->CenterBoardAndGlobe(GlideLat, GlideLon);
+		bool bFightPicked = false;
+		St->GetViewSpot(FightLat, FightLon, bFightPicked);
+		ViewDuel = GlideDuel;
+		bGlidePending = false;
+		RestoreAt = 0.0;
+		UE_LOG(LogTemp, Display, TEXT("FN7 duel view: glide to %s (%.3f, %.3f)"), *ViewDuel, GlideLat, GlideLon);
+	}
+	if (RestoreAt > 0.0 && Now >= RestoreAt && bHaveSavedView && !IsBusyForGlide())
+	{
+		double CurLat = 0.0, CurLon = 0.0;
+		bool bCurPicked = false;
+		St->GetViewSpot(CurLat, CurLon, bCurPicked);
+		const bool bUntouched = FMath::Abs(CurLat - FightLat) < 1e-4 && FMath::Abs(CurLon - FightLon) < 1e-4;
+		if (bUntouched) St->RestoreViewSpot(SavedLat, SavedLon, bSavedPicked);
+		UE_LOG(LogTemp, Display, TEXT("FN7 duel view: %s"), bUntouched ? TEXT("back to your view") : TEXT("you moved it, left as is"));
+		bHaveSavedView = false;
+		RestoreAt = 0.0;
+		ViewDuel.Reset();
+	}
 }
 
 void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
@@ -1648,6 +1707,8 @@ void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
 				const FLinearColor Col = Winner.IsEmpty() ? FLinearColor(0.75f, 0.75f, 0.78f) : bWon ? FLinearColor(1.f, 0.82f, 0.3f) : FLinearColor(0.95f, 0.25f, 0.2f);
 				ShowBanner(Title, FText::FromString(Line), Col, 0.0, 6.0);
 			}
+			if (bGlidePending && GlideDuel == DuelId) bGlidePending = false;
+			if (bHaveSavedView && ViewDuel == DuelId) RestoreAt = FPlatformTime::Seconds() + 3.0;   // after the result banner
 			Duels.Remove(DuelId);
 		}
 }
@@ -2140,6 +2201,7 @@ FText SFNHudLive::GetTimer() const
 
 EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 {
+	TickDuelView();   // a challenge's queued glide (once you stop typing / dragging) and the glide back after it
 	// Every 10 s, the real frame rate into the log ("FN7 fps"), so a PIE session's speed can be read afterwards.
 	{
 		static uint64 FpsFrame = 0;

@@ -363,6 +363,19 @@ void AFNStudio::CenterBoardAndGlobe(double Lat, double Lon)
 	BeginViewAnim(bOld, OldLocal, NewLocal, 1.f);   // same zoom: it slides the demigod to the centre
 }
 
+void AFNStudio::GetViewSpot(double& OutLat, double& OutLon, bool& bOutPicked) const
+{
+	OutLat = PickLat;
+	OutLon = PickLon;
+	bOutPicked = bUserPicked;
+}
+
+void AFNStudio::RestoreViewSpot(double Lat, double Lon, bool bPicked)
+{
+	CenterBoardAndGlobe(Lat, Lon);   // the animated slide, zoom kept
+	bUserPicked = bPicked;           // not picked before: the table follows your demigod again
+}
+
 void AFNStudio::SetGlobeFocus(double Lat, double Lon)
 {
 	FocusDir = BoardDir(Lon, FMath::Clamp(Lat, -89.9, 89.9)).GetSafeNormal();

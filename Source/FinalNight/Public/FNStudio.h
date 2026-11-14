@@ -107,6 +107,12 @@ public:
 	void SetFaultLinesAlpha(float Alpha);
 	/** Double-click a demigod: the table map centred on it at its CURRENT zoom, and the globe turned to face it. */
 	void CenterBoardAndGlobe(double Lat, double Lon);
+	/** The view to come back to (the kit's duel glide returns here after the fight): the table's centre and whether you
+	 *  had picked it. Bodies in UI/FNBoardAoe.cpp (Mac session, backend's go-ahead). */
+	void GetViewSpot(double& OutLat, double& OutLon, bool& bOutPicked) const;
+	/** Back to a spot saved with GetViewSpot: the same animated slide at the current zoom; following your demigod again
+	 *  when you hadn't picked one. */
+	void RestoreViewSpot(double Lat, double Lon, bool bPicked);
 	/** View changes animate (Chris asked for zoom to expand and contract smoothly): call every frame (the kit's table tick). */
 	void TickViewAnim(float Dt);
 	/** After a rebuild centred on a point: start the board from how it looked (OldLocal drawn, scale From) and ease it in. */
