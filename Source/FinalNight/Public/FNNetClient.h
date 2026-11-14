@@ -99,13 +99,13 @@ public:
 	/** Enter: orders to your two hands, into the window you typed in (or as a Compose action). */
 	void SubmitOrders(int32 Round, const FString& Left, const FString& Right);
 	/** A god power (instant, any phase). Target: a ref ("dg:2"), a name, or "lon,lat". */
-	void CastPower(int32 Round, const FString& Power, const FString& Target, const FString& Tier = TEXT("mini"));
+	bool CastPower(int32 Round, const FString& Power, const FString& Target, const FString& Tier = TEXT("mini"));
 	/** Summon one of your demigods to a point (instant): action.submit {fields:{summon:{demigod, target:[lon, lat]}}}. */
-	void Summon(int32 Round, const FString& DemigodRef, double Lon, double Lat);
+	bool Summon(int32 Round, const FString& DemigodRef, double Lon, double Lat);
 	/** A public game query ("game.encounters", "game.region", ...): {t, id, d: Args}; the reply comes back as a message of the same t. */
 	void Query(const FString& Name, TSharedPtr<FJsonObject> Args = nullptr);
 	/** Challenge mode (rules 0.8.1, the Mac kit): force a duel between your demigod and a rival sharing its hex. */
-	void Challenge(int32 Round, const FString& MineRef, const FString& TargetRef, const FString& Level);
+	bool Challenge(int32 Round, const FString& MineRef, const FString& TargetRef, const FString& Level);
 	/** One typed attack line in a duel. */
 	void DuelLine(int32 Round, const FString& DuelId, const FString& Text);
 	/** Duel pacing (0.8.2): a duellist's tick at each panel's input close (server clock). Mac session, backend's go-ahead. */
@@ -120,8 +120,17 @@ public:
 	double LastDuelKeysAt = 0.0;
 	void SpendInstantToken();
 	double InstantTokensNow();
+	/** A duel line or tick never drops (Benito's bridge review): with the bucket empty it waits here and goes the moment a
+	 *  token frees, in order. Casts, summons and challenges don't wait: they return false and the HUD keeps them in hand. */
+	TArray<TSharedRef<FJsonObject>> HeldInstants;
+	FTimerHandle HeldTimer;
+	void SendOrHold(const TSharedRef<FJsonObject>& D);
+	void FlushHeld();
+public:
+	bool CanSendInstants(int32 Need = 1) { return HeldInstants.Num() == 0 && InstantTokensNow() >= (double)Need; }
+	int32 HeldDuelLines() const;
 	/** A god power at a point on the globe, [lon, lat]. */
-	void CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier = TEXT("mini"));
+	bool CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier = TEXT("mini"));
 
 	void HandleIncomingFrame(const FString& Frame);
 

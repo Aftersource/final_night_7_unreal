@@ -101,6 +101,7 @@ void UFNNetClient::Stop()
 		for (FTimerHandle& H : DemoTimers) W->GetTimerManager().ClearTimer(H);
 		W->GetTimerManager().ClearTimer(ReconnectTimer);
 		W->GetTimerManager().ClearTimer(PingTimer);
+		W->GetTimerManager().ClearTimer(HeldTimer);
 		W->GetTimerManager().ClearTimer(DemoDeadline);
 	}
 	DemoTimers.Reset();
@@ -429,8 +430,9 @@ void UFNNetClient::SubmitOrders(int32 Round, const FString& Left, const FString&
 	Send(TEXT("action.submit"), D);
 }
 
-void UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& Target, const FString& Tier)
+bool UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& Target, const FString& Tier)
 {
+	if (!CanSendInstants()) { UE_LOG(LogFNNet, Warning, TEXT("%s not sent: the instant bucket is empty (the server would drop it)"), TEXT("CastPower")); return false; }
 	TSharedRef<FJsonObject> D = Obj(), F = Obj(), C = Obj();
 	C->SetStringField(TEXT("power"), Power);
 	C->SetStringField(TEXT("tier"), Tier.IsEmpty() ? TEXT("mini") : Tier);   // "mega" (1 lightning bolt, level-1 area) or "mini" (1 spark, on the board)
@@ -447,10 +449,12 @@ void UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& T
 	D->SetObjectField(TEXT("fields"), F);
 	SpendInstantToken();   // the server's per-seat bucket, mirrored (Mac session)
 	Send(TEXT("action.submit"), D);
+	return true;
 }
 
-void UFNNetClient::Summon(int32 Round, const FString& DemigodRef, double Lon, double Lat)
+bool UFNNetClient::Summon(int32 Round, const FString& DemigodRef, double Lon, double Lat)
 {
+	if (!CanSendInstants()) { UE_LOG(LogFNNet, Warning, TEXT("%s not sent: the instant bucket is empty (the server would drop it)"), TEXT("Summon")); return false; }
 	// The Mac kit's summon drag (server support lands in 0.8.0): like CastPower, an instant action.
 	TSharedRef<FJsonObject> D = Obj(), F = Obj(), S = Obj();
 	S->SetStringField(TEXT("demigod"), DemigodRef);
@@ -462,10 +466,12 @@ void UFNNetClient::Summon(int32 Round, const FString& DemigodRef, double Lon, do
 	D->SetObjectField(TEXT("fields"), F);
 	SpendInstantToken();   // the server's per-seat bucket, mirrored (Mac session)
 	Send(TEXT("action.submit"), D);
+	return true;
 }
 
-void UFNNetClient::Challenge(int32 Round, const FString& MineRef, const FString& TargetRef, const FString& Level)
+bool UFNNetClient::Challenge(int32 Round, const FString& MineRef, const FString& TargetRef, const FString& Level)
 {
+	if (!CanSendInstants()) { UE_LOG(LogFNNet, Warning, TEXT("%s not sent: the instant bucket is empty (the server would drop it)"), TEXT("Challenge")); return false; }
 	// The Mac kit's challenge (server: rules 0.8.1): an instant action, like Summon.
 	TSharedRef<FJsonObject> D = Obj(), F = Obj(), C = Obj();
 	C->SetStringField(TEXT("demigod"), MineRef);
@@ -478,6 +484,7 @@ void UFNNetClient::Challenge(int32 Round, const FString& MineRef, const FString&
 	D->SetObjectField(TEXT("fields"), F);
 	SpendInstantToken();   // the server's per-seat bucket, mirrored (Mac session)
 	Send(TEXT("action.submit"), D);
+	return true;
 }
 
 void UFNNetClient::DuelLine(int32 Round, const FString& DuelId, const FString& Text)
@@ -490,8 +497,7 @@ void UFNNetClient::DuelLine(int32 Round, const FString& DuelId, const FString& T
 	D->SetStringField(TEXT("text"), TEXT(""));
 	D->SetBoolField(TEXT("instant"), true);
 	D->SetObjectField(TEXT("fields"), F);
-	SpendInstantToken();   // the server's per-seat bucket, mirrored (Mac session)
-	Send(TEXT("action.submit"), D);
+	SendOrHold(D);   // a line is never dropped
 }
 
 double UFNNetClient::InstantTokensNow()
@@ -509,6 +515,46 @@ void UFNNetClient::SpendInstantToken()
 	InstantTokens -= 1.0;   // may go below 0 briefly: the server drops what's over, we only stop sending keys
 }
 
+void UFNNetClient::SendOrHold(const TSharedRef<FJsonObject>& D)
+{
+	if (CanSendInstants())
+	{
+		SpendInstantToken();
+		Send(TEXT("action.submit"), D);
+		return;
+	}
+	HeldInstants.Add(D);
+	UE_LOG(LogFNNet, Display, TEXT("instant held (bucket empty): %d waiting"), HeldInstants.Num());
+	if (UWorld* W = GetTimerWorld())
+		if (!W->GetTimerManager().IsTimerActive(HeldTimer))
+			W->GetTimerManager().SetTimer(HeldTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { FlushHeld(); }), 0.05f, true);
+}
+
+void UFNNetClient::FlushHeld()
+{
+	while (HeldInstants.Num() > 0 && InstantTokensNow() >= 1.0)
+	{
+		const TSharedRef<FJsonObject> D = HeldInstants[0];
+		HeldInstants.RemoveAt(0);
+		SpendInstantToken();
+		Send(TEXT("action.submit"), D);
+		UE_LOG(LogFNNet, Display, TEXT("held instant sent: %d waiting"), HeldInstants.Num());
+	}
+	if (HeldInstants.Num() == 0)
+		if (UWorld* W = GetTimerWorld()) W->GetTimerManager().ClearTimer(HeldTimer);
+}
+
+int32 UFNNetClient::HeldDuelLines() const
+{
+	int32 N = 0;
+	for (const TSharedRef<FJsonObject>& D : HeldInstants)
+	{
+		const TSharedPtr<FJsonObject>* F = nullptr;
+		if (D->TryGetObjectField(TEXT("fields"), F) && F && (*F)->HasField(TEXT("duel"))) ++N;
+	}
+	return N;
+}
+
 void UFNNetClient::DuelTick(int32 Round, const FString& DuelId)
 {
 	TSharedRef<FJsonObject> D = Obj(), F = Obj(), T = Obj();
@@ -518,14 +564,13 @@ void UFNNetClient::DuelTick(int32 Round, const FString& DuelId)
 	D->SetStringField(TEXT("text"), TEXT(""));
 	D->SetBoolField(TEXT("instant"), true);
 	D->SetObjectField(TEXT("fields"), F);
-	SpendInstantToken();
-	Send(TEXT("action.submit"), D);
+	SendOrHold(D);   // a tick is never dropped either
 }
 
 bool UFNNetClient::DuelKeys(int32 Round, const FString& DuelId, int32 Len, const FString& Tail)
 {
 	const double Now = FPlatformTime::Seconds();
-	if (InstantTokensNow() < 2.0 || Now - LastDuelKeysAt < 0.45) return false;   // one token stays for ticks and lines
+	if (HeldInstants.Num() > 0 || InstantTokensNow() < 2.0 || Now - LastDuelKeysAt < 0.45) return false;   // one token stays for ticks and lines
 	FString Clean;
 	for (TCHAR Ch : Tail) if (Ch >= 32 && Ch != 127 && !(Ch >= 0x200B && Ch <= 0x200F) && !(Ch >= 0x202A && Ch <= 0x202E) && !(Ch >= 0x2066 && Ch <= 0x2069)) Clean.AppendChar(Ch);
 	Clean = Clean.Right(8);
@@ -546,9 +591,9 @@ bool UFNNetClient::DuelKeys(int32 Round, const FString& DuelId, int32 Len, const
 	return true;
 }
 
-void UFNNetClient::CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier)
+bool UFNNetClient::CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier)
 {
-	CastPower(Round, Power, FString::Printf(TEXT("%.6f,%.6f"), Lon, Lat), Tier);
+	return CastPower(Round, Power, FString::Printf(TEXT("%.6f,%.6f"), Lon, Lat), Tier);
 }
 
 // ---------------------------------------------------------------------------

@@ -35,6 +35,7 @@ struct FFNDuelSession
 
 	TArray<FString> Log;     // the latest blows, newest last
 	bool bOver = false;
+	bool bSending = false;   // your line waits for a token (the bucket was empty): never dropped
 	FString Result;
 	double OverAt = 0.0;
 
