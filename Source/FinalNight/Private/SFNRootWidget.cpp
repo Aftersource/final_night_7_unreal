@@ -1,6 +1,7 @@
 #include "SFNRootWidget.h"
 #include "FNNetClient.h"
 #include "FNStudio.h"
+#include "../UI/SFNHudLive.h"   // FN7HudMount::IsMounted(): hide this classic HUD when the style-kit HUD is up
 
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
@@ -33,21 +34,21 @@ DEFINE_LOG_CATEGORY_STATIC(LogFNUI, Log, All);
 
 namespace FNUi
 {
-	static const FLinearColor Panel(0.02f, 0.02f, 0.035f, 0.82f);
-	static const FLinearColor Edge(0.55f, 0.40f, 0.12f, 0.9f);
+	static const FLinearColor UiPanel(0.02f, 0.02f, 0.035f, 0.82f);
+	static const FLinearColor UiEdge(0.55f, 0.40f, 0.12f, 0.9f);
 	static const FLinearColor UiGold(1.0f, 0.866f, 0.21f);
 	static const FLinearColor UiOrange(0.965f, 0.525f, 0.23f);
 	static const FLinearColor UiCyan(0.133f, 1.0f, 1.0f);
-	static const FLinearColor Red(0.9f, 0.2f, 0.15f);
+	static const FLinearColor UiRed(0.9f, 0.2f, 0.15f);
 	static const FLinearColor UiPale(0.88f, 0.85f, 0.80f);
-	static const FLinearColor Dim(0.55f, 0.52f, 0.48f);
-	static FSlateFontInfo Font(int32 Size, const TCHAR* W = TEXT("Regular")) { return FCoreStyle::GetDefaultFontStyle(W, Size); }
-	static const FSlateBrush* White() { return FAppStyle::GetBrush("WhiteBrush"); }
-	static TSharedRef<SWidget> Framed(TSharedRef<SWidget> Content, FMargin Pad = FMargin(16.f, 12.f))
+	static const FLinearColor UiDim(0.55f, 0.52f, 0.48f);
+	static FSlateFontInfo UiFont(int32 Size, const TCHAR* W = TEXT("Regular")) { return FCoreStyle::GetDefaultFontStyle(W, Size); }
+	static const FSlateBrush* UiWhite() { return FAppStyle::GetBrush("WhiteBrush"); }
+	static TSharedRef<SWidget> UiFramed(TSharedRef<SWidget> Content, FMargin UiPad = FMargin(16.f, 12.f))
 	{
-		return SNew(SBorder).BorderImage(White()).BorderBackgroundColor(Edge).Padding(1.5f)
+		return SNew(SBorder).BorderImage(UiWhite()).BorderBackgroundColor(UiEdge).Padding(1.5f)
 		[
-			SNew(SBorder).BorderImage(White()).BorderBackgroundColor(Panel).Padding(Pad)[Content]
+			SNew(SBorder).BorderImage(UiWhite()).BorderBackgroundColor(UiPanel).Padding(UiPad)[Content]
 		];
 	}
 	static FString Str(const TSharedPtr<FJsonObject>& O, const TCHAR* F) { FString S; if (O.IsValid()) O->TryGetStringField(F, S); return S; }
@@ -101,6 +102,8 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 {
 	Net = InArgs._Net;
 	Studio = InArgs._Studio;
+	// When the Mac's style-kit HUD (SFNHudLive) is mounted, this classic HUD hides itself entirely.
+	SetVisibility(TAttribute<EVisibility>::CreateLambda([]() { return FN7HudMount::IsMounted() ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible; }));
 	// A click on a point of the globe: the studio reports [lon, lat]; with an Entropy power armed, it is cast there.
 	if (AFNStudio* St = Studio.Get())
 	{
@@ -125,20 +128,20 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(28.f, 22.f)
 		[
 			SNew(SVerticalBox).Visibility(EVisibility::HitTestInvisible)
-			+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(LOCTEXT("T", "FINAL NIGHT")).Font(Font(26, TEXT("Bold"))).ColorAndOpacity(UiGold)]
+			+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(LOCTEXT("T", "FINAL NIGHT")).Font(UiFont(26, TEXT("Bold"))).ColorAndOpacity(UiGold)]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
-				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(Dim)
+				SNew(STextBlock).Font(UiFont(11)).ColorAndOpacity(UiDim)
 				.Text_Lambda([this]() { return RoomCode.IsEmpty() ? FText::GetEmpty() : FText::FromString(FString::Printf(TEXT("[ room :: %s ]"), *RoomCode)); })
 			]
-			+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(12, TEXT("Bold"))).ColorAndOpacity(UiOrange).Text_Raw(this, &SFNRootWidget::ProfileText)]
+			+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(UiFont(12, TEXT("Bold"))).ColorAndOpacity(UiOrange).Text_Raw(this, &SFNRootWidget::ProfileText)]
 		]
 		// Tonight's quests, top right
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(28.f, 22.f)
 		[
 			SNew(SBox).WidthOverride(380.f).Visibility_Lambda([this]() { return Quests.Num() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 			[
-				Framed(SNew(STextBlock).Font(Font(12)).ColorAndOpacity(UiGold).Text_Raw(this, &SFNRootWidget::QuestText), FMargin(14.f, 8.f))
+				UiFramed(SNew(STextBlock).Font(UiFont(12)).ColorAndOpacity(UiGold).Text_Raw(this, &SFNRootWidget::QuestText), FMargin(14.f, 8.f))
 			]
 		]
 		// Notification panel (intro), left; click to fold it
@@ -149,7 +152,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 				SNew(SButton).ButtonColorAndOpacity(FLinearColor::Transparent).ContentPadding(0)
 				.OnClicked(this, &SFNRootWidget::OnToggleNotification)
 				[
-					Framed(SNew(STextBlock).AutoWrapText(true).Font(Font(12)).ColorAndOpacity(UiPale).Text_Raw(this, &SFNRootWidget::NotificationText))
+					UiFramed(SNew(STextBlock).AutoWrapText(true).Font(UiFont(12)).ColorAndOpacity(UiPale).Text_Raw(this, &SFNRootWidget::NotificationText))
 				]
 			]
 		]
@@ -158,7 +161,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 		[
 			SNew(SBox).WidthOverride(400.f).Visibility_Lambda([this]() { return Day > 0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 			[
-				Framed(SNew(STextBlock).AutoWrapText(true).Font(Font(12)).ColorAndOpacity(UiPale).Text_Raw(this, &SFNRootWidget::HudText))
+				UiFramed(SNew(STextBlock).AutoWrapText(true).Font(UiFont(12)).ColorAndOpacity(UiPale).Text_Raw(this, &SFNRootWidget::HudText))
 			]
 		]
 		// Event stream, right
@@ -180,7 +183,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 			SNew(SVerticalBox).Visibility_Lambda([this]() { return (Net.IsValid() && Net->bFn7 && Day > 0 && !bEliminated && PowersShown > 0) ? EVisibility::Visible : EVisibility::Collapsed; })
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, 6)
 			[
-				SNew(STextBlock).Font(Font(12, TEXT("Bold"))).ColorAndOpacity(UiOrange).Text_Lambda([this]()
+				SNew(STextBlock).Font(UiFont(12, TEXT("Bold"))).ColorAndOpacity(UiOrange).Text_Lambda([this]()
 				{
 					return FText::FromString(ArmedPower.IsEmpty()
 						? FString::Printf(TEXT("ENTROPY POWERS  -  %d bolts  -  every bolt you spend gives each rival +2"), Fn7Bolts)
@@ -195,17 +198,17 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 			SNew(SVerticalBox).Visibility(EVisibility::HitTestInvisible)
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 			[
-				SNew(STextBlock).Font(Font(16, TEXT("Bold"))).ColorAndOpacity(UiCyan).Text_Raw(this, &SFNRootWidget::HintText)
+				SNew(STextBlock).Font(UiFont(16, TEXT("Bold"))).ColorAndOpacity(UiCyan).Text_Raw(this, &SFNRootWidget::HintText)
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4, 0, 0)
 			[
-				SNew(STextBlock).Font(Font(14, TEXT("Bold"))).ColorAndOpacity(UiOrange).Text_Raw(this, &SFNRootWidget::TimerText)
+				SNew(STextBlock).Font(UiFont(14, TEXT("Bold"))).ColorAndOpacity(UiOrange).Text_Raw(this, &SFNRootWidget::TimerText)
 			]
 		]
 		// Hover prompt
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0.f, 0.f, 0.f, 150.f)
 		[
-			SNew(STextBlock).Visibility(EVisibility::HitTestInvisible).Font(Font(15, TEXT("Bold"))).ColorAndOpacity(UiGold).Text_Raw(this, &SFNRootWidget::HoverText)
+			SNew(STextBlock).Visibility(EVisibility::HitTestInvisible).Font(UiFont(15, TEXT("Bold"))).ColorAndOpacity(UiGold).Text_Raw(this, &SFNRootWidget::HoverText)
 		]
 		// WILL entry
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0.f, 0.f, 0.f, 84.f)
@@ -213,11 +216,11 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 			SNew(SBox).WidthOverride(720.f)
 			.Visibility_Lambda([this]() { return (State == EState::Writing || State == EState::DuelWriting) ? EVisibility::Visible : EVisibility::Collapsed; })
 			[
-				Framed(
+				UiFramed(
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
 					[
-						SNew(STextBlock).Font(Font(14, TEXT("Bold"))).ColorAndOpacity(UiGold)
+						SNew(STextBlock).Font(UiFont(14, TEXT("Bold"))).ColorAndOpacity(UiGold)
 						.Text_Lambda([this]()
 						{
 							if (State == EState::DuelWriting)
@@ -227,7 +230,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
 					[
-						SNew(STextBlock).AutoWrapText(true).Font(Font(11)).ColorAndOpacity(Dim)
+						SNew(STextBlock).AutoWrapText(true).Font(UiFont(11)).ColorAndOpacity(UiDim)
 						.Text_Lambda([this]()
 						{
 							if (State == EState::DuelWriting) return FText::FromString(DuelPrompt + TEXT("\n") + DuelOdds);
@@ -241,7 +244,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 					[
 						SNew(SBox).MinDesiredHeight(84.f)
 						[
-							SAssignNew(WillBox, SMultiLineEditableTextBox).Font(Font(15)).AutoWrapText(true)
+							SAssignNew(WillBox, SMultiLineEditableTextBox).Font(UiFont(15)).AutoWrapText(true)
 							.HintText_Lambda([this]() { if (State == EState::DuelWriting) return DuelRole == TEXT("defender") ? LOCTEXT("DuelHintD", "I hear the floor creak, roll behind the counter and jam a chair under the door...") : LOCTEXT("DuelHintA", "I feint left, duplicate myself, and let the copy take the hit while I..."); return Day <= 1 ? LOCTEXT("WillHint", "I drop into Las Vegas, grab anything shiny, and teleport onto the tallest roof.") : LOCTEXT("WillHint2", "Where do you go, what do you build, how do you survive the night?"); })
 						]
 					]
@@ -250,9 +253,9 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 						[
-							SNew(STextBlock).Font(Font(11)).ColorAndOpacity_Lambda([this]()
+							SNew(STextBlock).Font(UiFont(11)).ColorAndOpacity_Lambda([this]()
 							{
-								return FSlateColor(WillBox.IsValid() && WillBox->GetText().ToString().Len() > WillMax ? Red : Dim);
+								return FSlateColor(WillBox.IsValid() && WillBox->GetText().ToString().Len() > WillMax ? UiRed : UiDim);
 							})
 							.Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("%d / %d"), WillBox.IsValid() ? WillBox->GetText().ToString().Len() : 0, WillMax)); })
 						]
@@ -267,7 +270,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 							})
 							.OnClicked(this, &SFNRootWidget::OnSubmitWill)
 							[
-								SNew(STextBlock).Text_Lambda([this]() { return State == EState::DuelWriting ? LOCTEXT("LockDuel", "LOCK IN MOVE") : LOCTEXT("Lock", "LOCK IN WILL"); }).Font(Font(14, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.93f, 0.6f))
+								SNew(STextBlock).Text_Lambda([this]() { return State == EState::DuelWriting ? LOCTEXT("LockDuel", "LOCK IN MOVE") : LOCTEXT("Lock", "LOCK IN WILL"); }).Font(UiFont(14, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.93f, 0.6f))
 							]
 						]
 					]
@@ -277,7 +280,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 		// Status line
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(28.f, 16.f)
 		[
-			SNew(STextBlock).Visibility(EVisibility::HitTestInvisible).Font(Font(11)).ColorAndOpacity(Dim)
+			SNew(STextBlock).Visibility(EVisibility::HitTestInvisible).Font(UiFont(11)).ColorAndOpacity(UiDim)
 			.Text_Lambda([this]() { return FText::FromString(Status + (Net.IsValid() && Net->IsDemo() ? TEXT("   [demo Theatre]") : TEXT(""))); })
 		]
 		// The Dungeon Master's painting of what just happened (click to put it away)
@@ -288,11 +291,11 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 			[
 				SNew(SButton).ButtonColorAndOpacity(FLinearColor::Transparent).ContentPadding(0).OnClicked(this, &SFNRootWidget::OnHidePicture)
 				[
-					Framed(
+					UiFramed(
 						SNew(SVerticalBox)
 						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[SNew(SBox).WidthOverride(400.f).HeightOverride(400.f)[SNew(SImage).Image(&PicBrush)]]
-						+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)[SNew(STextBlock).AutoWrapText(true).Font(Font(12, TEXT("Bold"))).ColorAndOpacity(UiGold).Text_Lambda([this]() { return FText::FromString(PicCaption); })]
-						+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Dim).Text(LOCTEXT("PicHide", "click to put the picture away"))]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)[SNew(STextBlock).AutoWrapText(true).Font(UiFont(12, TEXT("Bold"))).ColorAndOpacity(UiGold).Text_Lambda([this]() { return FText::FromString(PicCaption); })]
+						+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(UiFont(10)).ColorAndOpacity(UiDim).Text(LOCTEXT("PicHide", "click to put the picture away"))]
 					, FMargin(10.f, 10.f))
 				]
 			]
@@ -300,7 +303,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0.f, 76.f, 0.f, 0.f)
 		[
 			SNew(STextBlock).Visibility_Lambda([this]() { return (bPicPending && !bPicShown) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
-			.Font(Font(12, TEXT("Bold"))).ColorAndOpacity(UiOrange).Text(LOCTEXT("PicPending", "The Dungeon Master is painting the scene..."))
+			.Font(UiFont(12, TEXT("Bold"))).ColorAndOpacity(UiOrange).Text(LOCTEXT("PicPending", "The Dungeon Master is painting the scene..."))
 		]
 		// Knocked out: watch the rest, or start a fresh game
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0.f, 0.f, 0.f, 90.f)
@@ -308,22 +311,22 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 			SNew(SBox).WidthOverride(560.f)
 			.Visibility_Lambda([this]() { return (State == EState::Spectating && !bSpectatePanelHidden) ? EVisibility::Visible : EVisibility::Collapsed; })
 			[
-				Framed(
+				UiFramed(
 					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[SNew(STextBlock).Font(Font(24, TEXT("Bold"))).ColorAndOpacity(Red).Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("YOU HAVE FALLEN  -  #%d"), FMath::Max(2, FallPlace))); })]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 14)[SNew(STextBlock).AutoWrapText(true).Justification(ETextJustify::Center).Font(Font(13)).ColorAndOpacity(UiPale).Text_Lambda([this]() { return FText::FromString(SpectateCause + TEXT("\nYou are out of this game for good. Watch how the night ends, or start a fresh game.")); })]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[SNew(STextBlock).Font(UiFont(24, TEXT("Bold"))).ColorAndOpacity(UiRed).Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("YOU HAVE FALLEN  -  #%d"), FMath::Max(2, FallPlace))); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 14)[SNew(STextBlock).AutoWrapText(true).Justification(ETextJustify::Center).Font(UiFont(13)).ColorAndOpacity(UiPale).Text_Lambda([this]() { return FText::FromString(SpectateCause + TEXT("\nYou are out of this game for good. Watch how the night ends, or start a fresh game.")); })]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0)
 						[
 							SNew(SButton).ButtonColorAndOpacity(FLinearColor(0.2f, 0.2f, 0.25f)).ContentPadding(FMargin(22.f, 10.f)).OnClicked(this, &SFNRootWidget::OnKeepWatching)
-							[SNew(STextBlock).Text(LOCTEXT("Watch", "KEEP WATCHING")).Font(Font(15, TEXT("Bold"))).ColorAndOpacity(UiPale)]
+							[SNew(STextBlock).Text(LOCTEXT("Watch", "KEEP WATCHING")).Font(UiFont(15, TEXT("Bold"))).ColorAndOpacity(UiPale)]
 						]
 						+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0)
 						[
 							SNew(SButton).ButtonColorAndOpacity(FLinearColor(0.55f, 0.32f, 0.06f)).ContentPadding(FMargin(22.f, 10.f)).OnClicked(this, &SFNRootWidget::OnPlayAgain)
-							[SNew(STextBlock).Text(LOCTEXT("Fresh", "JOIN A FRESH GAME")).Font(Font(15, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.93f, 0.6f))]
+							[SNew(STextBlock).Text(LOCTEXT("Fresh", "JOIN A FRESH GAME")).Font(UiFont(15, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.93f, 0.6f))]
 						]
 					]
 				, FMargin(22.f, 16.f))
@@ -335,16 +338,16 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 			SNew(SBox).WidthOverride(600.f)
 			.Visibility_Lambda([this]() { return (State == EState::Ended && EndScreenAt >= 0.0 && Clock >= EndScreenAt) ? EVisibility::Visible : EVisibility::Collapsed; })
 			[
-				Framed(
+				UiFramed(
 					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[SNew(STextBlock).Font(Font(30, TEXT("Bold"))).ColorAndOpacity(UiGold).Text_Lambda([this]() { return FText::FromString(EndTitle); })]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 16)[SNew(STextBlock).AutoWrapText(true).Font(Font(14)).ColorAndOpacity(UiPale).Text_Lambda([this]() { return FText::FromString(EndBody); })]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)[SNew(STextBlock).Font(UiFont(30, TEXT("Bold"))).ColorAndOpacity(UiGold).Text_Lambda([this]() { return FText::FromString(EndTitle); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 16)[SNew(STextBlock).AutoWrapText(true).Font(UiFont(14)).ColorAndOpacity(UiPale).Text_Lambda([this]() { return FText::FromString(EndBody); })]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 					[
 						SNew(SButton).ButtonColorAndOpacity(FLinearColor(0.55f, 0.32f, 0.06f)).ContentPadding(FMargin(40.f, 12.f))
 						.OnClicked(this, &SFNRootWidget::OnPlayAgain)
 						[
-							SNew(STextBlock).Text(LOCTEXT("Again", "PLAY AGAIN")).Font(Font(20, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.93f, 0.6f))
+							SNew(STextBlock).Text(LOCTEXT("Again", "PLAY AGAIN")).Font(UiFont(20, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.93f, 0.6f))
 						]
 					]
 				, FMargin(28.f, 22.f))
@@ -543,7 +546,7 @@ void SFNRootWidget::OnWorldClick(FName Id)
 		|| (Net->bFn7 && (State == EState::Waiting || State == EState::Resolving || State == EState::Submitted))))
 	{
 		// Final Night 7: you can write at any time; starting to write slows time (a public window, costs a bolt).
-		if (Net->bFn7) { Net->BeginTyping(); AddBanner(TEXT("You slow time to write..."), Dim); }
+		if (Net->bFn7) { Net->BeginTyping(); AddBanner(TEXT("You slow time to write..."), UiDim); }
 		SetState(EState::Writing);
 		if (WillBox.IsValid()) FSlateApplication::Get().SetKeyboardFocus(WillBox, EFocusCause::SetDirectly);
 	}
@@ -625,7 +628,7 @@ void SFNRootWidget::RebuildBanners()
 	for (const FBanner& B : Banners)
 		BannerBox->AddSlot().AutoHeight().Padding(0, 0, 0, 8)
 		[
-			Framed(SNew(STextBlock).AutoWrapText(true).Font(Font(12)).ColorAndOpacity(B.Color).Text(FText::FromString(B.Text)), FMargin(12.f, 8.f))
+			UiFramed(SNew(STextBlock).AutoWrapText(true).Font(UiFont(12)).ColorAndOpacity(B.Color).Text(FText::FromString(B.Text)), FMargin(12.f, 8.f))
 		];
 }
 
@@ -751,7 +754,7 @@ void SFNRootWidget::ApplyFn7View(const TSharedPtr<FJsonObject>& View)
 		bEliminated = true;
 		Health = 0;
 		FallPlace = FMath::Max(2, Alive + 1);
-		AddBanner(TEXT("You have fallen. You keep watching the night as a spectator."), Red);
+		AddBanner(TEXT("You have fallen. You keep watching the night as a spectator."), UiRed);
 		SetState(EState::Spectating);
 	}
 	double Lon = 0.0, Lat = 0.0;
@@ -819,7 +822,7 @@ void SFNRootWidget::RebuildPowerBar(const TArray<TSharedPtr<FJsonValue>>& Powers
 				return FReply::Handled();
 			})
 			[
-				SNew(STextBlock).Font(Font(11, TEXT("Bold"))).ColorAndOpacity(UiPale).Text(FText::FromString(FString::Printf(TEXT("%s  %d"), *Name, Cost)))
+				SNew(STextBlock).Font(UiFont(11, TEXT("Bold"))).ColorAndOpacity(UiPale).Text(FText::FromString(FString::Printf(TEXT("%s  %d"), *Name, Cost)))
 			]
 		];
 	}
@@ -900,18 +903,18 @@ void SFNRootWidget::RebuildPortraitStrip(const TArray<FFNSeatInfo>& Seats)
 		const FString Label = FString::Printf(TEXT("%s%s\n%s"), *S.Name, S.bMine ? TEXT("  (you)") : TEXT(""), !S.bAlive ? TEXT("FALLEN") : (S.bHuman ? (S.bConnected ? TEXT("HUMAN") : TEXT("HUMAN (away)")) : TEXT("AI")));
 		TSharedRef<SWidget> Face = Brush.IsValid()
 			? StaticCastSharedRef<SWidget>(SNew(SImage).Image(Brush.Get()))
-			: StaticCastSharedRef<SWidget>(SNew(SBorder).BorderImage(White()).BorderBackgroundColor(S.Color * 0.35f).HAlign(HAlign_Center).VAlign(VAlign_Center)
-				[ SNew(STextBlock).Font(Font(10)).ColorAndOpacity(UiPale).Justification(ETextJustify::Center).Text(FText::FromString(TEXT("portrait\ncoming..."))) ]);
+			: StaticCastSharedRef<SWidget>(SNew(SBorder).BorderImage(UiWhite()).BorderBackgroundColor(S.Color * 0.35f).HAlign(HAlign_Center).VAlign(VAlign_Center)
+				[ SNew(STextBlock).Font(UiFont(10)).ColorAndOpacity(UiPale).Justification(ETextJustify::Center).Text(FText::FromString(TEXT("portrait\ncoming..."))) ]);
 		PortraitStrip->AddSlot().AutoWidth().Padding(6.f, 0.f)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 			[
-				SNew(SBorder).BorderImage(White()).BorderBackgroundColor(Aura).Padding(3.f)
+				SNew(SBorder).BorderImage(UiWhite()).BorderBackgroundColor(Aura).Padding(3.f)
 				[ SNew(SBox).WidthOverride(112.f).HeightOverride(112.f)[Face] ]
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 3, 0, 0)
-			[ SNew(STextBlock).Font(Font(10, TEXT("Bold"))).ColorAndOpacity(Aura).Justification(ETextJustify::Center).Text(FText::FromString(Label)) ]
+			[ SNew(STextBlock).Font(UiFont(10, TEXT("Bold"))).ColorAndOpacity(Aura).Justification(ETextJustify::Center).Text(FText::FromString(Label)) ]
 		];
 	}
 }
@@ -1025,6 +1028,21 @@ void SFNRootWidget::PushSeats()
 bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 {
 	AFNStudio* St = Studio.Get();
+	// Chris's rule: JOINING = TAKING A SEAT. If the house made us a viewer (it is replaying) and we didn't choose WATCH, ask once.
+	if (T == TEXT("match.ended") && Net.IsValid()) Net->bSeatAsked = false;   // a new match: JOIN may ask for a seat again
+	// Only this classic HUD asks here; when the style-kit HUD is mounted it owns the seat request (no duplicate take_seat).
+	if (T == TEXT("room.snapshot") && Net.IsValid() && !FN7HudMount::IsMounted() && Net->bViewer && !Net->bWatchOnly && !Net->bSeatAsked)
+	{
+		Net->bSeatAsked = true;
+		Net->TakeSeat();
+		Status = TEXT("FINAL NIGHT 7  -  taking a seat...");
+	}
+	if (T == TEXT("error") && Str(D, TEXT("code")) == TEXT("room_full"))
+	{
+		AddBanner(TEXT("Table full: watching. You'll get a seat next match."), UiDim);
+		Status = TEXT("FINAL NIGHT 7  -  watching (table full)");
+		return true;
+	}
 	if (T == TEXT("room.snapshot") || T == TEXT("room.updated"))
 	{
 		// Presence per seat: a human who leaves (or comes back) flips their aura live.
@@ -1063,7 +1081,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		{
 			if (!Join.IsEmpty()) Net->JoinRoom(Join);
 			else if (bDevCreate) Net->CreateRoom();
-			else Net->JoinHouse();
+			else Net->JoinHouse(Net->bWatchOnly);   // keep a WATCH choice across reconnects
 		}
 		return true;
 	}
@@ -1099,9 +1117,9 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> Pub = Sub(D, TEXT("public")), Priv = Sub(D, TEXT("private"));
 		Health = FMath::RoundToInt(Numb(Priv, TEXT("health"), Health));
 		bool bOut = false; if (Priv.IsValid()) Priv->TryGetBoolField(TEXT("outside_arena"), bOut);
-		if (bOut) AddBanner(TEXT("You are OUTSIDE the arena: Time's clock hurts you every beat. Order your hand to move inward."), Red);
+		if (bOut) AddBanner(TEXT("You are OUTSIDE the arena: Time's clock hurts you every beat. Order your hand to move inward."), UiRed);
 		if (const TArray<TSharedPtr<FJsonValue>>* E = Arr(Pub, TEXT("eliminated")))
-			for (const TSharedPtr<FJsonValue>& V : *E) AddBanner(V->AsString() + TEXT(" fell at the start of the beat"), Red);
+			for (const TSharedPtr<FJsonValue>& V : *E) AddBanner(V->AsString() + TEXT(" fell at the start of the beat"), UiRed);
 		return true;
 	}
 	if (T == TEXT("round.brief"))
@@ -1147,7 +1165,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		if (const TArray<TSharedPtr<FJsonValue>>* E = Arr(Pub, TEXT("eliminated")))
 		{
 			if (St && E->Num() > 0) St->PlaySfx(EFNSfx::Snuff, 0.8f, 2.5f);
-			for (const TSharedPtr<FJsonValue>& V : *E) AddBanner(TEXT("ELIMINATED: ") + V->AsString(), Red);
+			for (const TSharedPtr<FJsonValue>& V : *E) AddBanner(TEXT("ELIMINATED: ") + V->AsString(), UiRed);
 		}
 		return true;
 	}
@@ -1156,7 +1174,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> Priv = Sub(D, TEXT("private"));
 		const int32 HealthBefore = Health;
 		if (const TSharedPtr<FJsonObject> You = Sub(Priv, TEXT("you"))) Health = FMath::RoundToInt(Numb(You, TEXT("health"), Health));
-		if (Health < HealthBefore) AddBanner(FString::Printf(TEXT("You lost %d health  (%d/10 left)"), HealthBefore - Health, FMath::Max(0, Health)), Red);
+		if (Health < HealthBefore) AddBanner(FString::Printf(TEXT("You lost %d health  (%d/10 left)"), HealthBefore - Health, FMath::Max(0, Health)), UiRed);
 		FString Body;
 		if (const TArray<TSharedPtr<FJsonValue>>* Hs = Arr(Priv, TEXT("hands")))
 			for (int32 i = 0; i < Hs->Num(); ++i)
@@ -1188,7 +1206,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		Fn7WindowDeadline = 0.0;
 		const FString Why = Str(D, TEXT("reason"));
-		AddBanner(Why == TEXT("submitted") ? TEXT("Time snaps back: the orders are sealed") : TEXT("Time snaps back"), Dim);
+		AddBanner(Why == TEXT("submitted") ? TEXT("Time snaps back: the orders are sealed") : TEXT("Time snaps back"), UiDim);
 		return true;
 	}
 	if (T == TEXT("phase.event"))
@@ -1209,8 +1227,8 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		bool bOk = true; D->TryGetBoolField(TEXT("accepted"), bOk);
 		const FString Why = Str(D, TEXT("reason"));
-		if (!bOk && Why == TEXT("cut")) { AddBanner(TEXT("YOUR ORDERS WERE CUT! Whoever slowed time pressed Enter first."), Red); AddBanner(TEXT("CUT OFF  -  write faster next time"), Red); if (St) St->PlaySfx(EFNSfx::Snuff, 1.f); }
-		else if (!bOk) AddBanner(TEXT("Refused: ") + Why, Red);
+		if (!bOk && Why == TEXT("cut")) { AddBanner(TEXT("YOUR ORDERS WERE CUT! Whoever slowed time pressed Enter first."), UiRed); AddBanner(TEXT("CUT OFF  -  write faster next time"), UiRed); if (St) St->PlaySfx(EFNSfx::Snuff, 1.f); }
+		else if (!bOk) AddBanner(TEXT("Refused: ") + Why, UiRed);
 		else Status = TEXT("Orders received");
 		return true;
 	}
@@ -1284,9 +1302,9 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> Pub = Sub(D, TEXT("public")), Priv = Sub(D, TEXT("private"));
 		Dawn = Str(Priv, TEXT("dawn"));
 		Health = (int32)Numb(Priv, TEXT("health"), Health);
-		if (!Dawn.IsEmpty()) AddBanner(Dawn, Red);
+		if (!Dawn.IsEmpty()) AddBanner(Dawn, UiRed);
 		if (const TArray<TSharedPtr<FJsonValue>>* F = Arr(Pub, TEXT("fell_at_dawn")))
-			for (const TSharedPtr<FJsonValue>& V : *F) AddBanner(V->AsString() + TEXT(" fell at dawn"), Red);
+			for (const TSharedPtr<FJsonValue>& V : *F) AddBanner(V->AsString() + TEXT(" fell at dawn"), UiRed);
 		ApplyZone(Sub(Pub, TEXT("zone")));
 	}
 	else if (T == TEXT("round.brief"))
@@ -1356,14 +1374,14 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 			if (St && E0->Num() > 0) St->PlaySfx(EFNSfx::Snuff, 0.8f, 2.5f);
 		if (const TArray<TSharedPtr<FJsonValue>>* E = Arr(Pub, TEXT("eliminated")))
 			for (const TSharedPtr<FJsonValue>& V : *E)
-				AddBanner(FString::Printf(TEXT("ELIMINATED: %s  (%s)"), *Str(V->AsObject(), TEXT("name")), *Str(V->AsObject(), TEXT("cause"))), Red);
+				AddBanner(FString::Printf(TEXT("ELIMINATED: %s  (%s)"), *Str(V->AsObject(), TEXT("name")), *Str(V->AsObject(), TEXT("cause"))), UiRed);
 	}
 	else if (T == TEXT("round.private"))
 	{
 		const TSharedPtr<FJsonObject> Priv = Sub(D, TEXT("private"));
 		const int32 HealthBefore = Health;
 		ApplySelfView(Sub(Priv, TEXT("you")));
-		if (Health < HealthBefore) AddBanner(FString::Printf(TEXT("You lost %d health today  (%d/10 left)"), HealthBefore - Health, FMath::Max(0, Health)), Red);
+		if (Health < HealthBefore) AddBanner(FString::Printf(TEXT("You lost %d health today  (%d/10 left)"), HealthBefore - Health, FMath::Max(0, Health)), UiRed);
 		else if (Health > HealthBefore) AddBanner(FString::Printf(TEXT("You healed %d  (%d/10)"), Health - HealthBefore, Health), FLinearColor(0.4f, 1.f, 0.5f));
 		const TSharedPtr<FJsonObject> Vic = Sub(Priv, TEXT("vicinity"));
 		FString Body = Str(Priv, TEXT("experience"));
@@ -1394,7 +1412,7 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		const FString Kept = Str(Priv, TEXT("kept"));
 		if (!Kept.IsEmpty()) AddBanner(TEXT("Into your bag: ") + Kept, UiGold);
 		bool bDead = false; Priv->TryGetBoolField(TEXT("eliminated"), bDead);
-		if (bDead && !bEliminated) { bEliminated = true; FallPlace = FMath::Max(2, Alive); AddBanner(FString::Printf(TEXT("YOU PLACED #%d"), FallPlace), UiGold); if (St) St->PlaySfx(EFNSfx::Snuff, 1.f, 1.f); AddBanner(TEXT("You have been eliminated: ") + Str(Priv, TEXT("cause")), Red); }
+		if (bDead && !bEliminated) { bEliminated = true; FallPlace = FMath::Max(2, Alive); AddBanner(FString::Printf(TEXT("YOU PLACED #%d"), FallPlace), UiGold); if (St) St->PlaySfx(EFNSfx::Snuff, 1.f, 1.f); AddBanner(TEXT("You have been eliminated: ") + Str(Priv, TEXT("cause")), UiRed); }
 
 		Choices.Reset();
 		if (const TArray<TSharedPtr<FJsonValue>>* C = Arr(D, TEXT("choices")))
@@ -1438,7 +1456,7 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	else if (T == TEXT("seat.eliminated"))
 	{
 		const FString Who = Str(D, TEXT("display_name"));
-		AddBanner(Who.IsEmpty() ? FString::Printf(TEXT("Seat %d is out: %s"), (int32)Numb(D, TEXT("seat")), *Str(D, TEXT("reason"))) : FString::Printf(TEXT("ELIMINATED: %s  (%s)   %d left"), *Who, *Str(D, TEXT("reason")), FMath::Max(1, Alive - 1)), Red);
+		AddBanner(Who.IsEmpty() ? FString::Printf(TEXT("Seat %d is out: %s"), (int32)Numb(D, TEXT("seat")), *Str(D, TEXT("reason"))) : FString::Printf(TEXT("ELIMINATED: %s  (%s)   %d left"), *Who, *Str(D, TEXT("reason")), FMath::Max(1, Alive - 1)), UiRed);
 		if (St) St->PlaySfx(EFNSfx::Snuff, 0.7f);
 	}
 	else if (T == TEXT("duel.started"))
@@ -1447,7 +1465,7 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		DuelRole = Str(D, TEXT("role"));
 		const FString Atk = Str(D, TEXT("attacker")), Def = Str(D, TEXT("defender"));
 		DuelFoe = DuelRole == TEXT("defender") ? Atk : Def;
-		AddBanner(FString::Printf(TEXT("DUEL!  %s vs %s"), *Atk, *Def), Red);
+		AddBanner(FString::Printf(TEXT("DUEL!  %s vs %s"), *Atk, *Def), UiRed);
 		if (St)
 		{
 			St->PlaySfx(EFNSfx::Impact, 0.9f);
@@ -1458,7 +1476,7 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("duel.cancelled"))
 	{
-		AddBanner(Str(D, TEXT("note")), Dim);
+		AddBanner(Str(D, TEXT("note")), UiDim);
 		SetState(EState::Submitted);
 	}
 	else if (T == TEXT("duel.turn"))
@@ -1496,13 +1514,13 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		if (St) St->RollDuelDice(Roll, Sides, Need, bHit, Label);
 		if (Net.IsValid() && Str(D, TEXT("who")) == Net->DisplayName) { BestRoll = FMath::Max(BestRoll, FMath::Min(20, Roll)); if (bHit) ++Successes; }
 		AddBanner(FString::Printf(TEXT("%s  -  d%d rolled %d, needed %d+:  %s%s"), *Label, Sides, Roll, Need,
-			bHit ? *FString::Printf(TEXT("HIT for %d"), (int32)Numb(D, TEXT("damage"))) : TEXT("MISS"), bCrit ? TEXT("  (PERFECT ROLL)") : TEXT("")), bHit ? UiGold : Dim);
+			bHit ? *FString::Printf(TEXT("HIT for %d"), (int32)Numb(D, TEXT("damage"))) : TEXT("MISS"), bCrit ? TEXT("  (PERFECT ROLL)") : TEXT("")), bHit ? UiGold : UiDim);
 	}
 	else if (T == TEXT("duel.result"))
 	{
 		const FString Killed = Str(D, TEXT("killed"));
 		AddBanner(Str(D, TEXT("summary")), UiPale);
-		if (!Killed.IsEmpty()) AddBanner(FString::Printf(TEXT("%s IS DEAD"), *Killed.ToUpper()), Red);
+		if (!Killed.IsEmpty()) AddBanner(FString::Printf(TEXT("%s IS DEAD"), *Killed.ToUpper()), UiRed);
 		if (Net.IsValid() && !Killed.IsEmpty() && Killed != Net->DisplayName && Str(D, TEXT("attacker")) == Net->DisplayName) ++Kills;
 		if (St) St->ShowEaselText(FString(TEXT("THE DUEL IS DECIDED")), Str(D, TEXT("summary")) + TEXT("\n\n") + Str(D, TEXT("detail")));
 		CutLines.Add(TEXT("The duel\n\n") + Str(D, TEXT("summary")));
@@ -1517,7 +1535,7 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		const int32 Place2 = (int32)Numb(D, TEXT("place"), FMath::Max(2, Alive));
 		if (!bEliminated)
 		{
-			AddBanner(TEXT("You have been eliminated: ") + SpectateCause, Red);
+			AddBanner(TEXT("You have been eliminated: ") + SpectateCause, UiRed);
 			if (St) St->PlaySfx(EFNSfx::Snuff, 1.f, 0.5f);
 		}
 		bEliminated = true;
@@ -1559,7 +1577,7 @@ void SFNRootWidget::OnServerMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("error"))
 	{
-		AddBanner(TEXT("Server: ") + Str(D, TEXT("message")), Red);
+		AddBanner(TEXT("Server: ") + Str(D, TEXT("message")), UiRed);
 		if (Str(D, TEXT("code")) == TEXT("too_long") || Str(D, TEXT("code")) == TEXT("bad_request"))
 			if (State == EState::Submitted) SetState(EState::Compose);
 	}
@@ -1743,7 +1761,7 @@ void SFNRootWidget::RequestPicture(const FString& Scene, const FString& Caption)
 	const FString Key = LoadOpenAIKey();
 	if (Key.IsEmpty())
 	{
-		if (!bPicWarned) { bPicWarned = true; UE_LOG(LogFNUI, Warning, TEXT("No OpenAI key (Config/OpenAIKey.txt or .env): no pictures this game")); AddBanner(TEXT("No picture key yet: put the OpenAI key in Config/OpenAIKey.txt to see each day painted"), Dim); }
+		if (!bPicWarned) { bPicWarned = true; UE_LOG(LogFNUI, Warning, TEXT("No OpenAI key (Config/OpenAIKey.txt or .env): no pictures this game")); AddBanner(TEXT("No picture key yet: put the OpenAI key in Config/OpenAIKey.txt to see each day painted"), UiDim); }
 		return;
 	}
 	FString Model = TEXT("gpt-image-2");
@@ -1795,7 +1813,7 @@ void SFNRootWidget::RequestPicture(const FString& Scene, const FString& Caption)
 		if (!Tex)
 		{
 			UE_LOG(LogFNUI, Warning, TEXT("Picture failed (HTTP %d): %s"), Resp.IsValid() ? Resp->GetResponseCode() : 0, *Raw.Left(800));
-			Self->AddBanner(FString::Printf(TEXT("The picture didn't come through (error %d). Details are in the log."), Resp.IsValid() ? Resp->GetResponseCode() : 0), Dim);
+			Self->AddBanner(FString::Printf(TEXT("The picture didn't come through (error %d). Details are in the log."), Resp.IsValid() ? Resp->GetResponseCode() : 0), UiDim);
 			return;
 		}
 		Self->PicTex.Reset(Tex);
