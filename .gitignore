@@ -95,3 +95,4 @@ __production_steps/
 # Meshy bookkeeping and raw downloads stay local
 production_assets/meshy/2026*/
 *.glb
+!production_assets/meshy/mannequin/mannequin_all_clips.glb
