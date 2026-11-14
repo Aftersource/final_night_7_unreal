@@ -64,6 +64,7 @@ namespace FN7Style
 		FINALNIGHT_API const FSlateBrush* PillYou();             // fully rounded, gold fill ("YOU")
 		FINALNIGHT_API const FSlateBrush* AccentRule();          // flat orange, for the 2 px rule under a title
 		FINALNIGHT_API const FSlateBrush* Swatch(const FLinearColor& Fill);  // radius 6 chip, cached per colour
+		FINALNIGHT_API const FSlateBrush* Segment(const FLinearColor& Fill); // radius 2 bar segment, cached per colour
 	}
 
 	/** Type scale, all on the engine's Roboto. */
@@ -86,6 +87,13 @@ namespace FN7Style
 
 	/** A rounded input: dark well, cobalt border, orange border when focused. */
 	FINALNIGHT_API const FEditableTextBoxStyle& TextBox();
+
+	/** A quiet pill button (power bar): dark fill, cobalt edge, orange edge on hover, orange fill when armed. */
+	FINALNIGHT_API const FButtonStyle& PillButton();
+	FINALNIGHT_API const FButtonStyle& PillButtonArmed();
+
+	/** The one loud action on screen (SEND): solid orange, fully rounded. */
+	FINALNIGHT_API const FButtonStyle& AccentButton();
 
 	/** "Human", "AI" or "Fallen". */
 	FINALNIGHT_API FText RoleLabel(EFNSeatRole Role);

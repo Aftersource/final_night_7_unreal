@@ -139,6 +139,14 @@ const FSlateBrush* FN7Style::Brush::Swatch(const FLinearColor& Fill)
 	return Cache.Add(Key, MakeUnique<FSlateRoundedBoxBrush>(Fill, 6.f, Color::PanelEdge(), 1.f)).Get();
 }
 
+const FSlateBrush* FN7Style::Brush::Segment(const FLinearColor& Fill)
+{
+	static TMap<uint32, TUniquePtr<FSlateRoundedBoxBrush>> Cache;
+	const uint32 Key = GetTypeHash(Fill.ToFColor(false));
+	if (TUniquePtr<FSlateRoundedBoxBrush>* Found = Cache.Find(Key)) return Found->Get();
+	return Cache.Add(Key, MakeUnique<FSlateRoundedBoxBrush>(Fill, 2.f)).Get();
+}
+
 // --- type -------------------------------------------------------------------
 
 FSlateFontInfo FN7Style::Type::Font(int32 Size, const TCHAR* Weight)
@@ -186,6 +194,44 @@ const FEditableTextBoxStyle& FN7Style::TextBox()
 		T.SetPadding(FMargin(Space::M, Space::S));
 		return T;
 	}();
+	return S;
+}
+
+// --- buttons ----------------------------------------------------------------
+
+namespace
+{
+	FButtonStyle MakePillButton(const FLinearColor& Fill, const FLinearColor& Edge, const FLinearColor& HoverFill, const FLinearColor& HoverEdge)
+	{
+		FButtonStyle B;
+		B.SetNormal(FSlateRoundedBoxBrush(Fill, Edge, 1.f));
+		B.SetHovered(FSlateRoundedBoxBrush(HoverFill, HoverEdge, 1.5f));
+		B.SetPressed(FSlateRoundedBoxBrush(HoverFill, HoverEdge, 1.5f));
+		B.SetDisabled(FSlateRoundedBoxBrush(WithAlpha(Fill, 0.4f), WithAlpha(Edge, 0.4f), 1.f));
+		B.SetNormalPadding(FMargin(FN7Style::Space::M, 6.f));
+		B.SetPressedPadding(FMargin(FN7Style::Space::M, 7.f, FN7Style::Space::M, 5.f));
+		B.SetNormalForeground(FSlateColor(FN7Style::Color::Text()));
+		B.SetHoveredForeground(FSlateColor(FN7Style::Color::Text()));
+		B.SetPressedForeground(FSlateColor(FN7Style::Color::Text()));
+		return B;
+	}
+}
+
+const FButtonStyle& FN7Style::PillButton()
+{
+	static const FButtonStyle S = MakePillButton(Hex(TEXT("12152A"), 0.92f), Color::PanelEdge(), Hex(TEXT("1B2A6B"), 0.95f), Color::Accent());
+	return S;
+}
+
+const FButtonStyle& FN7Style::PillButtonArmed()
+{
+	static const FButtonStyle S = MakePillButton(WithAlpha(Color::Accent(), 0.9f), Color::Accent(), Color::Accent(), Hex(TEXT("FFC08A")));
+	return S;
+}
+
+const FButtonStyle& FN7Style::AccentButton()
+{
+	static const FButtonStyle S = MakePillButton(Color::Accent(), Color::Accent(), Hex(TEXT("FF9F4F")), Hex(TEXT("FFC08A")));
 	return S;
 }
 
