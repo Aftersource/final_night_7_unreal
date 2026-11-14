@@ -1,5 +1,7 @@
 # Final Night 7: the playbook (Chris's backend ↔ Benito's frontend)
 
+> Copy of `Aftersource/final_night_7/docs/PLAYBOOK.md` (the source of truth), kept in sync by the backend session.
+
 
 Read this whole file before acting, and again after every compaction. It is how the two teams work together.
 
