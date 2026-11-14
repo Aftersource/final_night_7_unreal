@@ -11,6 +11,7 @@
 #include "Engine/Texture2D.h"
 #include "FNNetClient.h"
 #include "FNPlayerController.h"
+#include "FNStudio.h"
 #include "HAL/IConsoleManager.h"
 #include "HttpModule.h"
 #include "ImageUtils.h"
@@ -99,6 +100,9 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		StatusHandle = N->OnStatus.AddSP(this, &SFNHudLive::HandleStatus);
 	}
 	DropHandle = FFNPowerDragDrop::OnDroppedOnWorld().AddSP(this, &SFNHudLive::OnPowerDropped);
+	DragOverHandle = FFNPowerDragDrop::OnDragOverWorld().AddSP(this, &SFNHudLive::OnPowerDragOver);
+	DragEndHandle = FFNPowerDragDrop::OnDragEnded().AddSP(this, &SFNHudLive::OnPowerDragEnded);
+	FFNPowerDragDrop::SnapToBoard().BindSP(this, &SFNHudLive::SnapPowerToBoard);
 	RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLive::TickTimer));
 }
 
@@ -110,6 +114,9 @@ SFNHudLive::~SFNHudLive()
 		N->OnStatus.Remove(StatusHandle);
 	}
 	FFNPowerDragDrop::OnDroppedOnWorld().Remove(DropHandle);
+	FFNPowerDragDrop::OnDragOverWorld().Remove(DragOverHandle);
+	FFNPowerDragDrop::OnDragEnded().Remove(DragEndHandle);
+	FFNPowerDragDrop::SnapToBoard().Unbind();
 }
 
 void SFNHudLive::HandleStatus(const FString& Status)
@@ -326,6 +333,7 @@ void SFNHudLive::ReadPowers(const TArray<TSharedPtr<FJsonValue>>& Powers)
 		Out.Slug = Slug;
 		Out.Name = FText::FromString(FN7HudJson::Str(P, TEXT("name")));
 		Out.Cost = (int32)FN7HudJson::Num(P, TEXT("cost"), 1);
+		PowerRadiusKm.Add(Slug, FN7HudJson::Num(P, TEXT("radius_km"), 0.0));
 		Model.Powers.Add(Out);
 	}
 }
@@ -442,12 +450,91 @@ void SFNHudLive::OnSend(const FString& Text)
 	Publish();
 }
 
-void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D&)
+namespace FN7ViewportPx
 {
-	// A tile dropped on the table or globe. Until the globe casts at the drop point itself, arm it here:
-	// the player writes the target and presses SEND.
+	/** Slate absolute (desktop) position <-> game viewport pixel, through the viewport widget's geometry. */
+	bool AbsToPixel(const FVector2D& Abs, FVector2D& OutPixel)
+	{
+		UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+		TSharedPtr<SViewport> W = VC ? VC->GetGameViewportWidget() : nullptr;
+		if (!W.IsValid() || !VC->Viewport) return false;
+		const FGeometry& G = W->GetCachedGeometry();
+		const FVector2D Local = FVector2D(G.AbsoluteToLocal(Abs));
+		const FVector2D Size = FVector2D(G.GetLocalSize());
+		const FIntPoint Px = VC->Viewport->GetSizeXY();
+		if (Size.X <= 0.0 || Size.Y <= 0.0) return false;
+		OutPixel = Local * FVector2D(Px.X / Size.X, Px.Y / Size.Y);
+		return Local.X >= 0.0 && Local.Y >= 0.0 && Local.X <= Size.X && Local.Y <= Size.Y;
+	}
+
+	bool PixelToAbs(const FVector2D& Pixel, FVector2D& OutAbs)
+	{
+		UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+		TSharedPtr<SViewport> W = VC ? VC->GetGameViewportWidget() : nullptr;
+		if (!W.IsValid() || !VC->Viewport) return false;
+		const FGeometry& G = W->GetCachedGeometry();
+		const FVector2D Size = FVector2D(G.GetLocalSize());
+		const FIntPoint Px = VC->Viewport->GetSizeXY();
+		if (Px.X <= 0 || Px.Y <= 0) return false;
+		OutAbs = FVector2D(G.LocalToAbsolute(Pixel * FVector2D(Size.X / Px.X, Size.Y / Px.Y)));
+		return true;
+	}
+}
+
+AFNStudio* SFNHudLive::FindStudio() const
+{
+	UFNNetClient* N = Net.Get();
+	AFNPlayerController* PC = N ? Cast<AFNPlayerController>(N->GetOuter()) : nullptr;
+	return PC ? PC->Studio.Get() : nullptr;
+}
+
+TOptional<FVector2D> SFNHudLive::SnapPowerToBoard(const FString&, const FVector2D& ScreenPosition)
+{
+	AFNStudio* St = FindStudio();
+	UFNNetClient* N = Net.Get();
+	APlayerController* PC = N ? Cast<APlayerController>(N->GetOuter()) : nullptr;
+	FVector2D Pixel, Abs, HexPixel;
+	double La, Lo, HexM;
+	FVector World;
+	if (!St || !PC || !FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) || !St->HexAtScreen(Pixel, La, Lo, World, HexM)) return {};
+	if (!PC->ProjectWorldLocationToScreen(World, HexPixel) || !FN7ViewportPx::PixelToAbs(HexPixel, Abs)) return {};
+	return Abs;
+}
+
+void SFNHudLive::OnPowerDragOver(const FString& Power, const FVector2D& ScreenPosition)
+{
+	AFNStudio* St = FindStudio();
+	FVector2D Pixel;
+	if (!St) return;
+	const double* Radius = PowerRadiusKm.Find(Power);
+	const bool bOver = FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel);
+	St->ShowAreaOfEffect(bOver, Pixel, Radius ? *Radius : 0.0);
+}
+
+void SFNHudLive::OnPowerDragEnded(const FString&)
+{
+	if (AFNStudio* St = FindStudio()) St->ShowAreaOfEffect(false, FVector2D::ZeroVector, 0.0);
+}
+
+void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPosition)
+{
+	// Dropped on the board: cast at that hex. Anywhere else (the globe, empty table): arm it, write the target, SEND.
+	AFNStudio* St = FindStudio();
+	UFNNetClient* N = Net.Get();
+	FVector2D Pixel;
+	double La, Lo, HexM;
+	FVector World;
+	if (N && St && FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) && St->HexAtScreen(Pixel, La, Lo, World, HexM))
+	{
+		N->CastAt(Round, Power, Lo, La);
+		St->FlashAt(Lo, La);
+		ArmedPower.Reset();
+		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
+		Publish();
+		return;
+	}
 	ArmedPower = Power;
-	AddNews(LOCTEXT("Armed", "ARMED"), FString::Printf(TEXT("%s: write its target (a place, a name or lon,lat) and SEND."), *Power));
+	AddNews(LOCTEXT("Armed", "ARMED"), FString::Printf(TEXT("%s: drop it on a board hex, or write its target and SEND."), *Power));
 	Publish();
 }
 
@@ -543,15 +630,35 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 		const bool bConnect = Args.Contains(TEXT("connect"));
 		const bool bShot = Args.Contains(TEXT("shot"));
 		const bool bQuit = Args.Contains(TEXT("quit"));
+		const bool bAoe = Args.Contains(TEXT("aoe"));
 		TWeakObjectPtr<UWorld> WeakWorld(World);
 		// Wait for the player controller and its net client, then mount (and optionally connect / photograph).
-		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit](float)
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe](float)
 		{
 			UWorld* W = WeakWorld.Get();
 			AFNPlayerController* PC = W ? Cast<AFNPlayerController>(W->GetFirstPlayerController()) : nullptr;
 			if (!PC || !PC->Net) return true;
 			FN7HudMount::Mount(PC->Net);
 			if (bConnect) PC->Net->Start();
+			if (bAoe)
+			{
+				// Test: light an Earthquake's area (250 km) around the board hex at 42% / 78% of the viewport, as a drag would.
+				TWeakObjectPtr<AFNPlayerController> WeakPC(PC);
+				FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudAoe"), 13.f, [WeakPC](float)
+				{
+					AFNPlayerController* P = WeakPC.Get();
+					UGameViewportClient* VC = GEngine ? GEngine->GameViewport : nullptr;
+					if (!P || !P->Studio || !VC || !VC->Viewport) return false;
+					const FIntPoint Px = VC->Viewport->GetSizeXY();
+					const FVector2D Pixel(Px.X * 0.42, Px.Y * 0.78);
+					double La = 0, Lo = 0, HexM = 0;
+					FVector World;
+					const bool bHit = P->Studio->HexAtScreen(Pixel, La, Lo, World, HexM);
+					UE_LOG(LogTemp, Warning, TEXT("FN7 AoE test: hex hit=%d lat=%.3f lon=%.3f hex=%.0f m"), bHit ? 1 : 0, La, Lo, HexM);
+					P->Studio->ShowAreaOfEffect(true, Pixel, 250.0);
+					return false;
+				});
+			}
 			if (bShot)
 			{
 				for (int32 i = 1; i <= 4; ++i)

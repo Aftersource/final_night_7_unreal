@@ -31,8 +31,13 @@ private:
 	TWeakObjectPtr<UFNNetClient> Net;
 	FDelegateHandle MessageHandle;
 	FDelegateHandle StatusHandle;
-	FDelegateHandle DropHandle;
+	FDelegateHandle DropHandle, DragOverHandle, DragEndHandle;
 	void OnPowerDropped(const FString& Power, const FVector2D& ScreenPosition);
+	void OnPowerDragOver(const FString& Power, const FVector2D& ScreenPosition);
+	void OnPowerDragEnded(const FString& Power);
+	TOptional<FVector2D> SnapPowerToBoard(const FString& Power, const FVector2D& ScreenPosition);
+	class AFNStudio* FindStudio() const;
+	TMap<FString, double> PowerRadiusKm;
 	TSharedPtr<SFNHudLayout> Layout;
 	TSharedPtr<class SFNStartPanel> StartPanel;
 	bool bInRoom = false;
