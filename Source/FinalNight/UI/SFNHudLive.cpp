@@ -1926,7 +1926,7 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 	if (ToastUntil > 0.0 && FPlatformTime::Seconds() > ToastUntil) { ToastUntil = 0.0; Model.Status = FText::GetEmpty(); Publish(); }
 	{
 		const double Now = FPlatformTime::Seconds();
-		if (GlobeHoldUntil > Now) { if (AFNStudio* Sg = FindStudio()) Sg->SetGlobeFocus(GlobeHoldLat, GlobeHoldLon); }
+		// (no re-assert loop: the studio keeps a picked spot itself now; re-asserting fought its own focus = the spinning)
 		if (SelectedUntil > 0.0 && Now > SelectedUntil)
 		{
 			SelectedUntil = 0.0;

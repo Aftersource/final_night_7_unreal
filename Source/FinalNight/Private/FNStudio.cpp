@@ -663,11 +663,15 @@ void AFNStudio::PaintTiles()
 
 void AFNStudio::ShowSelfOnGlobe(double Lon, double Lat, bool bAlive)
 {
-	FocusDir = BoardDir(Lon, Lat).GetSafeNormal();
+	const FVector Self = BoardDir(Lon, Lat).GetSafeNormal();
+	// FN7 view rule (Chris noted the globe spins around a lot; Mac session with the backend's go-ahead): once you have
+	// picked a spot (a double-click on a demigod, a wheel zoom), the globe stays on it instead of swinging back to your
+	// demigod on every update; RESET VIEW / Home clears the pick and it follows you again.
+	if (!bUserPicked) FocusDir = Self;
 	bHasFocus = true;
 	// until you pick a spot yourself, the table shows the land around your demigod
 	// rebuild only when the demigod has really moved (~1/20 of the circle), not on every small drift
-	if (!bUserPicked && FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(FocusDir, PickDir), -1.f, 1.f))) * 6371.0 * PI / 180.0 * 1000.0 > PickRadiusM * 0.05) PickSpot(Lat, Lon, false);
+	if (!bUserPicked && FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(Self, PickDir), -1.f, 1.f))) * 6371.0 * PI / 180.0 * 1000.0 > PickRadiusM * 0.05) PickSpot(Lat, Lon, false);
 }
 
 void AFNStudio::ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm)

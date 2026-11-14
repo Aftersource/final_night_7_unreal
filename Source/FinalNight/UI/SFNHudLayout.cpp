@@ -253,10 +253,10 @@ void SFNHudLayout::RefreshSections()
 			if (!bNewsBuilt) { bNewsBuilt = true; NewsBody->SetContent(MakeNews()); bNewsOpen = true; }
 			else if (!bNewsSwapPending)
 			{
-				// Roll up, swap the inscription, unroll.
+				// Roll up, swap the inscription, unroll: at most once every 8 s, batching whatever arrived meanwhile.
 				bNewsSwapPending = true;
-				bNewsOpen = false;
-				RegisterActiveTimer(0.68f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLayout::SwapNews));
+				const double Wait = FMath::Max(0.0, NextNewsRollAt - FPlatformTime::Seconds());
+				RegisterActiveTimer((float)FMath::Max(Wait, 0.01), FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLayout::StartNewsRoll));
 			}
 		}
 	}
@@ -267,11 +267,20 @@ void SFNHudLayout::RefreshSections()
 	NewsHolder->SetVisibility(Model.News.Num() > 0 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
 }
 
+EActiveTimerReturnType SFNHudLayout::StartNewsRoll(double, float)
+{
+	bNewsOpen = false;
+	UE_LOG(LogTemp, Display, TEXT("FN7 news roll"));
+	RegisterActiveTimer(0.68f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLayout::SwapNews));
+	return EActiveTimerReturnType::Stop;
+}
+
 EActiveTimerReturnType SFNHudLayout::SwapNews(double, float)
 {
 	bNewsSwapPending = false;
-	NewsBody->SetContent(MakeNews());   // the latest news, whatever arrived while it rolled up
+	NewsBody->SetContent(MakeNews());   // the latest news, whatever arrived while it waited and rolled up
 	bNewsOpen = true;
+	NextNewsRollAt = FPlatformTime::Seconds() + 8.0;
 	return EActiveTimerReturnType::Stop;
 }
 
