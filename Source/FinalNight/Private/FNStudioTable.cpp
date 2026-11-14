@@ -5,6 +5,7 @@
 // Every scene is a pure function of its planet position (FNPlanet.h), so going back shows the same ground.
 #include "FNStudio.h"
 #include "FNPlanet.h"
+#include "FNEarthLines.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -63,6 +64,12 @@ namespace FNTableScene
 		if (!Livable(BiomeOf(ElevationM(V, Levels[1].HexM, La, Lo), La))) return false;
 		return HexDice(Q, R, 5) < (IsCity(V) ? 0.8 : IsVillage(V) ? 0.6 : 0.03);
 	}
+	// crafted-board ground: water sits low and flat, land rises in terraces like stacked foam layers
+	static float GroundH(FNPlanet::EBiome B, double Elev, double Lo, double Range)
+	{
+		if (B == FNPlanet::Ocean) return 0.6f;
+		return 2.2f + 1.7f * FMath::RoundToFloat(7.f * (float)((FMath::Max(0.0, Elev) - Lo) / Range));
+	}
 	static FString FmtN(double N)
 	{
 		if (N >= 1e9) return FString::Printf(TEXT("%.1f billion"), N / 1e9);
@@ -87,12 +94,12 @@ void AFNStudio::BuildTable()
 	using namespace FNPlanet;
 	if (!BoardRoot) return;
 	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-	auto MakeSet = [this, Cube](const FName& Name, const FLinearColor& Color) -> UInstancedStaticMeshComponent*
+	auto MakeSet = [this, Cube](const FName& Name, const FLinearColor& Color, UStaticMesh* Mesh = nullptr) -> UInstancedStaticMeshComponent*
 	{
 		UInstancedStaticMeshComponent* C = NewObject<UInstancedStaticMeshComponent>(this, Name);
-		C->SetupAttachment(RootComponent);
+		C->SetupAttachment(MapPivot);
 		C->SetMobility(EComponentMobility::Movable);
-		C->SetStaticMesh(Cube);
+		C->SetStaticMesh(Mesh ? Mesh : Cube);
 		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		if (BaseMat) { UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(BaseMat, C); M->SetVectorParameterValue(TEXT("Color"), Color); C->SetMaterial(0, M); }
 		C->RegisterComponent();
@@ -100,6 +107,10 @@ void AFNStudio::BuildTable()
 	};
 	if (HexSets.Num() == 0)
 	{
+		MapPivot = NewObject<USceneComponent>(this, TEXT("MapPivot"));
+		MapPivot->SetupAttachment(RootComponent);
+		MapPivot->SetMobility(EComponentMobility::Movable);
+		MapPivot->RegisterComponent();
 		for (int32 B = 0; B < NumBiomes; ++B)
 			for (int32 Sh = 0; Sh < 2; ++Sh)
 				for (int32 F = 0; F < FNTableScene::FogLevels; ++F)
@@ -112,8 +123,29 @@ void AFNStudio::BuildTable()
 		HeadSet = MakeSet(TEXT("TableHeads"), FLinearColor::FromSRGBColor(FColor(120, 80, 50)));    // dark hair: reads as a person
 		RoofSet = MakeSet(TEXT("TableRoofs"), FLinearColor::FromSRGBColor(FColor(178, 70, 45)));    // terracotta: reads as a house
 		TowerSet = MakeSet(TEXT("TableTowers"), FLinearColor::FromSRGBColor(FColor(150, 170, 195)));  // glassy blue-grey: buildings
+		CoastSet = MakeSet(TEXT("TableCoast"), FLinearColor(0.95f, 0.97f, 1.f));
+		PlateSet = MakeSet(TEXT("TablePlates"), FLinearColor(1.f, 0.35f, 0.05f));
+		CitySet = MakeSet(TEXT("TableCities"), FLinearColor(1.f, 0.8f, 0.2f));
+		// crafted-terrain look: earth/stone sides under the coloured top layer, plus trees, rocks and peaks
+		for (int32 F = 0; F < FNTableScene::FogLevels; ++F)
+		{
+			EarthSets.Add(MakeSet(FName(*FString::Printf(TEXT("Earth_%d"), F)), FLinearColor::LerpUsingHSV(FLinearColor::FromSRGBColor(FColor(112, 80, 52)), FNTableScene::FogCol, F / (float)FNTableScene::FogLevels)));
+			StoneSets.Add(MakeSet(FName(*FString::Printf(TEXT("Stone_%d"), F)), FLinearColor::LerpUsingHSV(FLinearColor::FromSRGBColor(FColor(92, 88, 84)), FNTableScene::FogCol, F / (float)FNTableScene::FogLevels)));
+		}
+		UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
+		UStaticMesh* Ball = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+		TrunkSet = MakeSet(TEXT("TableTrunks"), FLinearColor::FromSRGBColor(FColor(92, 62, 38)), Cyl);
+		PineSet = MakeSet(TEXT("TablePines"), FLinearColor::FromSRGBColor(FColor(30, 88, 48)), Cone);
+		LeafSet = MakeSet(TEXT("TableLeaves"), FLinearColor::FromSRGBColor(FColor(88, 150, 58)), Ball);
+		RockSet = MakeSet(TEXT("TableRocks"), FLinearColor::FromSRGBColor(FColor(140, 136, 130)), Ball);
+		PeakSet = MakeSet(TEXT("TablePeaks"), FLinearColor::FromSRGBColor(FColor(118, 110, 104)), Cone);
+		SnowSet = MakeSet(TEXT("TableSnow"), FLinearColor::FromSRGBColor(FColor(245, 248, 252)), Cone);
 	}
 	for (UInstancedStaticMeshComponent* C : HexSets) C->ClearInstances();
+	for (UInstancedStaticMeshComponent* C : EarthSets) C->ClearInstances();
+	for (UInstancedStaticMeshComponent* C : StoneSets) C->ClearInstances();
+	for (UInstancedStaticMeshComponent* C : { TrunkSet.Get(), PineSet.Get(), LeafSet.Get(), RockSet.Get(), PeakSet.Get(), SnowSet.Get() }) C->ClearInstances();
 	for (UInstancedStaticMeshComponent* C : { PeopleSet.Get(), TownSet.Get(), HeadSet.Get(), RoofSet.Get(), TowerSet.Get() }) C->ClearInstances();
 
 	// the hex lattice on the cube face under the picked spot
@@ -163,14 +195,60 @@ void AFNStudio::BuildTable()
 	};
 	for (const FT& T : Cells)
 	{
-		const float H = 0.4f + FNTableScene::Relief * (float)((FMath::Max(0.0, T.Elev) - Lo) / Range);
+		const float H = FNTableScene::GroundH(T.B, T.Elev, Lo, Range);
 		const int32 Fog = T.D > 0.72f ? FMath::Clamp(1 + (int32)((T.D - 0.72f) / 0.28f * (FNTableScene::FogLevels - 1)), 1, FNTableScene::FogLevels - 1) : 0;
 		const int32 Shade = ((T.Q - T.Rr) % 3 + 3) % 3 == 0 ? 1 : 0;
 		UInstancedStaticMeshComponent* Set = HexSets[(T.B * 2 + Shade) * FNTableScene::FogLevels + Fog];
 		// a hexagon = three boxes (sqrt3*s by s) at 0, 60 and 120 degrees
-		const FVector Pos = FNTableScene::ActionC + FVector(T.X, T.Y, H * 0.5f);
+		// land = earth-brown sides with a coloured top layer (like painted craft terrain); water = one blue slab
+		const float Cap = T.B == Ocean ? H : FMath::Min(H, 0.7f);
+		UInstancedStaticMeshComponent* Body = T.B == Ocean ? Set : (T.B == Rock || T.B == Snow ? StoneSets[Fog].Get() : EarthSets[Fog].Get());
 		for (int32 k = 0; k < 3; ++k)
-			Set->AddInstance(FTransform(FRotator(0.f, 60.f * k, 0.f), Pos, FVector(TileW * 1.7320508f / 100.f, TileW / 100.f, H / 100.f)));
+		{
+			const FRotator Rk(0.f, 60.f * k, 0.f);
+			Set->AddInstance(FTransform(Rk, FNTableScene::ActionC + FVector(T.X, T.Y, H - Cap * 0.5f), FVector(TileW * 1.7320508f / 100.f, TileW / 100.f, Cap / 100.f)));
+			if (Cap < H) Body->AddInstance(FTransform(Rk, FNTableScene::ActionC + FVector(T.X, T.Y, (H - Cap) * 0.5f), FVector(TileW * 1.7320508f / 100.f, TileW / 100.f, (H - Cap) / 100.f)));
+		}
+		const FVector Top = FNTableScene::ActionC + FVector(T.X, T.Y, H);
+		// nature on the hexagon: trees, bushes, rocks, peaks. Same hexagon -> same scenery, every visit.
+		auto Nature = [&]()
+		{
+			if (Fog >= 3) return;
+			const float Hw = HexW;
+			auto Dice = [&](int32 i) { return (float)FNTableScene::HexDice(T.Q, T.Rr, 100 + i); };
+			auto Spot = [&](int32 i, float Rad) { const float A = 2.f * PI * Dice(i); const float Rr = Rad * Hw * Dice(i + 50); return Top + FVector(FMath::Cos(A) * Rr, FMath::Sin(A) * Rr, 0.f); };
+			auto Pine = [&](const FVector& At, float Sz)
+			{
+				TrunkSet->AddInstance(FTransform(FRotator::ZeroRotator, At + FVector(0, 0, Sz * 0.12f), FVector(Sz * 0.08f / 100.f, Sz * 0.08f / 100.f, Sz * 0.24f / 100.f)));
+				PineSet->AddInstance(FTransform(FRotator::ZeroRotator, At + FVector(0, 0, Sz * 0.2f), FVector(Sz * 0.45f / 100.f, Sz * 0.45f / 100.f, Sz * 0.85f / 100.f)));
+			};
+			auto Leafy = [&](const FVector& At, float Sz)
+			{
+				TrunkSet->AddInstance(FTransform(FRotator::ZeroRotator, At + FVector(0, 0, Sz * 0.2f), FVector(Sz * 0.09f / 100.f, Sz * 0.09f / 100.f, Sz * 0.4f / 100.f)));
+				LeafSet->AddInstance(FTransform(FRotator::ZeroRotator, At + FVector(0, 0, Sz * 0.55f), FVector(Sz * 0.55f / 100.f)));
+			};
+			auto Stone = [&](const FVector& At, float Sz, int32 i) { RockSet->AddInstance(FTransform(FRotator(0.f, 360.f * Dice(i), 0.f), At + FVector(0, 0, Sz * 0.15f), FVector(Sz / 100.f, Sz * 0.75f / 100.f, Sz * 0.5f / 100.f))); };
+			switch (T.B)
+			{
+			case Forest: for (int32 i = 0; i < 3; ++i) { const float Sz = Hw * (0.45f + 0.25f * Dice(i + 10)); if (Dice(i + 20) < 0.6f) Pine(Spot(i, 0.28f), Sz); else Leafy(Spot(i, 0.28f), Sz * 0.8f); } break;
+			case Grass:  if (Dice(1) < 0.35f) Leafy(Spot(2, 0.3f), Hw * 0.4f); else if (Dice(1) < 0.5f) Stone(Spot(3, 0.3f), Hw * 0.12f, 4); break;
+			case Beach:  if (Dice(1) < 0.25f) Stone(Spot(3, 0.3f), Hw * 0.1f, 4); break;
+			case Rock:
+				if (Dice(1) < 0.45f)   // a mountain: grey cone with a snowy tip
+				{
+					const float Ht = Hw * (0.9f + 0.6f * Dice(5));
+					PeakSet->AddInstance(FTransform(FRotator(0.f, 360.f * Dice(6), 0.f), Top, FVector(Hw * 0.95f / 100.f, Hw * 0.95f / 100.f, Ht / 100.f)));
+					SnowSet->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0, 0, Ht * 0.68f), FVector(Hw * 0.31f / 100.f, Hw * 0.31f / 100.f, Ht * 0.33f / 100.f)));
+				}
+				else for (int32 i = 0; i < 2; ++i) Stone(Spot(i, 0.25f), Hw * (0.14f + 0.1f * Dice(i + 30)), i);
+				break;
+			case Snow:   if (Dice(1) < 0.5f) SnowSet->AddInstance(FTransform(FRotator::ZeroRotator, Top, FVector(Hw * 0.8f / 100.f, Hw * 0.8f / 100.f, Hw * 0.8f / 100.f))); break;
+			default: break;
+			}
+		};
+		const int32 NM0 = NM;
+		// scenery goes on at the end of this hexagon's turn, only if nothing else was placed on it
+		struct FAfter { TFunction<void()> F; bool bOn = true; ~FAfter() { if (bOn) F(); } } After{ [&]() { if (NM == NM0) Nature(); } };
 		// what stands on this hexagon: at most ONE thing (board-game rule). Same hexagon -> same answer, every visit.
 		if (NM >= FNTableScene::MaxMarks || Fog >= 2 || !FNTableScene::Livable(T.B)) continue;
 		const FVector Mid = FNTableScene::ActionC + FVector(T.X, T.Y, H);
@@ -186,6 +264,7 @@ void AFNStudio::BuildTable()
 				if ((FMath::Abs(Dq) + FMath::Abs(Dr) + FMath::Abs(Dq + Dr)) / 2 <= 1)
 				{
 					if (Dq == 0 && Dr == 0) { House(Mid, HexW * 2.6f, Yaw); ++NM; }   // drawn once, from its middle hexagon
+					After.bOn = false;   // no trees inside the walls either
 					continue;   // nobody stands inside the walls
 				}
 			}
@@ -228,6 +307,54 @@ void AFNStudio::BuildTable()
 			const double C = FNTableScene::RegionCity(T.V);
 			if (C > 0.6) { Tower(Mid, HexW * 0.3f, HexW * (0.6f + 2.f * (float)C), Yaw); ++NM; }
 		}
+	}
+
+	// Real Earth outlines over the hexes (same data as the Globe): coasts white, plate faults orange, big cities gold
+	const float LineZ = 3.4f;   // just above the lowest land terrace: coasts sit on the shore instead of floating
+	auto ToTable = [&](int32 Lat100, int32 Lon100, FVector2D& Out) -> bool
+	{
+		int32 F; double Uu, Ww;
+		VecToFaceUV(LatLonToVec(Lat100 / 100.0, Lon100 / 100.0), F, Uu, Ww);
+		Out = FVector2D((Uu * RadiusM - Cx) * K, -(Ww * RadiusM - Cy) * K);
+		return F == Face;
+	};
+	auto DrawLines = [&](const int16* V, int32 Num, float Thick, UInstancedStaticMeshComponent* Set)
+	{
+		bool bHave = false; FVector2D A;
+		for (int32 i = 0; i < Num;)
+		{
+			if (V[i] == 32767) { bHave = false; ++i; continue; }
+			FVector2D B; const bool bOk = ToTable(V[i], V[i + 1], B);
+			i += 2;
+			if (bOk && bHave)
+			{
+				// clip the segment A-B to the circle of action
+				const FVector2D D = B - A;
+				const double a = D.Dot(D), b = 2 * A.Dot(D), c = A.Dot(A) - FNTableScene::ActionR * FNTableScene::ActionR, Disc = b * b - 4 * a * c;
+				if (a > 1e-6 && Disc > 0)
+				{
+					const double Sq = FMath::Sqrt(Disc), T0 = FMath::Max(0.0, (-b - Sq) / (2 * a)), T1 = FMath::Min(1.0, (-b + Sq) / (2 * a));
+					if (T1 > T0)
+					{
+						const FVector2D P0 = A + D * T0, P1 = A + D * T1, M = (P0 + P1) * 0.5;
+						const float L = (float)(P1 - P0).Size();
+						Set->AddInstance(FTransform(FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(D.Y, D.X)), 0.f), FNTableScene::ActionC + FVector(M.X, M.Y, LineZ), FVector(L / 100.f + 0.002f, Thick, Thick)));
+					}
+				}
+			}
+			A = B; bHave = bOk;
+		}
+	};
+	CoastSet->ClearInstances(); PlateSet->ClearInstances(); CitySet->ClearInstances();
+	DrawLines(FNEarthCoast, UE_ARRAY_COUNT(FNEarthCoast), 0.007f, CoastSet);
+	DrawLines(FNEarthPlates, UE_ARRAY_COUNT(FNEarthPlates), 0.01f, PlateSet);
+	for (int32 i = 0; i + 2 < UE_ARRAY_COUNT(FNEarthCities); i += 3)
+	{
+		FVector2D P;
+		if (!ToTable(FNEarthCities[i], FNEarthCities[i + 1], P) || P.SquaredLength() > FNTableScene::ActionR * FNTableScene::ActionR) continue;
+		const float Sz = 0.03f + 0.03f * FMath::Min(1.f, FNEarthCities[i + 2] / 20000.f);   // bigger dot for bigger city
+		const double La = FNEarthCities[i] / 100.0, Lo2 = FNEarthCities[i + 1] / 100.0, E = ElevationM(LatLonToVec(La, Lo2), S, La, Lo2);
+		CitySet->AddInstance(FTransform(FRotator::ZeroRotator, FNTableScene::ActionC + FVector(P.X, P.Y, FNTableScene::GroundH(BiomeOf(E, La), E, Lo, Range) + Sz * 50.f), FVector(Sz, Sz, Sz)));
 	}
 
 	// remember the scene: same cell + same hex size = the same scene
@@ -274,7 +401,7 @@ void AFNStudio::PlaceTableHeroes()
 		const float X = (float)((U * RadiusM - TableCx) * TableK), Y = (float)(-(W * RadiusM - TableCy) * TableK);
 		if (X * X + Y * Y > FNTableScene::ActionR * FNTableScene::ActionR) continue;
 		const double E = ElevationM(V, TableS, P.Lat, P.Lon);
-		const float Ground = 0.4f + FNTableScene::Relief * (float)((FMath::Max(0.0, E) - TableLo) / TableRange);
+		const float Ground = FNTableScene::GroundH(BiomeOf(E, P.Lat), E, TableLo, TableRange);
 		// true scale: a 1.7 m person; never smaller than a piece you can see (and click) from the chair
 		const float Ht = FMath::Max((float)(1.7 * TableK), 14.f), Wd = FMath::Max(Ht * 0.25f, 4.f);
 		if (!HeroMarks.IsValidIndex(N))
@@ -396,7 +523,8 @@ bool AFNStudio::MapPointUnderCursor(double& Px, double& Py) const
 		const FVector2D C = HexToPlane(Q, Rr, TableS);
 		const FVector3d V = PlaneToVec(TableFace, C.X, C.Y);
 		double La, Lo; VecToLatLon(V, La, Lo);
-		Top = 0.4f + FNTableScene::Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, La, Lo)) - TableLo) / TableRange);
+		const double E = ElevationM(V, TableS, La, Lo);
+		Top = FNTableScene::GroundH(BiomeOf(E, La), E, TableLo, TableRange);
 	}
 	return Hit.X * Hit.X + Hit.Y * Hit.Y <= FNTableScene::ActionR * FNTableScene::ActionR;
 }
@@ -405,8 +533,11 @@ void AFNStudio::ZoomMapAt(double Px, double Py, int32 Step)
 {
 	// one level per click (-1 = closer). The planet point under the cursor stays under the cursor, everything else
 	// scales around it: click the same hexagon again and again and you dive straight down into it.
+	// one level per gesture: a mouse wheel sends several notches in a few milliseconds, which raced through every level
+	if (Time < NextZoomAt) return;
 	const int32 NewLevel = FMath::Clamp(MapLevel + Step, 0, FNTableScene::NumLevels - 1);
 	if (NewLevel == MapLevel) return;
+	NextZoomAt = Time + 0.4f;
 	const double NewR = FNTableScene::LevelR(NewLevel);
 	const double F = NewR / PickRadiusM;
 	MapLevel = NewLevel;
@@ -418,13 +549,16 @@ void AFNStudio::ZoomMapAt(double Px, double Py, int32 Step)
 	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
 	PickRadiusM = NewR;
 	bUserPicked = true;
+	// the zoom flows: the new level starts at the size the old view showed it and eases to full size around the anchor
+	ZoomAnchor = FNTableScene::ActionC + FVector((float)((Px - TableCx) * TableK), (float)(-(Py - TableCy) * TableK), 0.f);
+	ZoomAnimS0 = FMath::Clamp((float)F, 0.03f, 2.5f);   // zooming out starts big, but not room-sized
+	ZoomAnimT = 0.f;
 	BuildTable();   // now, not next frame: a fast second click must land on the new scene
 	RebuildIn = -1.f;
 }
 
 bool AFNStudio::MapClick(bool bZoomIn)
 {
-	if (!bHasFocus) return false;   // only during a match
 	double Px, Py;
 	if (!MapPointUnderCursor(Px, Py)) return false;
 	double La, Lo;
@@ -432,7 +566,7 @@ bool AFNStudio::MapClick(bool bZoomIn)
 	UE_LOG(LogTemp, Display, TEXT("FNZoom: %s at %.6f, %.6f (map was %.0f m across)"), bZoomIn ? TEXT("in") : TEXT("out"), La, Lo, PickRadiusM * 2);
 	ZoomMapAt(Px, Py, bZoomIn ? -1 : 1);
 	PlaySfx(EFNSfx::Whoosh, 0.35f);
-	return true;
+	return bHasFocus;   // before the match starts, the click also still moves the menus along (start, hero cards)
 }
 
 void AFNStudio::MapHome()
@@ -543,6 +677,15 @@ void AFNStudio::UpdateTable(float Dt)
 	}
 
 	if (RebuildIn >= 0.f && (RebuildIn -= Dt) <= 0.f) { RebuildIn = -1.f; BuildTable(); }
+	if (ZoomAnimT >= 0.f && MapPivot)
+	{
+		ZoomAnimT = FMath::Min(1.f, ZoomAnimT + Dt / 0.35f);
+		const float E = 1.f - FMath::Cube(1.f - ZoomAnimT);                 // ease out
+		const float Sc = FMath::Exp(FMath::Loge(ZoomAnimS0) * (1.f - E));     // even speed in log scale, like a web map
+		MapPivot->SetRelativeScale3D(FVector(Sc));
+		MapPivot->SetRelativeLocation(ZoomAnchor * (1.f - Sc));                // keeps the anchor point still on the table
+		if (ZoomAnimT >= 1.f) { ZoomAnimT = -1.f; MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); }
+	}
 
 	// the beam: rays from the picked spot on the Globe down to the rim of the circle of action
 	const FVector Apex = BoardToActor(PickDir, BoardR + 4.f);

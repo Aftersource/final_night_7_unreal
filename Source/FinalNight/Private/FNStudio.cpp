@@ -18,6 +18,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "FNLandMask.h"
+#include "FNEarthLines.h"
 
 const FName AFNStudio::PlayerEasel(TEXT("PlayerEasel"));
 const FName AFNStudio::Globe(TEXT("Globe"));
@@ -611,6 +612,34 @@ void AFNStudio::BuildBoard()
 		}
 	}
 	PaintTiles();
+
+	// Real Earth outlines (FNEarthLines.h, made from Natural Earth + PB2002): coasts white, plate faults orange, big cities gold
+	auto DrawLines = [&](const int16* V, int32 Num, float Lift, float Thick, UInstancedStaticMeshComponent* Set)
+	{
+		bool bHave = false; FVector Prev;
+		for (int32 i = 0; i < Num;)
+		{
+			if (V[i] == 32767) { bHave = false; ++i; continue; }
+			const FVector P = BoardDir(V[i + 1] / 100.0, V[i] / 100.0).GetSafeNormal() * (BoardR + Lift);
+			i += 2;
+			if (bHave)
+			{
+				const FVector D = P - Prev; const float L = D.Size();
+				if (L > 0.01f && L < 20.f)
+					Set->AddInstance(FTransform(FRotationMatrix::MakeFromXZ(D, P).Rotator(), (P + Prev) * 0.5f, FVector(L / 100.f + 0.001f, Thick, Thick)));
+			}
+			Prev = P; bHave = true;
+		}
+	};
+	DrawLines(FNEarthCoast, UE_ARRAY_COUNT(FNEarthCoast), 3.2f, 0.0035f, MakeSet(TEXT("EarthCoast"), Cube, FLinearColor(0.9f, 0.95f, 1.f)));
+	DrawLines(FNEarthPlates, UE_ARRAY_COUNT(FNEarthPlates), 3.3f, 0.005f, MakeSet(TEXT("EarthPlates"), Cube, FLinearColor(1.f, 0.35f, 0.05f)));
+	UInstancedStaticMeshComponent* Cities = MakeSet(TEXT("EarthCities"), Cube, FLinearColor(1.f, 0.8f, 0.2f));
+	for (int32 i = 0; i + 2 < UE_ARRAY_COUNT(FNEarthCities); i += 3)
+	{
+		const FVector Dir = BoardDir(FNEarthCities[i + 1] / 100.0, FNEarthCities[i] / 100.0).GetSafeNormal();
+		const float S = 0.006f + 0.004f * FMath::Min(1.f, FNEarthCities[i + 2] / 20000.f);   // bigger dot for bigger city
+		Cities->AddInstance(FTransform(FRotationMatrix::MakeFromZ(Dir).Rotator(), Dir * (BoardR + 3.4f), FVector(S, S, S)));
+	}
 }
 
 void AFNStudio::PaintTiles()
@@ -632,7 +661,7 @@ void AFNStudio::ShowSelfOnGlobe(double Lon, double Lat, bool bAlive)
 	bHasFocus = true;
 	// until you pick a spot yourself, the table shows the land around your demigod
 	// rebuild only when the demigod has really moved (~1/20 of the circle), not on every small drift
-	if (!bUserPicked && FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(FocusDir, PickDir), -1.f, 1.f))) * 12742.0 * PI / 180.0 * 1000.0 > PickRadiusM * 0.05) PickSpot(Lat, Lon, false);
+	if (!bUserPicked && FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(FocusDir, PickDir), -1.f, 1.f))) * 6371.0 * PI / 180.0 * 1000.0 > PickRadiusM * 0.05) PickSpot(Lat, Lon, false);
 }
 
 void AFNStudio::ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm)

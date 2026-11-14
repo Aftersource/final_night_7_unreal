@@ -10,7 +10,7 @@
 
 namespace FNPlanet
 {
-	static constexpr double RadiusM = 12742000.0;     // "Super Earth": twice Earth's radius
+	static constexpr double RadiusM = 6371000.0;      // real Earth radius
 	static constexpr double Population = 14e12;       // ~14 trillion people
 	static constexpr double LandFraction = 0.35;
 	static constexpr int32 MaxLevel = 30;
