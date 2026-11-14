@@ -108,6 +108,18 @@ public:
 	void Challenge(int32 Round, const FString& MineRef, const FString& TargetRef, const FString& Level);
 	/** One typed attack line in a duel. */
 	void DuelLine(int32 Round, const FString& DuelId, const FString& Text);
+	/** Duel pacing (0.8.2): a duellist's tick at each panel's input close (server clock). Mac session, backend's go-ahead. */
+	void DuelTick(int32 Round, const FString& DuelId);
+	/** Live typing (duel.typing): the line's length and its newest characters (max 8). Sent only when the client-side
+	 *  bucket has 2 tokens and 450 ms have passed since the last one (CLIENT_API "Live typing"); false = not sent. */
+	bool DuelKeys(int32 Round, const FString& DuelId, int32 Len, const FString& Tail);
+	/** The server limits instant actions per seat (2 per second, burst 4) and drops what's over: this mirrors it. Every
+	 *  instant action spends one token (casts, summons, challenges, duel lines, ticks, keys). */
+	double InstantTokens = 4.0;
+	double InstantTokensAt = 0.0;
+	double LastDuelKeysAt = 0.0;
+	void SpendInstantToken();
+	double InstantTokensNow();
 	/** A god power at a point on the globe, [lon, lat]. */
 	void CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier = TEXT("mini"));
 

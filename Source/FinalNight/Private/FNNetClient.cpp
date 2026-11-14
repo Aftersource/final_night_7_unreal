@@ -445,6 +445,7 @@ void UFNNetClient::CastPower(int32 Round, const FString& Power, const FString& T
 	D->SetStringField(TEXT("text"), TEXT(""));
 	D->SetBoolField(TEXT("instant"), true);
 	D->SetObjectField(TEXT("fields"), F);
+	SpendInstantToken();   // the server's per-seat bucket, mirrored (Mac session)
 	Send(TEXT("action.submit"), D);
 }
 
@@ -459,6 +460,7 @@ void UFNNetClient::Summon(int32 Round, const FString& DemigodRef, double Lon, do
 	D->SetStringField(TEXT("text"), TEXT(""));
 	D->SetBoolField(TEXT("instant"), true);
 	D->SetObjectField(TEXT("fields"), F);
+	SpendInstantToken();   // the server's per-seat bucket, mirrored (Mac session)
 	Send(TEXT("action.submit"), D);
 }
 
@@ -474,6 +476,7 @@ void UFNNetClient::Challenge(int32 Round, const FString& MineRef, const FString&
 	D->SetStringField(TEXT("text"), TEXT(""));
 	D->SetBoolField(TEXT("instant"), true);
 	D->SetObjectField(TEXT("fields"), F);
+	SpendInstantToken();   // the server's per-seat bucket, mirrored (Mac session)
 	Send(TEXT("action.submit"), D);
 }
 
@@ -487,7 +490,60 @@ void UFNNetClient::DuelLine(int32 Round, const FString& DuelId, const FString& T
 	D->SetStringField(TEXT("text"), TEXT(""));
 	D->SetBoolField(TEXT("instant"), true);
 	D->SetObjectField(TEXT("fields"), F);
+	SpendInstantToken();   // the server's per-seat bucket, mirrored (Mac session)
 	Send(TEXT("action.submit"), D);
+}
+
+double UFNNetClient::InstantTokensNow()
+{
+	const double Now = FPlatformTime::Seconds();
+	if (InstantTokensAt <= 0.0) InstantTokensAt = Now;
+	InstantTokens = FMath::Min(4.0, InstantTokens + 2.0 * (Now - InstantTokensAt));
+	InstantTokensAt = Now;
+	return InstantTokens;
+}
+
+void UFNNetClient::SpendInstantToken()
+{
+	InstantTokensNow();
+	InstantTokens -= 1.0;   // may go below 0 briefly: the server drops what's over, we only stop sending keys
+}
+
+void UFNNetClient::DuelTick(int32 Round, const FString& DuelId)
+{
+	TSharedRef<FJsonObject> D = Obj(), F = Obj(), T = Obj();
+	T->SetStringField(TEXT("duel_id"), DuelId);
+	F->SetObjectField(TEXT("duel_tick"), T);
+	D->SetNumberField(TEXT("round"), Round);
+	D->SetStringField(TEXT("text"), TEXT(""));
+	D->SetBoolField(TEXT("instant"), true);
+	D->SetObjectField(TEXT("fields"), F);
+	SpendInstantToken();
+	Send(TEXT("action.submit"), D);
+}
+
+bool UFNNetClient::DuelKeys(int32 Round, const FString& DuelId, int32 Len, const FString& Tail)
+{
+	const double Now = FPlatformTime::Seconds();
+	if (InstantTokensNow() < 2.0 || Now - LastDuelKeysAt < 0.45) return false;   // one token stays for ticks and lines
+	FString Clean;
+	for (TCHAR Ch : Tail) if (Ch >= 32 && Ch != 127 && !(Ch >= 0x200B && Ch <= 0x200F) && !(Ch >= 0x202A && Ch <= 0x202E) && !(Ch >= 0x2066 && Ch <= 0x2069)) Clean.AppendChar(Ch);
+	Clean = Clean.Right(8);
+	const int32 SafeLen = FMath::Clamp(Len, 0, 120);
+	if (Clean.Len() > SafeLen) Clean = Clean.Right(SafeLen);
+	TSharedRef<FJsonObject> D = Obj(), F = Obj(), K = Obj();
+	K->SetStringField(TEXT("duel_id"), DuelId);
+	K->SetNumberField(TEXT("len"), SafeLen);
+	K->SetStringField(TEXT("tail"), Clean);
+	F->SetObjectField(TEXT("duel_keys"), K);
+	D->SetNumberField(TEXT("round"), Round);
+	D->SetStringField(TEXT("text"), TEXT(""));
+	D->SetBoolField(TEXT("instant"), true);
+	D->SetObjectField(TEXT("fields"), F);
+	SpendInstantToken();
+	LastDuelKeysAt = Now;
+	Send(TEXT("action.submit"), D);
+	return true;
 }
 
 void UFNNetClient::CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier)
