@@ -104,22 +104,26 @@ namespace FNPlanet
 	/** Elevation in meters; octaves stop at FinestM so a coarse and a close view of the same spot agree. */
 	inline double ElevationM(const FVector3d& V, double FinestM, double Lat, double Lon)
 	{
-		double E = 0, Wl = 4000000.0, Amp = 2600.0; int32 i = 0;
+		// octaves sum to at most ~2x Amp, so land sits mostly 100..2500 m (was 2600: most land came out above the snow line)
+		double E = 0, Wl = 4000000.0, Amp = 900.0; int32 i = 0;
 		while (Wl >= FinestM && i < 26)
 		{
 			const double F = RadiusM / Wl;
 			E += Amp * ValueNoise(V.X * F + i * 17.1, V.Y * F - i * 3.7, V.Z * F + i * 9.3, 7 + i);
 			Wl /= 2; Amp *= 0.5; ++i;
 		}
-		return E + FMath::Lerp(-1500.0, 1100.0, Landness(Lat, Lon));
+		return E + FMath::Lerp(-1500.0, 500.0, Landness(Lat, Lon));
 	}
+	/** Height (m) above which ground is snow: ~4800 m at the equator, sea level at 70 deg. */
+	inline double SnowLineM(double Lat) { return 4800.0 * FMath::Max(0.0, 1.0 - FMath::Abs(Lat) / 70.0); }
 	enum EBiome : uint8 { Ocean, Beach, Grass, Forest, Rock, Snow, NumBiomes };
 	inline EBiome BiomeOf(double Elev, double Lat)
 	{
 		if (Elev < 0) return Ocean;
 		if (Elev < 40) return Beach;
-		if (Elev > 2600 || FMath::Abs(Lat) > 72) return Snow;
-		if (Elev > 1500) return Rock;
+		const double Line = SnowLineM(Lat);
+		if (Elev > Line) return Snow;
+		if (Elev > FMath::Min(2000.0, Line - 600.0)) return Rock;
 		return Elev > 500 ? Forest : Grass;
 	}
 	inline const TCHAR* BiomeName(int32 B) { static const TCHAR* N[NumBiomes] = { TEXT("ocean"), TEXT("beach"), TEXT("grass"), TEXT("forest"), TEXT("rock"), TEXT("snow") }; return N[B]; }
