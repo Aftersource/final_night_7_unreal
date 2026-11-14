@@ -384,16 +384,18 @@ void AFNPowerRing::BeginLift(int32 Index)
 	bLiftHasTarget = false;
 }
 
-void AFNPowerRing::MoveLifted(const FVector& WorldPoint)
+void AFNPowerRing::MoveLifted(const FVector& WorldPoint, float Scale)
 {
 	LiftTarget = WorldPoint;
 	bLiftHasTarget = true;
+	LiftScale = FMath::Clamp(Scale, 0.1f, 1.f);
 }
 
 void AFNPowerRing::EndLift()
 {
 	Lifted = -1;
 	bLiftHasTarget = false;
+	LiftScale = 1.f;
 }
 
 void AFNPowerRing::Tick(float Dt)
@@ -524,6 +526,14 @@ void AFNPowerRing::Tick(float Dt)
 		// At rest: don't touch the transform (each move re-registers 7 parts with the renderer).
 		if (!H.Pos.Equals(H.Root->GetComponentLocation(), 0.02) || !H.Rot.Equals(H.Root->GetComponentQuat(), 1e-4))
 			H.Root->SetWorldLocationAndRotation(H.Pos, H.Rot);
+		// Over the board the hex in hand shrinks. Mini powers are no longer highlighting the map: the
+		// full-size hex hid the lit hexes under it); it grows back on its way home.
+		{
+			const float WantS = S * ((i == Lifted && bLiftHasTarget) ? LiftScale : 1.f);
+			const float HaveS = (float)H.Root->GetComponentScale().X;
+			if (!FMath::IsNearlyEqual(HaveS, WantS, 0.002f * S))
+				H.Root->SetWorldScale3D(FVector(FMath::Lerp(HaveS, WantS, 1.f - FMath::Exp(-14.f * Dt))));
+		}
 	}
 	St->HideWillBlock();
 	// Fault lines: invisible, fading in while a mega is in hand, out after.

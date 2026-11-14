@@ -61,8 +61,11 @@ public:
 	void SetPouchHover(bool bHover) { bPouchHover = bHover; }
 	void BeginLift(int32 Index);
 	/** Where the lifted hex should hover (a world point), or follow nothing (stay where it is). */
-	void MoveLifted(const FVector& WorldPoint);
+	/** The lifted hex follows the cursor to WorldPoint, at Scale of its ring size (smaller over the board, so the
+	 *  board's highlight under it stays visible). */
+	void MoveLifted(const FVector& WorldPoint, float Scale = 1.f);
 	void EndLift();
+	float LiftScale = 1.f;
 	int32 LiftedIndex() const { return Lifted; }
 
 private:
