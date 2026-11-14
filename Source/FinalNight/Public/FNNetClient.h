@@ -68,6 +68,8 @@ public:
 	bool bSeatAsked = false;
 	/** A viewer asks to become a player (room.take_seat {}); a refusal keeps us a viewer. */
 	void TakeSeat();
+	/** The public rooms (room.list); the reply is room.listed { rooms: [{ room_id, code, seats_taken, max_players, state }] }. */
+	void ListRooms();
 	/**
 	 * A room code to JOIN instead of creating our own match: the first line of Config/FN7JoinCode.txt
 	 * (read at click time, so no rebuild or restart). Empty = create and start our own match.
