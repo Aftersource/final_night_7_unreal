@@ -5,6 +5,7 @@
 #include "Features/FNEncounters.h"
 #include "Features/FNSettlements.h"
 #include "Features/FNPieceStory.h"
+#include "Features/FNShrines.h"
 #include "../UI/SFNHudLive.h"   // FN7HudMount::IsMounted(): hide this classic HUD when the style-kit HUD is up
 
 #include "Widgets/SBoxPanel.h"
@@ -1042,6 +1043,9 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 	// Benito's feature 2: the piece carries its story (demigods[].story on game.globe / region)
 	if (T == TEXT("game.globe") || T == TEXT("game.region"))
 		if (AFNPieceStory* Ps = PieceStory()) Ps->Apply(D);
+	// Benito's feature 8: shrines (game.globe has every shrine and the demigods' aura)
+	if (T == TEXT("game.globe") || T == TEXT("game.region") || T == TEXT("game.node"))
+		if (AFNShrines* Sh = Shrines()) Sh->Apply(D);
 	AFNStudio* St = Studio.Get();
 	// Chris's rule: JOINING = TAKING A SEAT. If the house made us a viewer (it is replaying) and we didn't choose WATCH, ask once.
 	if (T == TEXT("match.ended") && Net.IsValid()) Net->bSeatAsked = false;   // a new match: JOIN may ask for a seat again
@@ -1174,6 +1178,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 			AFNDayNight* Dn = DayNight();
 			AFNEncounters* En = Encounters();
 			AFNSettlements* Se = Settlements();
+			AFNShrines* Sh = Shrines();
 			for (int32 i = 0, Shown = 0; i < Dm->Num(); ++i)
 			{
 				const TSharedPtr<FJsonObject> E = (*Dm)[i].IsValid() ? (*Dm)[i]->AsObject() : nullptr;
@@ -1181,6 +1186,7 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 				if (Dn) Dn->ApplyEvent(E);
 				if (En) En->ApplyEvent(E);
 				if (Se) Se->ApplyEvent(E);
+				if (Sh) Sh->ApplyEvent(E);
 				const FString Line = Str(E, TEXT("text"));
 				if (!Line.IsEmpty() && Shown < 3) { AddBanner(Line, UiCyan); ++Shown; }
 			}
@@ -1992,4 +1998,18 @@ AFNPieceStory* SFNRootWidget::PieceStory()
 	if (Ps) Ps->Bind(St);
 	PieceStoryActor = Ps;
 	return Ps;
+}
+
+AFNShrines* SFNRootWidget::Shrines()
+{
+	if (AFNShrines* Sh = ShrinesActor.Get()) return Sh;
+	AFNStudio* St = Studio.Get();
+	UWorld* W = St ? St->GetWorld() : nullptr;
+	if (!W) return nullptr;
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AFNShrines* Sh = W->SpawnActor<AFNShrines>(AFNShrines::StaticClass(), FTransform::Identity, P);
+	if (Sh) Sh->Bind(St);
+	ShrinesActor = Sh;
+	return Sh;
 }
