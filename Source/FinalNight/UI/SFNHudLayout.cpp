@@ -87,6 +87,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnPower = InArgs._OnPower;
 	OnTakeSeat = InArgs._OnTakeSeat;
 	OnLobby = InArgs._OnLobby;
+	OnResetView = InArgs._OnResetView;
 
 	// Screen map v2: four corners, the centre (the hex board and the globe) completely clear.
 	ChildSlot
@@ -273,6 +274,17 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 				.OnClicked_Lambda([this]() { OnLobby.ExecuteIfBound(); return FReply::Handled(); })
 				[
 					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(Color::Accent()).Text(LOCTEXT("LobbyPill", "LOBBY"))
+				]
+			]
+			// RESET VIEW: the board, the camera and the panels back to the start.
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
+			[
+				SNew(SButton)
+				.ButtonStyle(&PillButton())
+				.ToolTipText(LOCTEXT("ResetTip", "Reset the view: the board, the camera and the panels (R or Home)"))
+				.OnClicked_Lambda([this]() { OnResetView.ExecuteIfBound(); return FReply::Handled(); })
+				[
+					SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(Color::Text()).Text(LOCTEXT("ResetPill", "RESET VIEW"))
 				]
 			]
 		]

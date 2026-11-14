@@ -95,6 +95,7 @@ DECLARE_DELEGATE(FOnFNHudTyping);
 DECLARE_DELEGATE_OneParam(FOnFNHudPower, const FString& /*Slug*/);
 DECLARE_DELEGATE(FOnFNHudTakeSeat);
 DECLARE_DELEGATE(FOnFNHudLobby);
+DECLARE_DELEGATE(FOnFNHudResetView);
 
 /**
  * The FN7 HUD, screen map v2: four corners around a completely clear centre (the hex board and the globe).
@@ -117,6 +118,8 @@ public:
 		SLATE_EVENT(FOnFNHudTakeSeat, OnTakeSeat)
 		/** The LOBBY pill in the header. */
 		SLATE_EVENT(FOnFNHudLobby, OnLobby)
+		/** RESET VIEW in the header (R / Home do the same). */
+		SLATE_EVENT(FOnFNHudResetView, OnResetView)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -141,6 +144,7 @@ private:
 	FOnFNHudPower OnPower;
 	FOnFNHudTakeSeat OnTakeSeat;
 	FOnFNHudLobby OnLobby;
+	FOnFNHudResetView OnResetView;
 	bool bTypingSignalled = false;
 
 	TSharedPtr<SBox> HeaderHolder, NewsHolder, YouHolder, PowersHolder;

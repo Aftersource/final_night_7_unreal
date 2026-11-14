@@ -105,6 +105,8 @@ public:
 	/** The plate (fault) lines on the globe and the board: 0 hidden .. 1 glowing. The kit fades them in only while a mega
 	 *  is in hand (FFNPowerDragDrop::OnMegaArmed). */
 	void SetFaultLinesAlpha(float Alpha);
+	/** RESET VIEW: the board back to the regions level centred on your demigod (as at the start of a match). */
+	void ResetView();
 	/** The point on the floating GLOBE under a viewport pixel (lat/lon on the globe, and the world point), or false;
 	 *  and a ring on the globe around a lat/lon at a radius in km (a MEGA power's area while it hovers over the globe). */
 	bool GlobePointAtScreen(const FVector2D& ViewportPixel, double& OutLat, double& OutLon, FVector& OutWorld) const;

@@ -167,14 +167,15 @@ bool AFNStudio::GetBoardRim(FVector& OutCenter, double& OutRadiusWorld, FRotator
 
 void AFNStudio::HideClassicSeats()
 {
-	// Every frame while the kit's gods stand at the table (UpdateSeats turns the aura beads back on each tick).
+	// Hidden-in-game, not invisible: UpdateSeats flips the beads' visibility every tick, and fighting it with
+	// SetVisibility each frame rebuilt their render state twice a frame. bHiddenInGame wins and nobody touches it.
 	for (FSeatSlot& S : SeatSlots)
 	{
-		if (S.Fig) S.Fig->SetVisibility(false, true);
-		if (S.Body) S.Body->SetVisibility(false, true);
-		for (UStaticMeshComponent* B : S.Aura) if (B) B->SetVisibility(false);
-		if (S.Label) S.Label->SetVisibility(false);
-		if (S.Glow) S.Glow->SetIntensity(0.f);
+		if (S.Fig) S.Fig->SetHiddenInGame(true, true);
+		if (S.Body) S.Body->SetHiddenInGame(true, true);
+		for (UStaticMeshComponent* B : S.Aura) if (B) B->SetHiddenInGame(true);
+		if (S.Label) S.Label->SetHiddenInGame(true);
+		if (S.Glow) S.Glow->SetHiddenInGame(true);
 	}
 }
 
@@ -256,10 +257,10 @@ void AFNStudio::HideWillBlock()
 	if (const TObjectPtr<UStaticMeshComponent>* WP = Interactables.Find(WillPanel))
 		if (UStaticMeshComponent* C = WP->Get())
 		{
-			C->SetVisibility(false);
-			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C->SetHiddenInGame(true);
+			if (C->GetCollisionEnabled() != ECollisionEnabled::NoCollision) C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
-	if (WillLabel) WillLabel->SetVisibility(false);
+	if (WillLabel) WillLabel->SetHiddenInGame(true);
 }
 
 void AFNStudio::FocusBoard(double Lat, double Lon, int32 Level)
@@ -302,4 +303,18 @@ void AFNStudio::SetFaultLinesAlpha(float Alpha)
 		if (UMaterialInstanceDynamic* M = Cast<UMaterialInstanceDynamic>(C->GetMaterial(0)))
 			M->SetVectorParameterValue(TEXT("Color"), FLinearColor(1.f, 0.35f, 0.05f) * (0.35f + 2.2f * A));
 	}
+}
+
+void AFNStudio::ResetView()
+{
+	// The regions level (1 of 4), then home onto your own demigod the way a match starts.
+	MapLevel = 3;
+	PickRadiusM = 120000.0 * 22.0;
+	ZoomAnimT = -1.f;
+	if (MapPivot) { MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); }
+	bUserPicked = false;
+	bGlobeDrag = false;
+	if (bHasFocus) MapHome();
+	BuildTable();
+	RebuildIn = -1.f;
 }
