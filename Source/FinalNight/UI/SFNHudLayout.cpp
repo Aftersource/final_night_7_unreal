@@ -6,6 +6,7 @@
 #include "SFNFoil.h"
 #include "FNMedia.h"
 #include "Engine/Texture2D.h"
+#include "Input/DragAndDrop.h"
 #include "Styling/CoreStyle.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -88,6 +89,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnTakeSeat = InArgs._OnTakeSeat;
 	OnLobby = InArgs._OnLobby;
 	OnResetView = InArgs._OnResetView;
+	OnCardDrag = InArgs._OnCardDrag;
 
 	// Screen map v2: four corners, the centre (the hex board and the globe) completely clear.
 	ChildSlot
@@ -184,7 +186,7 @@ FString SFNHudLayout::MakeYouSignature() const
 	FString S = FString::Printf(TEXT("%s|%d|%d|%d|%d|%.1f|%s|%s|%s|%d;"), *Model.YouName.ToString(), Model.Health, Model.MaxHealth, Model.Bolts, Model.Sparks,
 		Model.Debt, *Model.Place.ToString(), *Model.ArenaLine.ToString(), *Model.YourAura.ToFColor(true).ToHex(), Model.bViewer ? 1 : 0);
 	for (const FFNHudDemigod& D : Model.Mine)
-		S += FString::Printf(TEXT("%s|%s|%d|%d|%d|%p|%d|%p|%d;"), *D.Name.ToString(), *D.Side, D.Health, D.MaxHealth, D.bAlive ? 1 : 0, D.PortraitTexture, D.PortraitPng.Num(), D.InsetTexture, D.InsetPng.Num());
+		S += FString::Printf(TEXT("%s|%s|%s|%d|%d|%d|%p|%d|%p|%d;"), *D.Ref, *D.Name.ToString(), *D.Side, D.Health, D.MaxHealth, D.bAlive ? 1 : 0, D.PortraitTexture, D.PortraitPng.Num(), D.InsetTexture, D.InsetPng.Num());
 	return S;
 }
 
@@ -384,6 +386,41 @@ const FSlateBrush* SFNHudLayout::InsetBrush(const FFNHudDemigod& D)
 	return B.Get();
 }
 
+/** Press and drag on one of your demigod cards: the HUD asks for a summon drag. A plain click does nothing here. */
+class SFN7CardDragSource : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SFN7CardDragSource) {}
+		SLATE_ARGUMENT(FString, Ref)
+		SLATE_EVENT(FOnFNHudCardDrag, OnCardDrag)
+		SLATE_DEFAULT_SLOT(FArguments, Content)
+	SLATE_END_ARGS()
+	void Construct(const FArguments& InArgs)
+	{
+		Ref = InArgs._Ref;
+		OnCardDrag = InArgs._OnCardDrag;
+		ChildSlot[InArgs._Content.Widget];
+	}
+	virtual FReply OnMouseButtonDown(const FGeometry&, const FPointerEvent& E) override
+	{
+		if (E.GetEffectingButton() != EKeys::LeftMouseButton || Ref.IsEmpty()) return FReply::Unhandled();
+		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+	}
+	virtual FReply OnDragDetected(const FGeometry&, const FPointerEvent& E) override
+	{
+		if (!OnCardDrag.IsBound()) return FReply::Unhandled();
+		const TSharedPtr<FDragDropOperation> Op = OnCardDrag.Execute(Ref, E.GetScreenSpacePosition());
+		return Op.IsValid() ? FReply::Handled().BeginDragDrop(Op.ToSharedRef()) : FReply::Handled();
+	}
+	virtual FCursorReply OnCursorQuery(const FGeometry&, const FPointerEvent&) const override
+	{
+		return Ref.IsEmpty() ? FCursorReply::Unhandled() : FCursorReply::Cursor(EMouseCursor::GrabHand);
+	}
+private:
+	FString Ref;
+	FOnFNHudCardDrag OnCardDrag;
+};
+
 TSharedRef<SWidget> SFNHudLayout::MakeMine()
 {
 	using namespace FN7Style;
@@ -432,7 +469,13 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 				SNew(SOverlay)
 				+ SOverlay::Slot()
 				[
-					SNew(SBorder).BorderImage(AuraFrame()).Padding(3.f)[CardW_]
+					SNew(SFN7CardDragSource)
+					.Ref(D.bAlive ? D.Ref : FString())
+					.OnCardDrag(OnCardDrag)
+					.ToolTipText(D.bAlive ? LOCTEXT("DragToSummon", "Drag onto the board or the globe to summon this demigod there") : LOCTEXT("HandFallenTip", "This demigod has fallen"))
+					[
+						SNew(SBorder).BorderImage(AuraFrame()).Padding(3.f)[CardW_]
+					]
 				]
 				// The portrait, small, when the diorama leads.
 				+ SOverlay::Slot().HAlign(bRight ? HAlign_Left : HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(bRight ? 10.f : 0.f, 10.f, bRight ? 0.f : 10.f, 0.f))
@@ -873,6 +916,8 @@ FFNHudModel SFNHudLayout::SampleModel()
 	};
 	M.Mine.Add(Hand(TEXT("Chris's Left Hand"), TEXT("left"), 10, TEXT("docs/style-refs/approved/diorama_maxzoom.png"), TEXT("docs/style-refs/approved/player_portrait.png")));
 	M.Mine.Add(Hand(TEXT("Chris's Right Hand"), TEXT("right"), 6, TEXT("docs/style-refs/approved/event_maxzoom.png"), TEXT("docs/style-refs/approved/player_portrait.png")));
+	M.Mine[0].Ref = TEXT("dg:0");
+	M.Mine[1].Ref = TEXT("dg:1");
 	M.YourAura = FLinearColor::FromSRGBColor(FColor(0xE6, 0x9F, 0x00));
 	M.Debt = 1.2;
 	M.AliveOf = 8;

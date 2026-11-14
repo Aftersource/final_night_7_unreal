@@ -141,6 +141,14 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) { N->bWatchOnly = false; N->bSeatAsked = true; N->TakeSeat(); } })
 			.OnLobby_Lambda([this]() { SetLobbyOpen(true); })
 			.OnResetView_Lambda([this]() { ResetView(); })
+			.OnCardDrag_Lambda([this](const FString& Ref, const FVector2D& Screen) -> TSharedPtr<FDragDropOperation>
+			{
+				const FString Why = WhyNotSummon(Ref);
+				UE_LOG(LogTemp, Display, TEXT("FN7 summon card drag: %s %s"), *Ref, Why.IsEmpty() ? TEXT("-> drag") : *Why);
+				if (!Why.IsEmpty()) { Toast(Why); return nullptr; }
+				if (AFNTableGods* T = AFNTableGods::GetAny(FindStudio() ? FindStudio()->GetWorld() : nullptr)) T->SetFigureHeld(Ref, true);
+				return FFNSummonDragDrop::New(Ref, Screen);
+			})
 		]
 		// Out of the match: a small card under the header, never over the board's centre.
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 92.f, 0.f, 0.f))
@@ -177,7 +185,10 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	if (RingInput.IsValid())
 	{
 		TWeakPtr<SFNHudLive> WeakSelf = StaticCastSharedRef<SFNHudLive>(AsShared());
-		RingInput->SetIsMine([WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() && Self->IsMyDemigod(Ref); });
+		RingInput->SetIsMine([WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() && Self->WhyNotSummon(Ref).IsEmpty(); });
+		RingInput->SetSummonCheck(
+			[WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() ? Self->WhyNotSummon(Ref) : FString(); },
+			[WeakSelf](const FString& Text) { if (const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin()) Self->Toast(Text); });
 	}
 	RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLive::TickTimer));
 
@@ -637,6 +648,7 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 			const TSharedPtr<FJsonObject> G = V.IsValid() ? V->AsObject() : nullptr;
 			if (!G.IsValid()) continue;
 			FFNHudDemigod Dg;
+			Dg.Ref = FN7HudJson::Str(G, TEXT("ref"));
 			Dg.Name = FText::FromString(FN7HudJson::Str(G, TEXT("name")));
 			Dg.Side = FN7HudJson::Str(G, TEXT("side"));
 			Dg.MaxHealth = FMath::Max(1, FMath::RoundToInt(FN7HudJson::Num(G, TEXT("max_health"), 10.0)));
@@ -661,6 +673,19 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 			Model.Mine.Add(Dg);
 			MinePortraitHash.Add(Hash);
 			MineDioramaHash.Add(DioHash);
+		}
+		// The seat view's demigods ARE yours: the truth for summoning (never names: a taken-over seat keeps the bot's).
+		MineRefs.Reset();
+		MineAlive.Reset();
+		for (const FFNHudDemigod& Dg : Model.Mine) if (!Dg.Ref.IsEmpty()) { MineRefs.Add(Dg.Ref); MineAlive.Add(Dg.Ref, Dg.bAlive); }
+		if (!FN7HudJson::Has(View, TEXT("seat")))
+			for (const TSharedPtr<FJsonValue>& V : *Hands)
+				if (const TSharedPtr<FJsonObject> G = V.IsValid() ? V->AsObject() : nullptr)
+					if (FN7HudJson::Has(G, TEXT("seat"))) { MySeat = (int32)FN7HudJson::Num(G, TEXT("seat"), MySeat); break; }
+		{
+			FString Log = FString::Printf(TEXT("seat=%d"), MySeat);
+			for (const FFNHudDemigod& Dg : Model.Mine) Log += FString::Printf(TEXT(" %s(%s,%s)"), *Dg.Ref, *Dg.Side, Dg.bAlive ? TEXT("alive") : TEXT("fallen"));
+			if (Log != LastMineLog) { LastMineLog = Log; UE_LOG(LogTemp, Display, TEXT("FN7 mine: %s"), *Log); }
 		}
 		if (Model.Mine.Num() == 2 && Model.Mine[0].Side == TEXT("right"))   // Left first
 		{
@@ -1029,7 +1054,11 @@ void SFNHudLive::UpdateTable()
 		else if (D.Side != TEXT("right")) G.Demigods.Insert(D, 0);
 		else G.Demigods.Add(D);
 	}
-	for (FFNTableGod& G : Gods) G.bMine = MySeat >= 0 && G.Seat == MySeat;
+	for (FFNTableGod& G : Gods)
+	{
+		G.bMine = MySeat >= 0 && G.Seat == MySeat;
+		for (const FFNTableDemigod& D : G.Demigods) G.bMine |= MineRefs.Contains(D.Ref);
+	}
 	if (AFNTableGods* T = AFNTableGods::Get(St, true))
 	{
 		T->SetGods(Gods, MySeat);
@@ -1155,9 +1184,25 @@ TOptional<FVector2D> SFNHudLive::SnapPowerToBoard(const FString&, const FVector2
 
 bool SFNHudLive::IsMyDemigod(const FString& Ref) const
 {
-	if (PreviewMine.Contains(Ref)) return true;
+	if (MineRefs.Contains(Ref) || PreviewMine.Contains(Ref)) return true;
 	for (const FSeatInfo& S : Seats) if (S.Ref == Ref) return S.Seat >= 0 && S.Seat == MySeat;
 	return false;
+}
+
+FString SFNHudLive::WhyNotSummon(const FString& Ref) const
+{
+	if (Model.bViewer) return TEXT("You're watching: take a seat to summon.");
+	if (!IsMyDemigod(Ref)) return TEXT("That's a rival's demigod.");
+	if (const bool* bA = MineAlive.Find(Ref)) { if (!*bA) return TEXT("That demigod has fallen."); }
+	else for (const FSeatInfo& S : Seats) if (S.Ref == Ref && !S.bAlive) return TEXT("That demigod has fallen.");
+	return FString();
+}
+
+void SFNHudLive::Toast(const FString& Text)
+{
+	Model.Status = FText::FromString(Text);
+	ToastUntil = FPlatformTime::Seconds() + 3.0;
+	Publish();
 }
 
 void SFNHudLive::OnSummonOver(const FString& Ref, const FVector2D& ScreenPosition)
@@ -1359,6 +1404,7 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 			FpsFrame = GFrameCounter;
 		}
 	}
+	if (ToastUntil > 0.0 && FPlatformTime::Seconds() > ToastUntil) { ToastUntil = 0.0; Model.Status = FText::GetEmpty(); Publish(); }
 	// TAKE ANOTHER DEMIGOD unanswered for a few seconds: say when the next chance comes.
 	if (bOut && bTakeAsked && FPlatformTime::Seconds() - TakeAskedAt > 6.0)
 	{

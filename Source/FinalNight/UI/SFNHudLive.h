@@ -50,6 +50,12 @@ private:
 	FDelegateHandle SummonOverHandle, SummonDropHandle;
 	TSet<FString> PreviewMine;
 	bool IsMyDemigod(const FString& Ref) const;
+	TSet<FString> MineRefs;          // your demigods, as the seat view lists them (the truth for "mine")
+	TMap<FString, bool> MineAlive;
+	FString WhyNotSummon(const FString& Ref) const;
+	void Toast(const FString& Text);
+	double ToastUntil = 0.0;
+	FString LastMineLog;
 	void OnSummonOver(const FString& Ref, const FVector2D& ScreenPosition);
 	void OnSummonDropped(const FString& Ref, const FVector2D& ScreenPosition);
 	/** Where a ring hex would land: over the globe (mega), on a board hex (mini), or neither; and the point to hover it at. */

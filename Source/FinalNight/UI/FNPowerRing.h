@@ -161,6 +161,8 @@ public:
 	void SetStudio(AFNStudio* InStudio) { Studio = InStudio; }
 	/** Which demigod refs are yours (only those can be picked up and summoned). */
 	void SetIsMine(TFunction<bool(const FString&)> InIsMine) { IsMine = MoveTemp(InIsMine); }
+	/** Why a demigod can't be summoned ("" = it can): a press on it then shows the reason instead of dragging. */
+	void SetSummonCheck(TFunction<FString(const FString&)> InWhyNot, TFunction<void(const FString&)> InToast) { WhyNot = MoveTemp(InWhyNot); Toast = MoveTemp(InToast); }
 
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect,
 		FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -183,6 +185,9 @@ private:
 	FString PressedRef;          // one of your demigods, pressed
 	bool bHoverMine = false;
 	TFunction<bool(const FString&)> IsMine;
+	TFunction<FString(const FString&)> WhyNot;
+	TFunction<void(const FString&)> Toast;
+	FReply PressFigure(const FVector2D& Px);
 	AFNPowerRing* Ring() const;
 	bool ToPixel(const FGeometry& G, const FVector2D& Screen, FVector2D& OutPixel) const;
 };
