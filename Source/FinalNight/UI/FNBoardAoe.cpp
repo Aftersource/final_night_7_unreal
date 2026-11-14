@@ -21,6 +21,14 @@ namespace FN7Board
 	static constexpr float Relief = 14.f;
 	static constexpr int32 MaxLit = 700;
 
+	// The board's ground height, as FNTableScene::GroundH in FNStudioTable.cpp (keep in step with it): water low and
+	// flat at 0.6 cm, land in 1.7 cm terraces from 2.2 cm. Water = below sea level here (its BiomeOf is file-local there).
+	static float GroundTop(double Elev, double Lo, double Range)
+	{
+		if (Elev < 0.0) return 0.6f;
+		return 2.2f + 1.7f * FMath::RoundToFloat(7.f * (float)((FMath::Max(0.0, Elev) - Lo) / FMath::Max(Range, 1e-6)));
+	}
+
 	struct FOverlay
 	{
 		TWeakObjectPtr<UInstancedStaticMeshComponent> Area;
@@ -54,7 +62,7 @@ bool AFNStudio::HexAtScreen(const FVector2D& ViewportPixel, double& OutLat, doub
 		C = HexToPlane(Q, R, TableS);
 		const FVector3d V = PlaneToVec(TableFace, C.X, C.Y);
 		VecToLatLon(V, La, Lo);
-		Top = 0.4f + FN7Board::Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, La, Lo)) - TableLo) / TableRange);
+		Top = FN7Board::GroundTop(ElevationM(V, TableS, La, Lo), TableLo, TableRange);
 	}
 	if (Hit.X * Hit.X + Hit.Y * Hit.Y > FN7Board::ActionR * FN7Board::ActionR) return false;
 
@@ -122,7 +130,7 @@ void AFNStudio::ShowAreaOfEffect(bool bShow, const FVector2D& ViewportPixel, dou
 			const FVector3d V = PlaneToVec(TableFace, P.X, P.Y);
 			double PLa, PLo;
 			VecToLatLon(V, PLa, PLo);
-			const float Top = 0.4f + FN7Board::Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, PLa, PLo)) - TableLo) / TableRange);
+			const float Top = FN7Board::GroundTop(ElevationM(V, TableS, PLa, PLo), TableLo, TableRange);
 			const FVector Pos = FN7Board::ActionC + FVector((float)((P.X - TableCx) * TableK), (float)(-(P.Y - TableCy) * TableK), Top + (bCentre ? 0.9f : 0.45f));
 			const float Thick = bCentre ? 1.6f : 0.7f;
 			UInstancedStaticMeshComponent* Set = bCentre ? Target : Area;
@@ -143,7 +151,7 @@ bool AFNStudio::BoardPointFor(double Lat, double Lon, FVector& OutWorld) const
 	if (Face != TableFace) return false;
 	const double Px = U * RadiusM, Py = W * RadiusM;
 	if (FVector2D::Distance(FVector2D(Px, Py), FVector2D(TableCx, TableCy)) > PickRadiusM) return false;
-	const float Top = 0.4f + FN7Board::Relief * (float)((FMath::Max(0.0, ElevationM(V, TableS, Lat, Lon)) - TableLo) / TableRange);
+	const float Top = FN7Board::GroundTop(ElevationM(V, TableS, Lat, Lon), TableLo, TableRange);
 	const FVector Local = FN7Board::ActionC + FVector((float)((Px - TableCx) * TableK), (float)(-(Py - TableCy) * TableK), Top);
 	OutWorld = GetActorTransform().TransformPosition(Local);
 	return true;
@@ -268,4 +276,30 @@ void AFNStudio::FocusBoard(double Lat, double Lon, int32 Level)
 	bUserPicked = true;
 	BuildTable();
 	RebuildIn = -1.f;
+}
+
+void AFNStudio::SetFaultLinesAlpha(float Alpha)
+{
+	// The studio's own plate lines (the globe's "EarthPlates" and the board's PlateSet): hidden unless a mega is in hand.
+	static TMap<TWeakObjectPtr<AFNStudio>, TArray<TWeakObjectPtr<UInstancedStaticMeshComponent>>> Found;
+	TArray<TWeakObjectPtr<UInstancedStaticMeshComponent>>& Sets = Found.FindOrAdd(this);
+	bool bStale = Sets.Num() == 0;
+	for (const TWeakObjectPtr<UInstancedStaticMeshComponent>& W : Sets) bStale |= !W.IsValid();
+	if (bStale)
+	{
+		Sets.Reset();
+		TArray<UInstancedStaticMeshComponent*> All;
+		GetComponents<UInstancedStaticMeshComponent>(All);
+		for (UInstancedStaticMeshComponent* C : All)
+			if (C && (C == PlateSet || C->GetName().Contains(TEXT("Plates")))) Sets.Add(C);
+	}
+	const float A = FMath::Clamp(Alpha, 0.f, 1.f);
+	for (const TWeakObjectPtr<UInstancedStaticMeshComponent>& W : Sets)
+	{
+		UInstancedStaticMeshComponent* C = W.Get();
+		if (!C) continue;
+		C->SetVisibility(A > 0.02f);
+		if (UMaterialInstanceDynamic* M = Cast<UMaterialInstanceDynamic>(C->GetMaterial(0)))
+			M->SetVectorParameterValue(TEXT("Color"), FLinearColor(1.f, 0.35f, 0.05f) * (0.35f + 2.2f * A));
+	}
 }
