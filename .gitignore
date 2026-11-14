@@ -96,3 +96,5 @@ __production_steps/
 production_assets/meshy/2026*/
 *.glb
 !production_assets/meshy/mannequin/mannequin_all_clips.glb
+!production_assets/meshy/figures/*/*_statue.glb
+*_statue.fbx
