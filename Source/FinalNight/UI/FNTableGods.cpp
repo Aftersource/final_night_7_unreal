@@ -692,6 +692,7 @@ void AFNTableGods::TickFx(float Dt)
 				// It settles into its piece: the piece drops onto its hex, the damage rises, the d20 tumbles beside it.
 				Dissolved.Remove(F.Ref);
 				if (TObjectPtr<AFNDemigodFigure>* Fig = OnBoard.Find(F.Ref)) if (Fig->Get()) (*Fig)->SetActorLocation(F.A + FVector(0, 0, 18.f * S));
+			if (FVector* LL = PieceLL.Find(F.Ref)) LL->Z = 0.f;   // it drops in (a glide down onto its hex)
 				if (F.Value > 0.f)
 				{
 					FFx Dmg;
@@ -1019,8 +1020,18 @@ void AFNTableGods::Tick(float Dt)
 		Fig->SetActorHiddenInGame(!bOn);
 		if (bOn)
 		{
-			// Glide to its point (a summon, a server move, the map zooming); a refused summon shakes.
-			FVector At = FMath::VInterpTo(Fig->GetActorLocation(), Wp, Dt, 5.f);
+			// Its own lat/lon changed (a server move, a summon): glide there for a moment. Only the VIEW changed (a click
+			// zoomed or panned the map): stand exactly on its point at once, never wander (they should be at a lat/lon point).
+			FVector& LL = PieceLL.FindOrAdd(KV.Key, FVector(D->Lat, D->Lon, -1.f));
+			if (FMath::Abs(LL.X - D->Lat) > 1e-7 || FMath::Abs(LL.Y - D->Lon) > 1e-7) LL = FVector(D->Lat, D->Lon, 0.f);
+			FVector At = Wp;
+			if (LL.Z >= 0.f)
+			{
+				LL.Z += Dt;
+				At = FMath::VInterpTo(Fig->GetActorLocation(), Wp, Dt, 6.f);
+				if (LL.Z > 1.2f || FVector::Dist(At, Wp) < 0.05f) LL.Z = -1.f;
+			}
+			// A refused summon shakes.
 			if (const float* Sh = Shake.Find(KV.Key)) At += FVector(FMath::Sin(*Sh * 70.f) * 3.f * S * (*Sh / 0.7f), 0.f, 0.f);
 			Fig->SetActorLocation(At);
 			Fig->SetActorScale3D(FVector(0.36f * S));

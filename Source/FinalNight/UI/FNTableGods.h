@@ -194,6 +194,7 @@ private:
 	TMap<FString, FVector> LocalPos;     // a landed summon's place (X lat, Y lon, Z age s) until the commit agrees
 	TMap<FString, float> Shake;          // a refused summon's red shake (seconds left)
 	TMap<FString, TWeakObjectPtr<UTexture2D>> DioramaOf;   // every demigod's diorama, for the summon card
+	TMap<FString, FVector> PieceLL;      // each board piece's lat/lon as last placed (Z: seconds gliding, -1 settled)
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> FxParts;
 	UPROPERTY() TObjectPtr<UMaterialInterface> FxMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> CardMat;

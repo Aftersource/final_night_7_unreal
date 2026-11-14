@@ -700,7 +700,15 @@ FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
 	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
 	const FString Why = Ref.IsEmpty() ? FString() : (WhyNot ? WhyNot(Ref) : (IsMine && IsMine(Ref) ? FString() : FString(TEXT("not yours"))));
 	UE_LOG(LogTemp, Display, TEXT("FN7 summon press: figure=%s %s"), Ref.IsEmpty() ? TEXT("none") : *Ref, Ref.IsEmpty() ? TEXT("") : (Why.IsEmpty() ? TEXT("-> drag") : *(TEXT("-> ") + Why)));
-	if (Ref.IsEmpty()) return FReply::Unhandled();   // not a demigod: the game gets the click
+	if (Ref.IsEmpty())
+	{
+		// A plain click on the board does nothing. The view should not keep warping around the map: the studio's board click
+		// zoomed in at the cursor). A double-click on the board zooms there; right-click still zooms out (passes through).
+		double La, Lo, HexM;
+		FVector W;
+		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM)) return FReply::Handled();
+		return FReply::Unhandled();   // not the board: the game gets the click
+	}
 	// Captured either way: a drag summons it (or says why not), a double-click zooms to it, a click does nothing.
 	PressedRef = Ref;
 	PressedWhy = Why;
@@ -725,7 +733,14 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
 	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
 	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s"), Ref.IsEmpty() ? TEXT("none") : *Ref);
-	if (Ref.IsEmpty()) return FReply::Unhandled();
+	if (Ref.IsEmpty())
+	{
+		// The board: zoom in one level at that point (the studio's own zoom, which keeps the point under the cursor).
+		double La, Lo, HexM;
+		FVector W;
+		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM)) { Studio->MapClick(true); return FReply::Handled(); }
+		return FReply::Unhandled();
+	}
 	PressedRef.Reset();
 	PressedWhy.Reset();
 	if (OnFigureDouble) OnFigureDouble(Ref);
