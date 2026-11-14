@@ -49,7 +49,7 @@ void AFNStudio::PickSpot(double Lat, double Lon, bool bByUser)
 	PickLon = Lon;
 	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
 	bUserPicked |= bByUser;
-	if (bByUser) PlaySfx(EFNSfx::Chime, 0.5f);
+	if (bByUser) { PlaySfx(EFNSfx::Chime, 0.5f); if (OnUserPickedSpot) OnUserPickedSpot(PickLon, PickLat); }
 	RebuildIn = 0.f;
 }
 
@@ -204,7 +204,7 @@ void AFNStudio::UpdateTable(float Dt)
 		Projector->SetLightColor(FLinearColor(0.75f, 0.92f, 1.f));
 		Projector->SetAttenuationRadius(600.f);
 		Projector->RegisterComponent();
-		TableInfo = Text(TEXT("TableInfo"), FVector(-100.f, 195.f, 84.f), FRotator(55.f, 90.f, 0.f), 3.6f, FColor(170, 230, 255), FString());
+		TableInfo = Text(TEXT("TableInfo"), FVector(-105.f, 175.f, 84.f), FRotator(50.f, 63.f, 0.f), 3.6f, FColor(170, 230, 255), FString());
 		RebuildIn = 0.f;
 	}
 

@@ -74,7 +74,8 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 	{
 		const float NX = FMath::Clamp(MX / SX * 2.f - 1.f, -1.f, 1.f);
 		const float NY = FMath::Clamp(MY / SY * 2.f - 1.f, -1.f, 1.f);
-		const FRotator Target(-NY * 7.f, NX * 12.f, 0.f);
+		// a gentle lean only: at the old 7/12 degrees a click near the screen edge swung the whole view
+		const FRotator Target(-NY * 2.5f, NX * 4.f, 0.f);
 		Lean = FMath::RInterpTo(Lean, Root->IsTyping() ? FRotator::ZeroRotator : Target, DeltaTime, 3.f);
 	}
 	SetControlRotation(BaseRot + Lean + Studio->GetShake());

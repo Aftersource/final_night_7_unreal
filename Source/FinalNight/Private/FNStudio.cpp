@@ -187,7 +187,7 @@ void AFNStudio::BeginPlay()
 	GlobeMesh = Shape(TEXT("/Engine/BasicShapes/Sphere.Sphere"), TEXT("Globe"), FVector::ZeroVector, FVector((BoardR - 0.5f) / 50.f), FLinearColor(0.01f, 0.03f, 0.06f), BoardRoot);
 	Tag(GlobeMesh, Globe);
 	BuildBoard();
-	GlobeLight = Light(TEXT("GlobeLight"), FVector(0, 90, 225), 14.f, FLinearColor(0.75f, 0.9f, 1.f), 420.f);
+	GlobeLight = Light(TEXT("GlobeLight"), FVector(-60, 190, 270), 14.f, FLinearColor(0.75f, 0.9f, 1.f), 420.f);
 	Spot(TEXT("BoardKey"), FVector(-60, 160, 330), FRotator(-52, -70, 0), 9.f, FLinearColor(1.f, 0.88f, 0.7f));
 
 	// Globe guard: a shell of opal shards that blitzes until you join, and seals when your WILL is locked
@@ -214,8 +214,8 @@ void AFNStudio::BeginPlay()
 	Box(TEXT("Tablet"), FVector(0, -246, 310), FVector(302, 4, 172), Tablet);
 	Box(TEXT("TabletLegL"), FVector(-130, -255, 110), FVector(8, 8, 220), Brass);
 	Box(TEXT("TabletLegR"), FVector(130, -255, 110), FVector(8, 8, 220), Brass);
-	EaselHeader = Text(TEXT("EaselHeader"), FVector(0, -243, 382), FaceSeat, 9.f, Gold, FString());
-	EaselBody = Text(TEXT("EaselBody"), FVector(0, -243, 300), FaceSeat, 5.2f, Pale, FString());
+	EaselHeader = Text(TEXT("EaselHeader"), FVector(0, -243, 382), FaceSeat, 12.f, Gold, FString());
+	EaselBody = Text(TEXT("EaselBody"), FVector(0, -243, 330), FaceSeat, 7.5f, Pale, FString());
 	ShowEaselText(FString(), TEXT("Connect to Network and click the Globe to Begin"));
 	EaselBody->SetTextRenderColor(Cyan);
 
@@ -232,9 +232,10 @@ void AFNStudio::BeginPlay()
 	PlayerEaselPivot->SetVisibility(false, true);   // it read as a black slab; a click anywhere on the table starts the game
 
 	// WILL panel: a brass plaque on the table in front of you
-	UStaticMeshComponent* WP = Box(TEXT("WillPanel"), FVector(62, 226, 86), FVector(90, 46, 10), Brass, FRotator(0, -20, -10));
+	// front-right of the table, inside your view (it used to sit just below the bottom of the screen)
+	UStaticMeshComponent* WP = Box(TEXT("WillPanel"), FVector(100, 150, 90), FVector(64, 32, 8), Brass, FRotator(0, 30, -14));
 	Tag(WP, WillPanel);
-	WillLabel = Text(TEXT("WillLabel"), FVector(62, 231, 108), FRotator(-40, 70, 0), 7.f, Gold, TEXT("WILL"));
+	WillLabel = Text(TEXT("WillLabel"), FVector(98, 153, 102), FRotator(25, 120, 0), 7.f, Gold, TEXT("WILL"));
 
 	// Episode ribbons circle the globe when the round's outcomes arrive
 	RibbonPivot = NewObject<USceneComponent>(this, TEXT("RibbonPivot"));
@@ -434,7 +435,7 @@ void AFNStudio::Tick(float DeltaSeconds)
 	for (UStaticMeshComponent* S : GuardShards)
 	{
 		S->SetVisibility(GuardScale > 0.02f);
-		S->SetRelativeScale3D(FVector(0.14f * GuardScale, 0.14f * GuardScale, 0.02f));
+		S->SetRelativeScale3D(FVector(0.09f * GuardScale, 0.09f * GuardScale, 0.015f));   // smaller since the Globe grew 1.3x
 	}
 
 	// Player easel lowers out of view once the experience starts
@@ -451,7 +452,7 @@ void AFNStudio::Tick(float DeltaSeconds)
 		const float Breathe = (P.Key == WillPanel && bWillActive) ? (1.f + 0.04f * FMath::Sin(Time * 4.f)) : 1.f;
 		if (const FVector* S = BaseScale.Find(P.Key)) P.Value->SetRelativeScale3D(*S * Bump * Breathe);
 	}
-	if (GlobeLight && Hovered == Globe) GlobeLight->SetIntensity(28.f);
+	if (GlobeLight && Hovered == Globe) GlobeLight->SetIntensity(GlobeLight->Intensity + 5.f);   // a gentle lift, not a white glare
 }
 
 void AFNStudio::SetHovered(FName Id) { Hovered = Id; }
@@ -627,7 +628,8 @@ void AFNStudio::ShowSelfOnGlobe(double Lon, double Lat, bool bAlive)
 	FocusDir = BoardDir(Lon, Lat).GetSafeNormal();
 	bHasFocus = true;
 	// until you pick a spot yourself, the table shows the land around your demigod
-	if (!bUserPicked && (FMath::Abs(Lat - PickLat) > 0.01 || FMath::Abs(Lon - PickLon) > 0.01)) PickSpot(Lat, Lon, false);
+	// rebuild only when the demigod has really moved (~1/20 of the circle), not on every small drift
+	if (!bUserPicked && FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(FocusDir, PickDir), -1.f, 1.f))) * 12742.0 * PI / 180.0 * 1000.0 > PickRadiusM * 0.05) PickSpot(Lat, Lon, false);
 }
 
 void AFNStudio::ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm)
