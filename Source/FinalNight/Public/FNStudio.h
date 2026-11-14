@@ -13,6 +13,7 @@ class UAudioComponent;
 class USoundWaveProcedural;
 class UMaterialInstanceDynamic;
 class UInstancedStaticMeshComponent;
+class USpotLightComponent;
 
 /** Something standing on the globe board. */
 struct FFNPiece
@@ -155,6 +156,30 @@ private:
 	UPROPERTY() TObjectPtr<UPointLightComponent> BoltLight;
 	float BoltT = -1.f;
 	FVector BoltDir = FVector::UpVector;
+
+	// --- the circle of action: pick a spot on the Globe, that patch of the planet is built on the table ---
+	void PickSpot(double Lat, double Lon, bool bByUser);
+	void BuildTable();
+	void UpdateTable(float Dt);
+	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> HexSets;   // biome x shade x fog level
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PeopleSet;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TownSet;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> PickRing;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> PickPin;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> BeamRays;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> FogPuffs;
+	UPROPERTY() TObjectPtr<USpotLightComponent> Projector;
+	UPROPERTY() TObjectPtr<UTextRenderComponent> TableInfo;
+	double PickLat = 46.5, PickLon = 9.0, PickRadiusM = 300000.0;
+	FVector PickDir = FVector::ZeroVector;
+	bool bUserPicked = false;
+	float RebuildIn = -1.f;
+	// spinning the Globe by dragging it
+	bool bGlobeDrag = false;
+	FVector2D DragLast = FVector2D::ZeroVector;
+	float DragMoved = 0.f, ManualUntil = -1.f;
+	// every scene shown, by planet cell (also appended to Saved/GlobeScenes.txt)
+	TMap<FString, int32> SceneVisits;
 
 	// --- sound (a tiny software synth feeding one procedural voice) ---
 	struct FVoice { const TArray<float>* Samples = nullptr; int32 Pos = 0; int32 Delay = 0; float Gain = 1.f; };

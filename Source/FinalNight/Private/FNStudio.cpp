@@ -317,6 +317,9 @@ void AFNStudio::BeginPlay()
 	AudioComp->RegisterComponent();
 	PumpAudio();
 	AudioComp->Play();
+
+	// the circle of action starts on the Alps until you pick a spot (or the match tells us where you are)
+	PickSpot(PickLat, PickLon, false);
 }
 
 void AFNStudio::Tick(float DeltaSeconds)
@@ -333,7 +336,8 @@ void AFNStudio::Tick(float DeltaSeconds)
 		if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
 			if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
 		const FVector F = (Cam - GCw).GetSafeNormal();
-		if (bHasFocus && FatesAmt < 0.5f)
+		if (Time < ManualUntil) {}   // you spun it by hand: leave it where you put it for a while
+		else if (bHasFocus && FatesAmt < 0.5f)
 		{
 			const FVector A = FocusDir;
 			FVector B = FVector(0, 0, 1) - A * A.Z; if (B.SizeSquared() < 1e-4) B = FVector(1, 0, 0); B.Normalize();
@@ -347,6 +351,7 @@ void AFNStudio::Tick(float DeltaSeconds)
 		else BoardRoot->AddWorldRotation(FRotator(0.f, (6.f + 80.f * FatesAmt) * DeltaSeconds, 0.f));
 	}
 	UpdateLabels();
+	UpdateTable(DeltaSeconds);
 	// lightning strike: a flickering white bolt standing out of the Globe plus a burst of light
 	if (BoltT >= 0.f && BoltMesh)
 	{
@@ -621,6 +626,8 @@ void AFNStudio::ShowSelfOnGlobe(double Lon, double Lat, bool bAlive)
 {
 	FocusDir = BoardDir(Lon, Lat).GetSafeNormal();
 	bHasFocus = true;
+	// until you pick a spot yourself, the table shows the land around your demigod
+	if (!bUserPicked && (FMath::Abs(Lat - PickLat) > 0.01 || FMath::Abs(Lon - PickLon) > 0.01)) PickSpot(Lat, Lon, false);
 }
 
 void AFNStudio::ShowZoneOnGlobe(double Lon, double Lat, double RadiusKm)
