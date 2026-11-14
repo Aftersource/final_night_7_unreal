@@ -80,6 +80,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnSend(this, &SFNHudLive::OnSend)
 			.OnTypingStarted(this, &SFNHudLive::OnTyping)
 			.OnPower(this, &SFNHudLive::OnPower)
+			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) N->TakeSeat(); })
 		]
 		// The start screen covers everything (and swallows clicks) until we are in a room.
 		+ SOverlay::Slot()
@@ -414,6 +415,7 @@ void SFNHudLive::Publish()
 		Model.Seats.Add(Out);
 	}
 	for (FFNHudPower& P : Model.Powers) P.bArmed = P.Slug == ArmedPower;
+	if (UFNNetClient* N = Net.Get()) Model.bViewer = N->bViewer;
 	if (Layout.IsValid()) Layout->SetModel(Model);
 }
 

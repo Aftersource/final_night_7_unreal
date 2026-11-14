@@ -179,10 +179,8 @@ void SFNStartPanel::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		bConnected = true;
 		Progress = TEXT("Connected. Taking your seat...");
 	}
-	else if ((T == TEXT("room.snapshot") || T == TEXT("match.snapshot")) && bWroteJoinFile)
+	else if (T == TEXT("room.snapshot") || T == TEXT("match.snapshot"))
 	{
-		IFileManager::Get().Delete(*FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7JoinCode.txt")));
-		bWroteJoinFile = false;
 		bJoining = false;
 	}
 	else if (T == TEXT("error"))
@@ -279,32 +277,24 @@ FReply SFNStartPanel::OnJoin()
 	const FString Name = NameBox.IsValid() ? NameBox->GetText().ToString().TrimStartAndEnd().Left(24) : FString();
 	if (!Name.IsEmpty()) FFileHelper::SaveStringToFile(Name + TEXT("\n"), *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DisplayName.txt")));
 
-	// JOIN never hosts: without the house game (or a local join code) there is nothing to join.
-	const FString Code = HouseCode;
-	if (Code.IsEmpty())
+	// JOIN never hosts: without the house game there is nothing to join.
+	if (HouseCode.IsEmpty())
 	{
 		Progress = TEXT("The server has no game running right now. This checks again every few seconds.");
 		return FReply::Handled();
 	}
 	bJoining = true;
 
-	// The root HUD joins Config/FN7JoinCode.txt at auth.ok instead of creating a room; it is removed again once we
-	// are seated, so a stale code never steers a later session.
-	if (HouseSource != TEXT("file"))
-	{
-		FFileHelper::SaveStringToFile(Code + TEXT("\n"), *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7JoinCode.txt")));
-		bWroteJoinFile = true;
-	}
-
+	// The root joins the house at auth.ok (room.join {house:true}); already connected, ask for it directly.
 	if (!bConnected)
 	{
-		Progress = FString::Printf(TEXT("Connecting and joining %s..."), *Code);
+		Progress = FString::Printf(TEXT("Connecting and joining %s..."), *HouseCode);
 		N->Start();
 	}
 	else
 	{
-		Progress = FString::Printf(TEXT("Joining %s..."), *Code);
-		N->JoinRoom(Code);
+		Progress = FString::Printf(TEXT("Joining %s..."), *HouseCode);
+		N->JoinHouse();
 	}
 	return FReply::Handled();
 }

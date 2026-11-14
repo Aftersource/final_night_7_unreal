@@ -79,6 +79,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnSend = InArgs._OnSend;
 	OnTypingStarted = InArgs._OnTypingStarted;
 	OnPower = InArgs._OnPower;
+	OnTakeSeat = InArgs._OnTakeSeat;
 
 	ChildSlot
 	[
@@ -106,7 +107,39 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.f).HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(Space::XL, 0.f, 0.f, 0.f)
 			[
-				SNew(SFNPanelMover).Id(TEXT("scroll"))[MakeComposePanel()]
+				SNew(SOverlay)
+				+ SOverlay::Slot()
+				[
+					SNew(SFNPanelMover).Id(TEXT("scroll"))[MakeComposePanel()]
+				]
+				// Watching without a seat: one clear way in.
+				+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom)
+				[
+					SNew(SBorder)
+					.BorderImage(FN7Style::Brush::Panel())
+					.Padding(FMargin(FN7Style::Space::XL, FN7Style::Space::L))
+					.Visibility_Lambda([this]() { return Model.bViewer ? EVisibility::Visible : EVisibility::Collapsed; })
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+						[
+							SNew(STextBlock).TextStyle(&FN7Style::Type::Body()).Text(LOCTEXT("Watching", "You are watching the house game."))
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, FN7Style::Space::M, 0.f, 0.f)
+						[
+							SNew(SBox).HeightOverride(48.f).WidthOverride(260.f)
+							[
+								SNew(SButton)
+								.ButtonStyle(&FN7Style::AccentButton())
+								.HAlign(HAlign_Center).VAlign(VAlign_Center)
+								.OnClicked_Lambda([this]() { OnTakeSeat.ExecuteIfBound(); return FReply::Handled(); })
+								[
+									SNew(STextBlock).TextStyle(&FN7Style::Type::Title()).ColorAndOpacity(FN7HudParts::Ink).Text(LOCTEXT("TakeSeat", "TAKE A SEAT"))
+								]
+							]
+						]
+					]
+				]
 			]
 		]
 	];
@@ -380,7 +413,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 		[
 			// The old scroll: rolled up in the lobby, it unrolls as the match begins.
 			SNew(SFNScroll)
-			.bUnrolled_Lambda([this]() { return Model.BeatsTotal > 0; })
+			.bUnrolled_Lambda([this]() { return Model.BeatsTotal > 0 && !Model.bViewer; })
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, Space::S)

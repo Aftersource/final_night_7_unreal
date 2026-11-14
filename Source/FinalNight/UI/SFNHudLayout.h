@@ -55,6 +55,7 @@ struct FFNHudModel
 	FText ComposeHint;      // "Write what you'll do today..."
 	FText Timer;            // "0:05"
 	FText Status;           // one line under the header: connection, waiting for host, match over
+	bool bViewer = false;   // watching the house game without a seat
 	TArray<FFNHudSeat> Seats;
 	TArray<FFNHudNews> News;
 	TArray<FFNHudPower> Powers;
@@ -63,6 +64,7 @@ struct FFNHudModel
 DECLARE_DELEGATE_OneParam(FOnFNHudSend, const FString& /*Text*/);
 DECLARE_DELEGATE(FOnFNHudTyping);
 DECLARE_DELEGATE_OneParam(FOnFNHudPower, const FString& /*Slug*/);
+DECLARE_DELEGATE(FOnFNHudTakeSeat);
 
 /**
  * The full FN7 HUD on a corner grid around a clear centre (the globe): header strip top left, WORLD news top right,
@@ -79,6 +81,7 @@ public:
 		SLATE_EVENT(FOnFNHudSend, OnSend)
 		SLATE_EVENT(FOnFNHudTyping, OnTypingStarted)
 		SLATE_EVENT(FOnFNHudPower, OnPower)
+		SLATE_EVENT(FOnFNHudTakeSeat, OnTakeSeat)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -94,6 +97,7 @@ private:
 	FOnFNHudSend OnSend;
 	FOnFNHudTyping OnTypingStarted;
 	FOnFNHudPower OnPower;
+	FOnFNHudTakeSeat OnTakeSeat;
 	bool bTypingSignalled = false;
 
 	TSharedPtr<SBox> HeaderHolder, NewsHolder, SeatsHolder, YouHolder, PowersHolder;

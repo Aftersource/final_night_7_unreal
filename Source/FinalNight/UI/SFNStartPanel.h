@@ -14,9 +14,8 @@ class UFNNetClient;
  * (GET /api/house, else Config/FN7JoinCode.txt), your name and one JOIN THE GAME button.
  * It covers the whole viewport and swallows clicks, so nothing behind it reaches the globe.
  *
- * JOIN saves the name to Config/FN7DisplayName.txt, writes the house code to Config/FN7JoinCode.txt (the root HUD
- * joins that code at auth.ok instead of creating a room; the file is removed once seated) and connects, or sends
- * room.join when already connected. JOIN never hosts: with no house game it says so.
+ * JOIN saves the name to Config/FN7DisplayName.txt and connects (the root joins the house at auth.ok), or calls
+ * UFNNetClient::JoinHouse() when already connected. JOIN never hosts: with no house game it says so.
  */
 class FINALNIGHT_API SFNStartPanel : public SCompoundWidget
 {
