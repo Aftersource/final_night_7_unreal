@@ -59,6 +59,12 @@ public:
 	void QuickJoin();
 	/** Join someone else's room by its 6-letter code (room.join). */
 	void JoinRoom(const FString& Code);
+	/** ONE GAME: join the server's always-on house room (room.join {house:true}). The server seats us (ready) and never lets clients start it. */
+	void JoinHouse();
+	/** Viewers (no seat): true when room.snapshot.you.viewer says we only watch. */
+	bool bViewer = false;
+	/** A viewer asks to become a player (room.take_seat {}); a refusal keeps us a viewer. */
+	void TakeSeat();
 	/**
 	 * A room code to JOIN instead of creating our own match: the first line of Config/FN7JoinCode.txt
 	 * (read at click time, so no rebuild or restart). Empty = create and start our own match.

@@ -996,8 +996,10 @@ void SFNRootWidget::PushSeats()
 			S.bConnected = bConn;
 			S.bMine = S.Ref == Fn7Demigod;
 			O->TryGetBoolField(TEXT("alive"), S.bAlive);
-			const uint32 H = GetTypeHash(S.Ref);   // a stable colour per demigod
-			S.Color = FLinearColor::MakeFromHSV8((uint8)(H % 256), 170, 230);
+			// Player colour: the server's aura "#RRGGBB" (rules 0.7.0+, shared by both of a player's demigods); until then a stable colour per seat (or per AI demigod)
+			const FString Aura = Str(O, TEXT("aura"));
+			if (Aura.StartsWith(TEXT("#")) && Aura.Len() == 7) S.Color = FLinearColor(FColor::FromHex(Aura));
+			else { const uint32 H = S.Seat >= 0 ? GetTypeHash(S.Seat) * 2654435761u : GetTypeHash(S.Ref); S.Color = FLinearColor::MakeFromHSV8((uint8)(H % 256), 170, 230); }
 			if (TestPaths.IsValidIndex(Seats.Num()))
 			{
 				const FString TP = TestPaths[Seats.Num()];
@@ -1048,12 +1050,21 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		SetState(EState::Connected);
 		Status = TEXT("FINAL NIGHT 7  -  connected to the Theatre as ") + Str(D, TEXT("display_name"));
 		UE_LOG(LogTemp, Warning, TEXT("FN7 auth.ok player_id=%s display_name=%s"), *Str(D, TEXT("player_id")), *Str(D, TEXT("display_name")));
+		// ONE GAME: by default join the server's always-on house game. Config/FN7JoinCode.txt joins a specific room instead;
+		// Config/FN7DevCreate.txt (dev testing only) creates a private room as before.
 		const FString Join = Net.IsValid() ? Net->ResolveJoinCode() : FString();
-		bJoinedOther = !Join.IsEmpty();
-		if (St) St->ShowEaselText(TEXT("FINAL NIGHT 7"), bJoinedOther
-			? FString::Printf(TEXT("Connected to Chris's Theatre server.\n\nJoining room %s. You are READY; the host starts the match."), *Join)
-			: FString(TEXT("Connected to Chris's Theatre server.\n\nSetting the table: four demigods on the real Earth. The match starts by itself.")));
-		if (Net.IsValid() && RoomCode.IsEmpty()) { if (bJoinedOther) Net->JoinRoom(Join); else Net->CreateRoom(); }
+		const bool bDevCreate = FPaths::FileExists(FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DevCreate.txt")));
+		bJoinedOther = !bDevCreate;   // never start a room we didn't create
+		if (St) St->ShowEaselText(TEXT("FINAL NIGHT 7"), !Join.IsEmpty()
+			? FString::Printf(TEXT("Connected to the Theatre.\n\nJoining room %s. The match is run by the server."), *Join)
+			: bDevCreate ? FString(TEXT("Connected to the Theatre.\n\nDEV: creating a private room."))
+			: FString(TEXT("Connected to the Theatre.\n\nJoining THE game: one match is always running. If it's under way, you take over a demigod at the next beat.")));
+		if (Net.IsValid() && RoomCode.IsEmpty())
+		{
+			if (!Join.IsEmpty()) Net->JoinRoom(Join);
+			else if (bDevCreate) Net->CreateRoom();
+			else Net->JoinHouse();
+		}
 		return true;
 	}
 	if (T == TEXT("room.snapshot") && Str(D, TEXT("state")) == TEXT("open") && Net.IsValid())
