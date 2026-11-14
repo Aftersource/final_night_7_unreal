@@ -46,7 +46,7 @@ The client connects with `wss://…/ws?key=<access key>`. It looks for the key i
 config, then `Config/FN7Key.txt`, then the `FN7_KEY` env var. The package carries none of them, so **a jam player's
 copy cannot connect as it stands**. Chris is deciding the fix. The backend recommends a separate low-privilege
 **player key**: house-only, with server-side spend caps, rotated after judging, and baked into `DefaultGame.ini`
-`AccessKey`. **Bake nothing until Chris confirms.** Once he does, record the exact steps here and re-run the secrets
+`AccessKey`. **Bake nothing until Chris confirms.** Once she does, record the exact steps here and re-run the secrets
 check: the player key is the one expected exception.
 
 ## 4. Zip and upload
