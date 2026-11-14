@@ -148,6 +148,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(28.f, 118.f)
 		[
 			SNew(SBox).WidthOverride_Lambda([this]() -> FOptionalSize { return bNotificationOpen ? 400.f : 54.f; })
+			.Visibility_Lambda([this]() { return (Net.IsValid() && Net->bFn7) ? EVisibility::Collapsed : EVisibility::Visible; })   // FN7: the kit HUD replaces the intro panel (screen_map_v3)
 			[
 				SNew(SButton).ButtonColorAndOpacity(FLinearColor::Transparent).ContentPadding(0)
 				.OnClicked(this, &SFNRootWidget::OnToggleNotification)
@@ -172,7 +173,7 @@ void SFNRootWidget::Construct(const FArguments& InArgs)
 		// Final Night 7: the demigods' portraits, top centre
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0.f, 14.f, 0.f, 0.f)
 		[
-			SNew(SBox).Visibility_Lambda([this]() { return (Net.IsValid() && Net->bFn7 && Day > 0) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			SNew(SBox).Visibility(EVisibility::Collapsed)   // screen_map_v3: the gods at the table + the kit HUD cards replace this portrait row (code kept, hidden)
 			[
 				SAssignNew(PortraitStrip, SHorizontalBox)
 			]
@@ -1230,6 +1231,24 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 		if (!bOk && Why == TEXT("cut")) { AddBanner(TEXT("YOUR ORDERS WERE CUT! Whoever slowed time pressed Enter first."), UiRed); AddBanner(TEXT("CUT OFF  -  write faster next time"), UiRed); if (St) St->PlaySfx(EFNSfx::Snuff, 1.f); }
 		else if (!bOk) AddBanner(TEXT("Refused: ") + Why, UiRed);
 		else Status = TEXT("Orders received");
+		return true;
+	}
+	if (T == TEXT("dice.rolled"))
+	{
+		// The DM's die, visible (rules 0.8.0): {who, die:"d20", roll, modifier, total, target_dc, verdict, reason, at, cell}. A real die tumbles on the table.
+		const FString Die = Str(D, TEXT("die"));
+		const int32 Sides = Die.StartsWith(TEXT("d")) ? FMath::Max(2, FCString::Atoi(*Die.RightChop(1))) : 20;
+		const int32 Roll = (int32)Numb(D, TEXT("roll"), 1), Mod = (int32)Numb(D, TEXT("modifier")), Tot = (int32)Numb(D, TEXT("total"), Roll), Dc = (int32)Numb(D, TEXT("target_dc"), 10);
+		const FString Verdict = Str(D, TEXT("verdict")), Who = Str(D, TEXT("who")), Why = Str(D, TEXT("reason"));
+		const bool bOk = Verdict.StartsWith(TEXT("success"), ESearchCase::IgnoreCase) || Verdict.StartsWith(TEXT("crit"), ESearchCase::IgnoreCase) || Tot >= Dc;
+		if (St)
+		{
+			if (Sides == 20) St->RollDice(Roll, Mod, Verdict.ToUpper());
+			else St->RollDuelDice(Roll, Sides, Dc, bOk, Who);
+		}
+		AddBanner(FString::Printf(TEXT("%s rolls a %s: %d%s = %d vs %d  -  %s%s"), *Who, *Die, Roll, Mod ? *FString::Printf(TEXT(" %+d"), Mod) : TEXT(""), Tot, Dc, *Verdict.ToUpper(), Why.IsEmpty() ? TEXT("") : *(TEXT("  (") + Why + TEXT(")"))), bOk ? UiGold : UiRed);
+		double Lo = 0.0, La = 0.0;
+		if (St && LonLat(D, TEXT("at"), Lo, La)) St->FlashAt(Lo, La);
 		return true;
 	}
 	if (T == TEXT("seat.revived")) { AddBanner(TEXT("Back in play: ") + Str(D, TEXT("reason")), UiGold); return true; }
