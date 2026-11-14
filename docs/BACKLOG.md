@@ -26,12 +26,26 @@ fall back gracefully until it ships.
 10. [ ] **A Windows screenshot of live portraits** for `docs/proof/portraits_live_windows.png`.
 
 ## The Mac session (`mac/*`): the UI kit (Source/FinalNight/UI/**) plus the board area of effect (by Chris's order)
-1. [ ] **Push `mac/visual-style`** (waits on Chris's approval on that Mac).
-2. [ ] **Switch JOIN THE GAME to `Net->JoinHouse()`** (it's on main since a30faf2); drop the FN7JoinCode.txt write.
-3. [ ] **Board area of effect:** single-hex snap and cast-on-drop (UI/FNBoardAoe.cpp plus the two FNStudio.h declarations).
-4. [ ] **The WILL area as an old fabric scroll:** procedural woven cloth, torn edges, rods, ink; unrolls as the game begins.
-5. [ ] **Power tiles reorderable within their panel; HUD panels draggable with snapping.**
-6. [ ] **A viewer-state HUD** in SFNHudLive: hide the WILL and the powers, show TAKE A SEAT.
+1. [x] **Push `mac/visual-style`** (waits on Chris's approval on that Mac).
+2. [x] **Switch JOIN THE GAME to `Net->JoinHouse()`** (it's on main since a30faf2); drop the FN7JoinCode.txt write.
+3. [x] **Board area of effect:** single-hex snap and cast-on-drop (UI/FNBoardAoe.cpp plus the two FNStudio.h declarations).
+4. [x] **The WILL area as an old fabric scroll:** procedural woven cloth, torn edges, rods, ink; unrolls as the game begins.
+5. [x] **Power tiles reorderable within their panel; HUD panels draggable with snapping.**
+6. [x] **A viewer-state HUD** in SFNHudLive: hide the WILL and the powers, show TAKE A SEAT.
+
+7. [ ] **Bolts and sparks (needs server 0.7.0):** two tile rows (MEGA with a carved bolt pip, MINI with a carved spark pip),
+   bolt and spark counters on the seat cards and the you panel, AoE caps scaled per tier. The contract is in "Powers contract" below.
+8. [ ] **WATCH as a true viewer** once Benito's `JoinHouse(bool bViewer)` lands.
+
+## Powers contract (rules 0.7.0, final names)
+- Per seat: `bolts` (mega currency) and `sparks` (mini currency), public, in `public_state.demigods[]` / seats and
+  in the seat view (`round.brief.private`, `round.private_state`).
+- `round.brief.public.powers[]`: `{ slug, name, icon, mega: { radius_km, magnitude, cost: 1 }, mini: { radius_km,
+  magnitude, cost: 1 } }`. Every power has both tiers; mega acts at map scale (level 1, a huge radius) and mini on
+  the table board (a small radius).
+- Cast: `action.submit { instant: true, fields: { cast: { power, tier: "mega"|"mini", target } } }`. `tier` defaults to
+  "mini" when omitted.
+- A mega costs 1 bolt and gives every other god +1 bolt; a mini costs 1 spark. Start at 1 bolt : 5 sparks.
 
 ## Backend (`final_night_7`), for reference
 - Rules 0.7.0: two demigods per player with their own health, items and manifesting, `cell` plus the hex rule, `aura`, the live
