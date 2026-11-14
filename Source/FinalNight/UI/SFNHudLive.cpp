@@ -1195,6 +1195,7 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 				const bool bMega = Where == 2;
 				RN->CastAt(Round, Power, Lo, La, bMega ? TEXT("mega") : TEXT("mini"));
 				RSt->FlashAt(Lo, La);
+				RSt->FocusBoard(La, Lo, bMega ? 3 : 2);   // the board zooms to where it struck: regions for a mega, villages for a mini
 				SetArmed(FString());
 				AddNews(bMega ? LOCTEXT("Mega", "MEGA") : LOCTEXT("Mini", "MINI"),
 					FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
@@ -1372,9 +1373,10 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 		const bool bWill = Args.Contains(TEXT("will"));
 		const bool bPreview = Args.Contains(TEXT("preview"));
 		const bool bPour = Args.Contains(TEXT("pour"));
+		const bool bMega = Args.Contains(TEXT("mega"));
 		TWeakObjectPtr<UWorld> WeakWorld(World);
 		// Wait for the player controller and its net client, then mount (and optionally connect / photograph).
-		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview, bPour](float)
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMount"), 0.5f, [WeakWorld, bConnect, bShot, bQuit, bAoe, bLobby, bFell, bWill, bPreview, bPour, bMega](float)
 		{
 			UWorld* W = WeakWorld.Get();
 			AFNPlayerController* PC = W ? Cast<AFNPlayerController>(W->GetFirstPlayerController()) : nullptr;
@@ -1382,6 +1384,18 @@ static FAutoConsoleCommandWithWorldAndArgs GFN7HudCommand(
 			FN7HudMount::Mount(PC->Net);
 			if (bConnect) PC->Net->Start();
 			if (bLobby || bFell || bWill || bPreview) FN7HudMount::Preview(bLobby, bFell, bWill);
+			if (bMega)
+			{
+				// Test: a mega in hand from just before the second shot (the fault lines fade in), with its ring on the globe.
+				TWeakObjectPtr<AFNPlayerController> WeakPC(PC);
+				FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7HudMega"), 15.4f, [WeakPC](float)
+				{
+					FFNPowerDragDrop::OnMegaArmed().Broadcast(true, TEXT("earthquake"));
+					if (AFNPlayerController* P = WeakPC.Get())
+						if (AFNStudio* S = P->Studio.Get()) S->ShowMegaOnGlobe(true, 35.7, 139.7, 900.0);
+					return false;
+				});
+			}
 			if (bPour)
 			{
 				// Test: click the pouch just before the second shot (shot 1 closed, 2 mid-burst, 3 landed).

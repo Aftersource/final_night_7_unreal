@@ -42,6 +42,7 @@ namespace FN7Ring
 	static constexpr float RingGap = 3.5f;         // between neighbouring hexes
 	static constexpr float RingArcStart = 12.f;    // degrees from +X (table right) toward +Y (the near side, the camera)
 	static constexpr int32 RingPerRow = 6;
+	static constexpr float RingTilt = 55.f;        // degrees the hexes stand up from the table (Chris: 50-60)
 	static constexpr float RingPouchBeyond = 9.f;  // the pouch sits this many degrees past the inner row's far end
 
 	static const FLinearColor RingWood(0.30f, 0.17f, 0.07f);
@@ -74,6 +75,22 @@ AFNPowerRing::AFNPowerRing()
 	if (Mat.Succeeded()) BaseMat = Mat.Object;
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Img(TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
 	if (Img.Succeeded()) ImageMat = Img.Object;
+}
+
+void AFNPowerRing::BeginPlay()
+{
+	Super::BeginPlay();
+	TWeakObjectPtr<AFNPowerRing> Weak(this);
+	MegaHandle = FFNPowerDragDrop::OnMegaArmed().AddLambda([Weak](bool bArmed, const FString&)
+	{
+		if (AFNPowerRing* R = Weak.Get()) R->bMegaInHand = bArmed;
+	});
+}
+
+void AFNPowerRing::EndPlay(const EEndPlayReason::Type Reason)
+{
+	FFNPowerDragDrop::OnMegaArmed().Remove(MegaHandle);
+	Super::EndPlay(Reason);
 }
 
 AFNPowerRing* AFNPowerRing::Get(AFNStudio* InStudio, bool bCreate)
@@ -141,13 +158,27 @@ FVector AFNPowerRing::SlotWorld(int32 Index, int32 Count, FQuat& OutRot) const
 	const AFNStudio* St = Studio.Get();
 	const float S = St ? (float)St->GetActorScale3D().X : 1.f;
 	const int32 Row = Index / RingPerRow, Col = Index % RingPerRow;
-	const double ArcR = R + (RingRimGap + Row * RingHexR * 1.8f) * S;
+	const double ArcR = R + (RingRimGap + Row * RingHexR * 2.1f) * S;
 	const double StepDeg = FMath::RadiansToDegrees(((RingHexR * 1.7320508f + RingGap) * S) / ArcR);
 	const double Deg = RingArcStart - (Col + 0.5 * Row) * StepDeg;
 	const double A = FMath::DegreesToRadians(Deg);
-	const FVector Local((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), RingHexH * 0.5f * S);
-	OutRot = (TableRot.Quaternion() * FRotator(0.f, (float)Deg, 0.f).Quaternion());
-	return C + TableRot.RotateVector(Local);
+	const FVector Local((float)(FMath::Cos(A) * ArcR), (float)(FMath::Sin(A) * ArcR), 0.f);
+	const FVector Base = C + TableRot.RotateVector(Local);
+	// Stood up at RingTilt toward the camera, like a sign on the table's edge: its face (the icon) toward you, the icon's
+	// top up and away, so you can read it and pull it onto the board.
+	FVector Cam = St ? St->GetActorLocation() + FVector(0.f, 340.f, 190.f) * S : Base + FVector(0, 300, 200);
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+		if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
+	FVector ToCam = Cam - Base;
+	ToCam.Z = 0.f;
+	ToCam = ToCam.GetSafeNormal();
+	if (ToCam.IsNearlyZero()) ToCam = TableRot.RotateVector(FVector(0, 1, 0));
+	const float Tilt = FMath::DegreesToRadians(RingTilt);
+	const FVector Face = FVector::UpVector * FMath::Cos(Tilt) + ToCam * FMath::Sin(Tilt);
+	const FVector Top = FVector::UpVector * FMath::Sin(Tilt) - ToCam * FMath::Cos(Tilt);
+	OutRot = FRotationMatrix::MakeFromZX(Face, Top).ToQuat();
+	// Resting on its lower edge: lift the centre by the half-height of the tilted hex, and the thickness.
+	return Base + FVector(0, 0, (RingHexR * 0.9f * FMath::Sin(Tilt) + RingHexH * 0.5f) * S);
 }
 
 FVector AFNPowerRing::PouchWorld() const
@@ -230,6 +261,14 @@ void AFNPowerRing::BuildPouch()
 		M->SetVisibility(false);
 		Spray.Add(M);
 		SprayVel.Add(FVector::ZeroVector);
+	}
+	// Remember each part's full colour: an empty pouch dulls them.
+	PouchBase.Reset();
+	for (UStaticMeshComponent* P : PouchParts)
+	{
+		FLinearColor C = FLinearColor::White;
+		if (UMaterialInstanceDynamic* M = P ? Cast<UMaterialInstanceDynamic>(P->GetMaterial(0)) : nullptr) M->GetVectorParameterValue(FMaterialParameterInfo(FName(TEXT("Color"))), C);
+		PouchBase.Add(C);
 	}
 	PouchCount = NewObject<UTextRenderComponent>(this);
 	PouchCount->SetupAttachment(Pouch);
@@ -376,7 +415,22 @@ void AFNPowerRing::Tick(float Dt)
 	{
 		Pouch->SetWorldLocationAndRotation(PouchPos, TableRot);
 		Pouch->SetWorldScale3D(FVector(S));
-		float Sx = 1.f + 0.035f * FMath::Sin(Time * 2.2f), Sz = 1.f - 0.03f * FMath::Sin(Time * 2.2f);
+		// Full while it holds the hexes; once they're out it sags and dulls, so it looks empty.
+		PouchFull = FMath::FInterpConstantTo(PouchFull, bOpen ? 0.f : 1.f, Dt, 1.6f);
+		const float Breath = PouchFull;
+		float Sx = (1.f + 0.035f * FMath::Sin(Time * 2.2f) * Breath) * FMath::Lerp(0.74f, 1.f, PouchFull);
+		float Sz = (1.f - 0.03f * FMath::Sin(Time * 2.2f) * Breath) * FMath::Lerp(0.52f, 1.f, PouchFull);
+		if (FMath::Abs(PouchFull - AppliedFull) > 0.01f)
+		{
+			AppliedFull = PouchFull;
+			for (int32 p = 0; p < PouchParts.Num() && p < PouchBase.Num(); ++p)
+			{
+				const FLinearColor B = PouchBase[p];
+				const float L = 0.3f * B.R + 0.59f * B.G + 0.11f * B.B;
+				const FLinearColor Dull = FMath::Lerp(B, FLinearColor(L, L, L), 0.6f) * 0.4f;
+				SetColor(PouchParts[p], FMath::Lerp(Dull, B, PouchFull));
+			}
+		}
 		if (bPouchHover) { Sx *= 1.06f; Sz *= 1.06f; }
 		if (BurstT >= 0.f && BurstT < 0.6f)
 		{
@@ -389,12 +443,12 @@ void AFNPowerRing::Tick(float Dt)
 		if (PouchBody)
 		{
 			PouchBody->SetRelativeScale3D(FVector(Sx, Sx, Sz));
-			PouchBody->SetRelativeRotation(FRotator(2.5f * FMath::Sin(Time * 1.3f), 0.f, 2.5f * FMath::Sin(Time * 1.7f)));
+			PouchBody->SetRelativeRotation(FRotator(2.5f * FMath::Sin(Time * 1.3f) * Breath - 9.f * (1.f - PouchFull), 0.f, 2.5f * FMath::Sin(Time * 1.7f) * Breath));
 		}
 		if (PouchGlow)
 		{
 			const float Flash = (BurstT >= 0.f && BurstT < 0.7f) ? 60.f * FMath::Exp(-6.f * BurstT) : 0.f;
-			PouchGlow->SetIntensity((5.f + 2.5f * FMath::Sin(Time * 3.f) + (bPouchHover ? 4.f : 0.f) + Flash) * (IsEnabled() ? 1.f : 0.4f));
+			PouchGlow->SetIntensity(((5.f + 2.5f * FMath::Sin(Time * 3.f)) * PouchFull + (bPouchHover ? 3.f : 0.f) + Flash) * (IsEnabled() ? 1.f : 0.4f));
 		}
 		for (int32 i = 0; i < Motes.Num(); ++i)
 		{
@@ -402,7 +456,8 @@ void AFNPowerRing::Tick(float Dt)
 			const float R = 24.f + 4.f * FMath::Sin(Time * 1.1f + i);
 			Motes[i]->SetRelativeLocation(FVector(FMath::Cos(A) * R, FMath::Sin(A) * R, 20.f + 14.f * FMath::Sin(Time * 0.9f + i * 1.7f)));
 			const float Tw = 0.5f + 0.5f * FMath::Sin(Time * 5.f + i * 2.3f);
-			Motes[i]->SetRelativeScale3D(FVector(0.006f + 0.012f * Tw));
+			Motes[i]->SetVisibility(PouchFull > 0.05f);
+			Motes[i]->SetRelativeScale3D(FVector((0.006f + 0.012f * Tw) * PouchFull));
 			Motes[i]->SetRelativeRotation(FRotator(Time * 80.f + i * 30.f, Time * 60.f, 0.f));
 		}
 		for (int32 i = 0; i < Spray.Num(); ++i)
@@ -464,6 +519,10 @@ void AFNPowerRing::Tick(float Dt)
 		H.Root->SetWorldLocationAndRotation(H.Pos, H.Rot);
 	}
 	St->HideWillBlock();
+	// Fault lines: invisible, fading in while a mega is in hand, out after.
+	const float WantFault = bMegaInHand ? 1.f : 0.f;
+	const float NewFault = FaultAlpha < 0.f ? WantFault : FMath::FInterpConstantTo(FaultAlpha, WantFault, Dt, 3.f);
+	if (NewFault != FaultAlpha) { FaultAlpha = NewFault; St->SetFaultLinesAlpha(FaultAlpha); }
 }
 
 int32 AFNPowerRing::HexAtPixel(const FVector2D& Pixel) const
