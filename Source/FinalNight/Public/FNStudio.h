@@ -255,6 +255,19 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> MapPivot;   // parent of the map's tiles and pieces, scaled for the zoom animation
 	float ZoomAnimT = -1.f, ZoomAnimS0 = 1.f;
 	FVector ZoomAnchor = FVector::ZeroVector;
+	// FN7 zoom ghost (Mac session, UI/FNBoardAoe.cpp, under the view-fix go-ahead; Chris noted the zoom ghosts keep jumping
+	// into view"): at a level switch the old level's instanced tiles and scenery stay on screen and move with the same
+	// zoom around the cursor (expanding and flattening going in, contracting going out) while the new level grows in.
+	void BeginZoomGhost();
+	void TickZoomGhost(float NewScale, float Ease);
+	void EndZoomGhost();
+	UPROPERTY() TObjectPtr<USceneComponent> GhostPivot;
+	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> ZoomGhosts;
+	TArray<TArray<FVector>> GhostPos;     // per ghost set: each instance's position (pivot space)
+	TArray<TArray<uint8>> GhostHidden;    // per ghost set: dropped once it leaves the table
+	TArray<TArray<float>> GhostRadius;    // per ghost set: each instance's half-width
+	FTransform GhostBase;
+	bool bZoomGhost = false;
 	double PickLat = 46.5, PickLon = 9.0, PickRadiusM = 300000.0;
 	// the scene now on the table (set by BuildTable): cube face, centre on that face's plane (m), cm per m, hex size, relief range
 	int32 TableFace = -1;

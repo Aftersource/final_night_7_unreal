@@ -578,6 +578,7 @@ void AFNStudio::ZoomMapAt(double Px, double Py, int32 Step)
 	ZoomAnchor = FNTableScene::ActionC + FVector((float)((Px - TableCx) * TableK), (float)(-(Py - TableCy) * TableK), 0.f);
 	ZoomAnimS0 = FMath::Clamp((float)F, 0.03f, 2.5f);   // zooming out starts big, but not room-sized
 	ZoomAnimT = 0.f;
+	BeginZoomGhost();   // FN7 (Mac session, view-fix go-ahead): the old level stays on screen through the switch (UI/FNBoardAoe.cpp)
 	BuildTable();   // now, not next frame: a fast second click must land on the new scene
 	RebuildIn = -1.f;
 }
@@ -705,12 +706,16 @@ void AFNStudio::UpdateTable(float Dt)
 	if (RebuildIn >= 0.f && (RebuildIn -= Dt) <= 0.f) { RebuildIn = -1.f; BuildTable(); }
 	if (ZoomAnimT >= 0.f && MapPivot)
 	{
-		ZoomAnimT = FMath::Min(1.f, ZoomAnimT + Dt / 0.35f);
+		ZoomAnimT = FMath::Min(1.f, ZoomAnimT + Dt / 0.45f);
 		const float E = 1.f - FMath::Cube(1.f - ZoomAnimT);                 // ease out
 		const float Sc = FMath::Exp(FMath::Loge(ZoomAnimS0) * (1.f - E));     // even speed in log scale, like a web map
-		MapPivot->SetRelativeScale3D(FVector(Sc));
-		MapPivot->SetRelativeLocation(ZoomAnchor * (1.f - Sc));                // keeps the anchor point still on the table
-		if (ZoomAnimT >= 1.f) { ZoomAnimT = -1.f; MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); }
+		// FN7 (Mac session, view-fix go-ahead): the new level's tiles rise from flat (height E) instead of scaling their
+		// heights with the zoom (needles going in, towers going out), and the old level's ghost moves with it.
+		const float Rise = FMath::Max(0.02f, E);
+		MapPivot->SetRelativeScale3D(FVector(Sc, Sc, Rise));
+		MapPivot->SetRelativeLocation(FVector(ZoomAnchor.X * (1.f - Sc), ZoomAnchor.Y * (1.f - Sc), ZoomAnchor.Z * (1.f - Rise)));   // the anchor stays still
+		TickZoomGhost(Sc, E);
+		if (ZoomAnimT >= 1.f) { ZoomAnimT = -1.f; MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); EndZoomGhost(); }
 	}
 
 	// the beam: rays from the picked spot on the Globe down to the rim of the circle of action

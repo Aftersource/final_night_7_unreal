@@ -396,6 +396,115 @@ void AFNStudio::PreviewFocus(double Lat, double Lon, int32 Level)
 	RebuildIn = -1.f;
 }
 
+void AFNStudio::BeginZoomGhost()
+{
+	// A copy of what the board shows now (every instanced set under MapPivot: tiles, trees, towns...), on a pivot of its
+	// own, so a level switch never empties or swaps the board in one frame.
+	if (!MapPivot) return;
+	if (!GhostPivot)
+	{
+		GhostPivot = NewObject<USceneComponent>(this, TEXT("ZoomGhostPivot"));
+		GhostPivot->SetupAttachment(RootComponent);
+		GhostPivot->SetMobility(EComponentMobility::Movable);
+		GhostPivot->RegisterComponent();
+	}
+	GhostBase = MapPivot->GetRelativeTransform();
+	GhostPivot->SetRelativeTransform(GhostBase);
+	int32 Used = 0;
+	GhostPos.Reset();
+	GhostHidden.Reset();
+	GhostRadius.Reset();
+	TArray<USceneComponent*> Kids;
+	MapPivot->GetChildrenComponents(false, Kids);
+	for (USceneComponent* K : Kids)
+	{
+		UInstancedStaticMeshComponent* Src = Cast<UInstancedStaticMeshComponent>(K);
+		if (!Src || !Src->IsVisible() || Src->GetInstanceCount() == 0) continue;
+		// Only the ground (Hex_*, Earth_*, Stone_*, coast): blown-up trees and towns read as blobs, not as a zoom.
+		const FString N = Src->GetName();
+		if (!(N.StartsWith(TEXT("Hex_")) || N.StartsWith(TEXT("Earth_")) || N.StartsWith(TEXT("Stone_")) || N == TEXT("TableCoast"))) continue;
+		UInstancedStaticMeshComponent* G = ZoomGhosts.IsValidIndex(Used) ? ZoomGhosts[Used].Get() : nullptr;
+		if (!G)
+		{
+			G = NewObject<UInstancedStaticMeshComponent>(this);
+			G->SetupAttachment(GhostPivot);
+			G->SetMobility(EComponentMobility::Movable);
+			G->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			G->SetCastShadow(false);
+			G->RegisterComponent();
+			ZoomGhosts.Add(G);
+		}
+		G->ClearInstances();
+		G->SetStaticMesh(Src->GetStaticMesh());
+		for (int32 m = 0; m < Src->GetNumMaterials(); ++m) G->SetMaterial(m, Src->GetMaterial(m));
+		G->SetRelativeTransform(Src->GetRelativeTransform());
+		TArray<FTransform> X;
+		TArray<FVector>& P = GhostPos.AddDefaulted_GetRef();
+		TArray<float>& Rad = GhostRadius.AddDefaulted_GetRef();
+		X.Reserve(Src->GetInstanceCount());
+		P.Reserve(Src->GetInstanceCount());
+		for (int32 i = 0; i < Src->GetInstanceCount(); ++i)
+		{
+			FTransform T;
+			Src->GetInstanceTransform(i, T, false);
+			X.Add(T);
+			P.Add(Src->GetRelativeTransform().TransformPosition(T.GetLocation()));
+			Rad.Add(50.f * (float)FMath::Max(T.GetScale3D().X, T.GetScale3D().Y));   // a unit cube's half-width, scaled
+		}
+		G->AddInstances(X, false, false);
+		G->SetVisibility(true);
+		GhostHidden.AddZeroed_GetRef().AddZeroed(X.Num());
+		++Used;
+	}
+	for (int32 i = Used; i < ZoomGhosts.Num(); ++i) { ZoomGhosts[i]->ClearInstances(); ZoomGhosts[i]->SetVisibility(false); }
+	bZoomGhost = Used > 0;
+}
+
+void AFNStudio::TickZoomGhost(float NewScale, float Ease)
+{
+	if (!bZoomGhost || !GhostPivot) return;
+	// The old level is the same map at the old zoom: it scales by NewScale / S0 around the anchor (S0 -> 1 on the new
+	// board = 1 -> 1/S0 on the old), so the two move as one zoom; it flattens into the table as the new level rises.
+	const float G = NewScale / FMath::Max(0.001f, ZoomAnimS0);
+	// Going in it flattens by half-way (it is growing); going out it settles with the new level.
+	const float Flat = FMath::Clamp(1.f - Ease * (G > 1.f ? 2.2f : 1.35f), 0.f, 1.f);
+	GhostPivot->SetRelativeScale3D(GhostBase.GetScale3D() * FVector(G, G, FMath::Max(0.01f, Flat)));
+	GhostPivot->SetRelativeLocation(GhostBase.GetLocation() + FVector(ZoomAnchor.X * (1.f - G), ZoomAnchor.Y * (1.f - G), ZoomAnchor.Z * (1.f - Flat)));
+	// What leaves the table's disc drops out (going in, the old tiles grow past the rim and would cover the room).
+	const FVector C = FN7Board::ActionC;
+	const float R2 = FMath::Square(FN7Board::ActionR * 1.02f);
+	for (int32 s = 0; s < ZoomGhosts.Num() && s < GhostPos.Num(); ++s)
+	{
+		bool bChanged = false;
+		for (int32 i = 0; i < GhostPos[s].Num(); ++i)
+		{
+			if (GhostHidden[s][i]) continue;
+			const FVector& P = GhostPos[s][i];
+			const float X = ZoomAnchor.X + (P.X - ZoomAnchor.X) * G, Y = ZoomAnchor.Y + (P.Y - ZoomAnchor.Y) * G;
+			const float Reach = FMath::Sqrt(FMath::Square(X - C.X) + FMath::Square(Y - C.Y)) + GhostRadius[s][i] * G;   // its far edge
+			if (Reach * Reach <= R2) continue;
+			FTransform T;
+			if (ZoomGhosts[s]->GetInstanceTransform(i, T, false))
+			{
+				T.SetScale3D(FVector::ZeroVector);
+				ZoomGhosts[s]->UpdateInstanceTransform(i, T, false, false, true);
+				bChanged = true;
+			}
+			GhostHidden[s][i] = 1;
+		}
+		if (bChanged) ZoomGhosts[s]->MarkRenderStateDirty();
+	}
+}
+
+void AFNStudio::EndZoomGhost()
+{
+	for (UInstancedStaticMeshComponent* G : ZoomGhosts) if (G) { G->ClearInstances(); G->SetVisibility(false); }
+	GhostPos.Reset();
+	GhostHidden.Reset();
+	GhostRadius.Reset();
+	bZoomGhost = false;
+}
+
 namespace FN7View
 {
 	struct FAnim { float T = -1.f, Dur = 0.45f, S0 = 1.f; FVector From = FVector::ZeroVector, To = FVector::ZeroVector; };
