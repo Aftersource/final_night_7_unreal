@@ -1,4 +1,5 @@
 #include "FNNetClient.h"
+#include "../UI/FNAccount.h"
 
 #include "IWebSocket.h"
 #include "WebSocketsModule.h"
@@ -229,6 +230,7 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 		{
 			A->SetStringField(TEXT("resume_token"), ResumeToken);
 			Send(TEXT("auth.resume"), A);
+			bFreshLogin = false;
 		}
 		else
 		{
@@ -239,7 +241,10 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 				TArray<FString> L; Local.ParseIntoArrayLines(L);
 				if (L.Num() && !L[0].TrimStartAndEnd().IsEmpty()) Name = L[0].TrimStartAndEnd();
 			}
+			// Signed in (ACCOUNTS.md §13 step 8): log in under the account's own name, then bind at auth.ok.
+			if (FN7Account::IsSignedIn()) Name = FN7Account::Me().DisplayName;
 			A->SetStringField(TEXT("display_name"), Name.Left(24));
+			bFreshLogin = true;
 			TSharedRef<FJsonObject> C = Obj();
 			C->SetStringField(TEXT("kind"), TEXT("unreal"));
 			C->SetStringField(TEXT("version"), TEXT("0.1"));
@@ -253,6 +258,21 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 		if (UWorld* W = GetTimerWorld())
 			W->GetTimerManager().SetTimer(PingTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { Ping(); }), 20.f, true);
 		Ping();
+		// A signed-in login binds this websocket to the account BEFORE anything joins a room (CLIENT_API "POST
+		// /api/game/bind": an unbound connection on an account's name is removed by the name guard). auth.ok reaches the
+		// HUD and the root (which join at auth.ok) only once the bind has answered. Not after auth.resume (same player).
+		if (bFreshLogin && FN7Account::IsSignedIn() && !ResumeToken.IsEmpty())
+		{
+			bFreshLogin = false;
+			TWeakObjectPtr<UFNNetClient> Weak(this);
+			FN7Account::Bind(this, ResumeToken, [Weak, T, D](int32 Code, TSharedPtr<FJsonObject> R)
+			{
+				UE_LOG(LogFNNet, Display, TEXT("FN7 account: this connection %s"), Code == 200 ? TEXT("is bound to the account") : *FString::Printf(TEXT("was NOT bound (%d %s)"), Code, *FN7Account::ErrorText(Code, R)));
+				if (Weak.IsValid()) Weak->OnServerMessage.Broadcast(T, D);
+			});
+			return;
+		}
+		bFreshLogin = false;
 	}
 	else if (T == TEXT("sys.pong"))
 	{

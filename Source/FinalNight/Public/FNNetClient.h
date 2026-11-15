@@ -157,6 +157,7 @@ private:
 
 	TSharedPtr<IWebSocket> Socket;
 	FString ResumeToken;
+	bool bFreshLogin = false;   // the last auth was an auth.login (bind at its auth.ok), not an auth.resume
 	FString ResolveAccessKey() const;
 	bool bBegun = false;
 	int32 TypingWindowId = -1;

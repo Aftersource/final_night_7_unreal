@@ -17,6 +17,9 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "FNLooks.h"
+#include "FNAccount.h"
+#include "SFNAccountPages.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -126,6 +129,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 
 	auto OutOfGame = [this]() { return bInGame.Get() ? EVisibility::Collapsed : EVisibility::Visible; };
 	auto InGame = [this]() { return bInGame.Get() ? EVisibility::Visible : EVisibility::Collapsed; };
+	auto NameVis = [this]() { return bInGame.Get() || FN7Account::IsSignedIn() ? EVisibility::Collapsed : EVisibility::Visible; };   // signed in: the account's name
 
 	ChildSlot
 	[
@@ -142,7 +146,10 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 			[
 				// The tablet in the chosen look (1 the black onyx marble Chris asked for, then parchment, carved wood, dark glass,
 				// gilded slate, star map), switched by the 1-6 buttons beside LOBBY.
-				FN7Looks::Frame(TAttribute<int32>::CreateLambda([this]() { return Look; }),
+				FN7Looks::Frame(TAttribute<int32>::CreateLambda([this]() { return PageLook(); }),
+					SNew(SWidgetSwitcher).WidgetIndex_Lambda([this]() { return (int32)Page; })
+					+ SWidgetSwitcher::Slot()
+					[
 					SNew(SVerticalBox)
 
 					+ SVerticalBox::Slot().AutoHeight()
@@ -164,6 +171,11 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
 					[
 						SNew(SBox).WidthOverride(64.f).HeightOverride(3.f).HAlign(HAlign_Left)[SNew(SImage).Image(Brush::AccentRule())]
+					]
+					// Signed in: who, GUEST, Link Google, Log out (the main menu of ACCOUNTS.md §13 step 5).
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+					[
+						MakeAccountStrip()
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
 					[
@@ -197,11 +209,11 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 					// Name (first time in only).
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::L, 0.f, Space::XS)
 					[
-						SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Visibility_Lambda(OutOfGame).Text(LOCTEXT("NameLabel", "YOUR NAME"))
+						SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Visibility_Lambda(NameVis).Text(LOCTEXT("NameLabel", "YOUR NAME"))
 					]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
-						SNew(SBox).Visibility_Lambda(OutOfGame)
+						SNew(SBox).Visibility_Lambda(NameVis)
 						[
 							SAssignNew(NameBox, SFNTextBox)
 							.Text(FText::FromString(Name))
@@ -260,6 +272,14 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, Space::M, 0.f, 0.f)
 					[
 						SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNStartPanel::LDim).Visibility_Lambda(InGame).Text(LOCTEXT("EscHint", "Esc opens and closes the lobby."))
+					]
+					]
+					// WELCOME: a name and PLAY AS GUEST (or Google), then the lobby.
+					+ SWidgetSwitcher::Slot()
+					[
+						SAssignNew(Welcome, SFNWelcomePage).Net(Net.Get()).Name(Name)
+						.OnSignedIn_Lambda([this]() { Page = EPage::Lobby; AccountNote.Reset(); RebuildHouse(); })
+						.OnSkip_Lambda([this]() { Page = EPage::Lobby; })
 					], FMargin(Space::XL + Space::S, Space::XL))
 			]
 		]
@@ -268,6 +288,11 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 	RebuildHouse();
 	RebuildRooms();
 	if (UFNNetClient* N = Net.Get()) MessageHandle = N->OnServerMessage.AddSP(this, &SFNStartPanel::HandleMessage);
+	// The account (§13 step 1): a stored session signs in; without one, WELCOME when the server offers accounts.
+	{
+		TWeakPtr<SFNStartPanel> Weak = StaticCastSharedRef<SFNStartPanel>(AsShared());
+		FN7Account::Boot(Net.Get(), [Weak](bool bSignedIn) { if (const TSharedPtr<SFNStartPanel> Self = Weak.Pin()) Self->OnBooted(bSignedIn); });
+	}
 	RefreshStats();
 	RefreshHouse();
 	RegisterActiveTimer(3.f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNStartPanel::TickRefresh));
@@ -294,6 +319,18 @@ FReply SFNStartPanel::OnMouseButtonDoubleClick(const FGeometry&, const FPointerE
 
 void SFNStartPanel::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 {
+	if (T == TEXT("error") && D.IsValid())
+	{
+		FString Msg;
+		D->TryGetStringField(TEXT("message"), Msg);
+		if (Msg.StartsWith(TEXT("name_reserved:")) && Welcome.IsValid())
+		{
+			// That name belongs to an account and this connection isn't bound to it (ACCOUNTS.md §13 step 8): sign in.
+			Welcome->SetNote(TEXT("That name belongs to an account. Sign in to play as it, or pick another name."));
+			Page = EPage::Welcome;
+			bJoining = false;
+		}
+	}
 	if (T == TEXT("auth.ok"))
 	{
 		bConnected = true;
@@ -684,6 +721,113 @@ FReply SFNStartPanel::Enter(bool bTakeSeat)
 FSlateColor SFNStartPanel::LInk() const { return FN7Looks::Ink(Look); }
 FSlateColor SFNStartPanel::LDim() const { return FN7Looks::Dim(Look); }
 FSlateColor SFNStartPanel::LAccent() const { return FN7Looks::Accent(Look); }
+
+int32 SFNStartPanel::PageLook() const { return Page == EPage::Welcome && Welcome.IsValid() ? Welcome->GetLook() : Look; }
+float SFNStartPanel::PageWidth() const { return 600.f; }
+
+void SFNStartPanel::OnBooted(bool bSignedIn)
+{
+	const FN7Account::FConfig& C = FN7Account::Config();
+	Page = (!bSignedIn && !bInGame.Get() && C.bKnown && C.bGuest) ? EPage::Welcome : EPage::Lobby;
+	UE_LOG(LogTemp, Display, TEXT("FN7 login: %s"), bSignedIn ? TEXT("signed in, the lobby") : Page == EPage::Welcome ? TEXT("welcome (no session)") : TEXT("no accounts on this server, the lobby"));
+}
+
+TSharedRef<SWidget> SFNStartPanel::MakeAccountStrip()
+{
+	using namespace FN7Style;
+	auto SignedIn = [this]() { return FN7Account::IsSignedIn() ? EVisibility::Visible : EVisibility::Collapsed; };
+	auto Small = [](const FText& T, TFunction<void()> F)
+	{
+		return SNew(SButton).ButtonStyle(&PillButton()).OnClicked_Lambda([F]() { F(); return FReply::Handled(); })
+			[ SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::Text()).Text(T) ];
+	};
+	return SNew(SVerticalBox).Visibility_Lambda(SignedIn)
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(LOCTEXT("SignedAs", "SIGNED IN AS"))
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(this, &SFNStartPanel::LInk).Text_Lambda([]() { return FText::FromString(FN7Account::Me().DisplayName); })
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+			[
+				SNew(SBorder).BorderImage(Brush::PillAccent()).Padding(FMargin(Space::S, 1.f))
+				.Visibility_Lambda([]() { return FN7Account::Me().bGuest ? EVisibility::Visible : EVisibility::Collapsed; })
+				[ SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(FLinearColor(0.08f, 0.05f, 0.02f)).Text(LOCTEXT("GuestBadge", "GUEST")) ]
+			]
+			+ SHorizontalBox::Slot().FillWidth(1.f)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
+			[
+				SNew(SBox).Visibility_Lambda([this]() { return FN7Account::Me().bGuest && FN7Account::Config().bGoogle && !bLinking ? EVisibility::Visible : EVisibility::Collapsed; })
+				[
+					Small(LOCTEXT("LinkGoogle", "LINK GOOGLE"), [this]()
+					{
+						bLinking = true;
+						AccountNote = TEXT("Continue in your browser: sign in with Google there.");
+						TWeakPtr<SFNStartPanel> Weak = StaticCastSharedRef<SFNStartPanel>(AsShared());
+						FN7Account::Google(Net.Get(), true, FString(), [Weak](int32 Code, TSharedPtr<FJsonObject> O)
+						{
+							const TSharedPtr<SFNStartPanel> Self = Weak.Pin();
+							if (!Self.IsValid()) return;
+							Self->bLinking = false;
+							FString E;
+							if (O.IsValid()) O->TryGetStringField(TEXT("error"), E);
+							Self->AccountNote = Code == 200 ? FString(TEXT("Google is linked: this account is yours on any computer now."))
+								: E == TEXT("identity_in_use") ? FString(TEXT("That Google account already has its own account: log out, then sign in with Google instead."))
+								: FN7Account::ErrorText(Code, O);
+						});
+					})
+				]
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
+			[
+				SNew(SBox).Visibility_Lambda([this]() { return bLinking ? EVisibility::Visible : EVisibility::Collapsed; })
+				[ Small(LOCTEXT("CancelLink", "CANCEL"), [this]() { FN7Account::CancelGoogle(); bLinking = false; AccountNote.Reset(); }) ]
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
+			[
+				SNew(SBox).Visibility_Lambda([this]() { return bLogoutAsk || bInGame.Get() ? EVisibility::Collapsed : EVisibility::Visible; })
+				[
+					Small(LOCTEXT("LogOut", "LOG OUT"), [this]()
+					{
+						if (FN7Account::Me().bGuest) { bLogoutAsk = true; return; }   // a guest can't come back: ask first
+						FN7Account::Logout(Net.Get(), [](int32, TSharedPtr<FJsonObject>) {});
+						Page = EPage::Welcome;
+					})
+				]
+			]
+		]
+		// A guest logging out gives the account up (ACCOUNTS.md §2): say so first.
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox).Visibility_Lambda([this]() { return bLogoutAsk ? EVisibility::Visible : EVisibility::Collapsed; })
+			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNStartPanel::LAccent).AutoWrapText(true)
+				.Text_Lambda([]() { return FN7Account::Config().bGoogle
+					? LOCTEXT("GuestLogoutG", "A guest can't sign back in: logging out gives this account and its name up. LINK GOOGLE keeps it.")
+					: LOCTEXT("GuestLogout", "A guest can't sign back in: logging out gives this account and its name up."); })
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
+			[ Small(LOCTEXT("LogOutAnyway", "LOG OUT ANYWAY"), [this]() { bLogoutAsk = false; FN7Account::Logout(Net.Get(), [](int32, TSharedPtr<FJsonObject>) {}); Page = EPage::Welcome; }) ]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::XS, 0.f, 0.f, 0.f)
+			[ Small(LOCTEXT("Keep", "KEEP IT"), [this]() { bLogoutAsk = false; }) ]
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
+		[
+			SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNStartPanel::LDim).AutoWrapText(true)
+			.Text_Lambda([this]()
+			{
+				if (!AccountNote.IsEmpty()) return FText::FromString(AccountNote);
+				if (FN7Account::Me().bGuest) return FN7Account::Config().bGoogle ? LOCTEXT("GuestNoteG", "Link Google to keep this account.") : LOCTEXT("GuestNote", "This computer keeps you signed in.");
+				return FText::GetEmpty();
+			})
+		];
+}
 
 TSharedRef<SWidget> SFNStartPanel::MakeChoices()
 {
