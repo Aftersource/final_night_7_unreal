@@ -1,4 +1,5 @@
 #include "SFNHudLayout.h"
+#include "Widgets/SToolTip.h"
 
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Containers/Ticker.h"
@@ -33,6 +34,22 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SFNHudLayout"
+
+
+/** The kit's tooltip (tooltips looked poor): a stone tablet with readable type instead of the engine's grey box. */
+static TSharedRef<SToolTip> FN7StoneTip(const FText& Text)
+{
+	return SNew(SToolTip)
+		.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
+		.TextMargin(FMargin(0.f))
+		[
+			SNew(SBorder).BorderImage(FN7Wood::StoneBrush()).Padding(FMargin(12.f, 8.f))
+			[
+				SNew(STextBlock).Font(FN7Style::Type::Font(13, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.95f, 0.92f, 0.85f))
+				.WrapTextAt(320.f).Text(Text)
+			]
+		];
+}
 
 namespace FN7HudParts
 {
@@ -345,7 +362,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 		return SNew(SButton)
 			.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
 			.ContentPadding(FMargin(Space::S, 2.f))
-			.ToolTipText(Tip)
+			.ToolTip(Tip.IsEmpty() ? TSharedPtr<SToolTip>() : TSharedPtr<SToolTip>(FN7StoneTip(Tip)))
 			.OnClicked_Lambda([OnClick]() { OnClick(); return FReply::Handled(); })
 			[
 				SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(12, TEXT("Bold"))).ColorAndOpacity(Red).Text(Label)
@@ -385,7 +402,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeNews()
 	TSharedRef<SWidget> Title = SNew(SButton)
 		.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
 		.ContentPadding(FMargin(0.f))
-		.ToolTipText(LOCTEXT("NewsTip", "Fold or unfold the news"))
+		// (no tooltip: folding the news says itself)
 		.OnClicked_Lambda([this]()
 		{
 			bNewsCollapsed = !bNewsCollapsed;
@@ -559,7 +576,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 					.Ref(D.bAlive ? D.Ref : FString())
 					.OnCardDrag(OnCardDrag)
 					.OnCardDouble(OnCardDoubleClick)
-					.ToolTipText(D.bAlive ? LOCTEXT("DragToSummon", "Drag onto the board or the globe to summon this demigod there") : LOCTEXT("HandFallenTip", "This demigod has fallen"))
+					.ToolTip(FN7StoneTip(D.bAlive ? LOCTEXT("DragToSummon", "Drag onto the board or the globe to summon this demigod there") : LOCTEXT("HandFallenTip", "This demigod has fallen")))
 					[
 						SNew(SBorder).BorderImage(AuraFrame()).Padding(3.f)[CardW_]
 					]
@@ -908,7 +925,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 				.ContentPadding(FMargin(0.f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.ToolTipText(LOCTEXT("WillTip", "Write your will (Enter)"))
+				// (no tooltip: the bar reads "YOUR WILL - click to write")
 				.Visibility_Lambda([this]() { return (!bWillOpen && !Model.bViewer) ? EVisibility::Visible : EVisibility::Collapsed; })
 				.OnClicked_Lambda([this]() { OpenWill(); return FReply::Handled(); })
 				[

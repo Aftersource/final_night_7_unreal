@@ -1,4 +1,5 @@
 #include "FNPowerRing.h"
+#include "FNWood.h"
 #include "FN7KitHitTest.h"
 
 #include "Camera/PlayerCameraManager.h"
@@ -857,8 +858,8 @@ int32 SFNPowerRingInput::OnPaint(const FPaintArgs&, const FGeometry& G, const FS
 	const FText How = bHoverPouch ? (R->IsOpen() ? LOCTEXT("PouchClose", "click to gather them back in") : LOCTEXT("PouchOpen", "click to pour them out"))
 		: R->IsEnabled() ? LOCTEXT("How", "over the globe: MEGA, 1 bolt   on the board: MINI, 1 spark")
 		: LOCTEXT("HowNone", "no bolts or sparks left");
-	const FSlateFontInfo NameFont = FN7Style::Type::Font(14, TEXT("Bold"));
-	const FSlateFontInfo HowFont = FN7Style::Type::Font(10);
+	const FSlateFontInfo NameFont = FN7Style::Type::Font(15, TEXT("Bold"));
+	const FSlateFontInfo HowFont = FN7Style::Type::Font(12);
 	const TSharedRef<FSlateFontMeasure> Measure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	const FVector2D N = Measure->Measure(Name, NameFont), H = Measure->Measure(How, HowFont);
 	const FVector2D Pad(12.f, 8.f);
@@ -866,9 +867,10 @@ int32 SFNPowerRingInput::OnPaint(const FPaintArgs&, const FGeometry& G, const FS
 	FVector2D TopLeft = Local + FVector2D(-Box.X - 34.f, -Box.Y * 0.5f);
 	TopLeft.X = FMath::Max(8.0, TopLeft.X);
 	TopLeft.Y = FMath::Clamp(TopLeft.Y, 8.0, G.GetLocalSize().Y - Box.Y - 8.0);
-	FSlateDrawElement::MakeBox(Out, Layer, G.ToPaintGeometry(FVector2f(Box), FSlateLayoutTransform(FVector2f(TopLeft))), FN7Style::Brush::Panel());
-	FSlateDrawElement::MakeText(Out, Layer + 1, G.ToPaintGeometry(FVector2f(N), FSlateLayoutTransform(FVector2f(TopLeft + Pad))), Name, NameFont, ESlateDrawEffect::None, FN7Style::Color::Text());
-	FSlateDrawElement::MakeText(Out, Layer + 1, G.ToPaintGeometry(FVector2f(H), FSlateLayoutTransform(FVector2f(TopLeft + Pad + FVector2D(0.f, N.Y + 2.f)))), How, HowFont, ESlateDrawEffect::None, FN7Style::Color::TextDim());
+	// The same stone tablet as the kit's tooltips, beside the hex (never on it).
+	FSlateDrawElement::MakeBox(Out, Layer, G.ToPaintGeometry(FVector2f(Box), FSlateLayoutTransform(FVector2f(TopLeft))), FN7Wood::StoneBrush());
+	FSlateDrawElement::MakeText(Out, Layer + 1, G.ToPaintGeometry(FVector2f(N), FSlateLayoutTransform(FVector2f(TopLeft + Pad))), Name, NameFont, ESlateDrawEffect::None, FLinearColor(1.f, 0.86f, 0.52f));
+	FSlateDrawElement::MakeText(Out, Layer + 1, G.ToPaintGeometry(FVector2f(H), FSlateLayoutTransform(FVector2f(TopLeft + Pad + FVector2D(0.f, N.Y + 2.f)))), How, HowFont, ESlateDrawEffect::None, FLinearColor(0.93f, 0.9f, 0.84f));
 	return Layer + 1;
 }
 

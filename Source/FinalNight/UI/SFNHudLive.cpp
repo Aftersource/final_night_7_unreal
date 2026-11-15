@@ -154,6 +154,8 @@ public:
 
 void SFNHudLive::Construct(const FArguments& InArgs)
 {
+	// Tooltips wait a moment before they appear (Chris: hovers that pop at once got in the way).
+	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.TooltipSummonDelay"))) V->Set(0.45f, ECVF_SetByCode);
 	Net = InArgs._Net;
 	Model.YouName = FText::GetEmpty();
 	Model.ComposeHint = LOCTEXT("Hint", "Write what you'll do. Time slows while you write; SEND to act. Lines starting r: go to your right hand.");
