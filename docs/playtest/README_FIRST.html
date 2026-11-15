@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Final Night 7</title>
-<meta name="description" content="Playtest welcome package for Final Night 7: setup, controls, what to try and what to tell us.">
+<meta name="description" content="Playtest welcome for Final Night 7: setup, the screen, the controls, the will, duels and what to tell us.">
 <style>
 :root {
   --sky: #05060c;
@@ -241,16 +241,18 @@ footer .fine { font-size: 13.5px; max-width: 680px; margin: 0 auto; }
   <div class="sigil" aria-hidden="true"></div>
   <div class="kicker">Playtest welcome &middot; Epic AI MegaJam 2026</div>
   <h1>FINAL NIGHT 7</h1>
-  <p class="sub">You are a <em>god</em> at a table of gods. Two demigods fight for you across the <em>real Earth</em>.
-  You don't press buttons to move them: you <em>write their will</em>, in plain words, and time itself slows while you write.
-  Call down volcanoes. Curse a rival's grave. Duel face to face in typed blows.
+  <p class="sub">You are a <em>god</em> at a table of gods. A globe of the <em>real Earth</em> floats over the table, and below it a hex board shows the part of the world you're looking at.
+  Two demigods fight for you down there. You don't press buttons to move them: you <em>write their will</em>, in plain words, and time itself slows while you write.
+  Call down volcanoes. Raise armies. Duel face to face in typed blows.
   When the Final Night falls, exactly one god is left.</p>
   <div class="badges">
-    <span class="badge">Up to 4 gods at the table</span>
-    <span class="badge">AI gods fill every empty seat</span>
-    <span class="badge">Join any time, even mid-match</span>
-    <span class="badge">One always-on game: FINAL7</span>
+    <span class="badge">Two demigods each</span>
+    <span class="badge">Last god standing wins</span>
+    <span class="badge">About 7 minutes a match</span>
+    <span class="badge">The world never waits</span>
+    <span class="badge">AI gods fill empty seats</span>
   </div>
+  <p class="dim" style="margin-top:20px;font-size:15px">Testing for us? See <code>PLAYTEST_CHECKLIST.md</code> and <code>KNOWN_ISSUES.md</code> next to this file.</p>
 </header>
 
 <section class="panel parch" id="setup">
@@ -259,173 +261,183 @@ footer .fine { font-size: 13.5px; max-width: 680px; margin: 0 auto; }
     <div class="step">
       <div class="n">1</div>
       <h3>Unzip</h3>
-      <p>Unzip the build Benito sent you (about 338 MB) anywhere you like, for example your Desktop. Inside you'll find
+      <p>Unzip the Windows build you were sent anywhere you like, for example your Desktop. Inside you'll find
       <code>FinalNight.exe</code>, an <code>Engine</code> folder and a <code>FinalNight</code> folder.</p>
     </div>
     <div class="step">
       <div class="n">2</div>
       <h3>Drop in your key</h3>
-      <p>Benito sends you an access key privately. It's <b>not</b> in the zip. Make a plain text file with that key on one line, here:</p>
+      <p>You'll be sent an access key privately. It's <b>not</b> in the zip. Make a plain text file with that key on one line, here:</p>
       <span class="path">FinalNight\<wbr>Config\<wbr>FN7Key.txt</span>
-      <p class="dim">That's the <code>FinalNight</code> folder next to <code>FinalNight.exe</code>. If there's no <code>Config</code> folder in it, create one. The file holds one line: <code>&lt;the key Benito sends you&gt;</code></p>
+      <p class="dim">That's the <code>FinalNight</code> folder next to <code>FinalNight.exe</code>. If there's no <code>Config</code> folder in it, create one. The file holds one line: <code>&lt;the access key you were sent&gt;</code></p>
     </div>
     <div class="step">
       <div class="n">3</div>
       <h3>Launch</h3>
-      <p>Double-click <code>FinalNight.exe</code>. The server address is already built into the game, so there's nothing to type in. Click the velvet bag on the table and you're in.</p>
+      <p>Double-click <code>FinalNight.exe</code>. The server address is already built into the game, so there's nothing to type in.</p>
     </div>
   </div>
   <div class="warn"><b>Notepad trap:</b> Windows hides file extensions, so Notepad can quietly save <code>FN7Key.txt.txt</code>. Turn on <i>View &rarr; File name extensions</i> in Explorer and check.
-  <br><b>Prefer an environment variable?</b> Instead of the file, run <code>setx FN7_KEY "&lt;the key Benito sends you&gt;"</code> in a Command Prompt, then launch the game. The game reads the file first, then the variable.
+  <br><b>Prefer an environment variable?</b> Instead of the file, run <code>setx FN7_KEY "&lt;the access key you were sent&gt;"</code> in a Command Prompt, then launch the game. The game reads the file first, then the variable.
   <br><b>Keep the key to yourself.</b> Don't post it or pass it on.</div>
 </section>
 
 <section class="panel" id="first-minute">
   <h2><span class="num">II.</span>Your first minute</h2>
   <ul class="timeline">
-    <li><b>A dark table under a floating globe.</b> The lobby shows the server's status and the house game <code>FINAL7</code>. Type the name the other gods will see.</li>
-    <li><b>A crimson velvet bag sits on the table.</b> Click it, or press JOIN THE GAME. The bag pours out your powers: carved wooden hexes in an arc along the table's right side.</li>
-    <li><b>A stone tablet: HOW TO PLAY.</b> It appears once, the first time you join. The <kbd>?</kbd> button at the top brings it back any time.</li>
-    <li><b>Your seat.</b> If a match is already running, you take over one of the AI gods' seats, demigods and all, from that beat on. If a new match is starting, beat 1 is the <b>Final Wish</b>: your first orders can be anything, with extra power behind them. Think big.</li>
-    <li><b>The world moves without you.</b> Beats roll on whether you type or not. AI gods are already scheming. Better start writing.</li>
+    <li><b>Welcome.</b> Pick the name the other gods will know you by (1 to 24 characters), then press <kbd>PLAY AS GUEST</kbd>. No email, no password: this computer keeps you signed in. If <i>SIGN IN WITH GOOGLE</i> is offered, that works too.</li>
+    <li><b>The lobby.</b> A narrator welcomes you. The lobby shows whether the server is online and <b>the house game</b>: the always-on game anyone can drop into, with who's at the table and when the next match starts.</li>
+    <li><b>Pick your way in.</b>
+      <table class="controls" style="margin-top:8px">
+        <tr><td>JOIN THE GAME</td><td>Take a seat in the house game. <i>WATCH</i> just watches it.</td></tr>
+        <tr><td>PLAY VS BOTS</td><td>Your own match against AI gods.</td></tr>
+        <tr><td>HOST A ROOM</td><td>You get a <b>ROOM</b> code to give your friends; press <i>START</i> when everyone is in. <i>CANCEL</i> closes your room and takes you back to the house game (so does <i>BACK TO THE GAME</i>).</td></tr>
+        <tr><td>JOIN BY CODE</td><td>Type a friend's room code and press <i>JOIN</i>.</td></tr>
+      </table>
+      <span class="dim">SETTINGS, DEMIGODS and YOUR GOD in the lobby let you set volumes and options, write your two demigods' personalities, and shape the stone statue of your god at the table.</span></li>
+    <li><b>A stone tablet: HOW TO PLAY.</b> It appears the first time you join. <i>GOT IT</i> closes it; the <kbd>?</kbd> button at the top brings it back.</li>
+    <li><b>Your seat.</b> If a match is already running, you take over a demigod from the next beat on. If a new match is starting, beat 1 is the <b>Final Wish</b>: your first orders get extra power behind them. Think big.</li>
+    <li><b>The world moves without you.</b> Beats roll on whether you type or not. The AI gods are already scheming. Better start writing.</li>
   </ul>
 </section>
 
-<section class="panel" id="how">
-  <h2><span class="num">III.</span>How to play</h2>
-  <p>You have two demigods, your <b>Left Hand</b> and your <b>Right Hand</b>. Each has 10 health and its own place on the planet.
-  You're out only when <b>both</b> fall. Last god standing wins. A match is up to 60 beats, and it can end early: when Entropy hits heat death,
-  the Final Night falls at once.</p>
-
-  <div class="loop">
-    <div><b>WRITE</b>Type your will in the WILL scroll at the bottom right. Plain words. Time slows for everyone while you write.</div>
-    <div><b>CAST</b>Drag a power hex onto the table board for a MINI (1 spark), or onto the globe for a MEGA (1 bolt).</div>
-    <div><b>MOVE</b>Drag one of your demigods anywhere on the board or the globe to summon it there. Risky.</div>
-    <div><b>FIGHT</b>Double-click a rival's piece to challenge it to a typed duel. Your words decide the blow.</div>
-  </div>
-
-  <h3 style="margin-top:24px">Controls</h3>
+<section class="panel" id="screen">
+  <h2><span class="num">III.</span>The screen</h2>
   <table class="controls">
-    <tr><td>Type, then <kbd>Enter</kbd></td><td>Send your will. <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line.</td></tr>
-    <tr><td>Start a line with <code>r:</code></td><td>That line goes to your <b>Right Hand</b>. Plain lines (or <code>l:</code>) go to your Left Hand.</td></tr>
-    <tr><td>Drag on the globe</td><td>Turn the world.</td></tr>
-    <tr><td>Mouse wheel</td><td>Zoom one level per scroll, centred on the nearest demigod.</td></tr>
-    <tr><td>Double-click empty map</td><td>Zoom in one level.</td></tr>
-    <tr><td>Right-click</td><td>Zoom out one level (not when you're right on a demigod).</td></tr>
-    <tr><td>Double-click a demigod</td><td>Centre the globe and the table on it.</td></tr>
-    <tr><td>Double-click a <b>rival</b></td><td>Challenge it. A confirm box tells you if your demigod must teleport first and what that costs.</td></tr>
-    <tr><td>Click the bag</td><td>Pour out your power hexes or put them away. It shows your bolts.</td></tr>
-    <tr><td><kbd>R</kbd> or <kbd>Home</kbd> or RESET VIEW</td><td>Back to you: the board, the camera and the panels where they were.</td></tr>
-    <tr><td><kbd>Esc</kbd> or LOBBY</td><td>Open or close the lobby.</td></tr>
+    <tr><td>Top: the header</td><td><kbd>LOBBY</kbd> back to the lobby (<kbd>Esc</kbd> too) &middot; <kbd>RESET VIEW</kbd> the board, camera and panels back where they were (<kbd>R</kbd> or <kbd>Home</kbd>) &middot; <kbd>?</kbd> how to play &middot; <kbd>TREE</kbd> the Tree of Consequence. Also the ROOM, the BEAT (e.g. 12/60), how many are ALIVE, and the ENTROPY meter.</td></tr>
+    <tr><td>Bottom left: your two demigod cards</td><td>A portrait card for each demigod (L and R) with its health. Each has an <kbd>ITEMS</kbd> button: click to see what it carries, click again or <kbd>Esc</kbd> to close. Your purse sits here too: BOLTS, SPARKS and DEBT (what you owe Time for slowing it).</td></tr>
+    <tr><td>Bottom right: the WILL scroll</td><td>"YOUR WILL &ndash; click to write". This is where you type. While it's open you get four carved icon hot buttons (section V).</td></tr>
+    <tr><td>Right side: the power hexes and the pouch</td><td>Carved wooden hexes in an arc on the table: your powers. The crimson velvet pouch beside them pours them out or puts them away (it opens by itself when you join).</td></tr>
+    <tr><td>The WORLD log</td><td>What's happening, in plain sentences. The <b>+</b> and <b>&minus;</b> on it fold it open or shut.</td></tr>
+    <tr><td>Chat</td><td>A small speech-bubble icon, with a badge when there's something new. Click it to open the chat. <kbd>Enter</kbd> sends, <kbd>Esc</kbd> leaves.</td></tr>
   </table>
-
-  <h3>Bolts and sparks</h3>
-  <p>Your purse starts at 1 bolt and 5 sparks. A <b>MINI</b> costs a spark and hits a few hexes. A <b>MEGA</b> costs a bolt and hits on map scale, and every other god gets a bolt from it, so each mega arms your rivals.
-  The seven gods are Time, Nature, Consequence, Death, Chance, Memory and <b>Entropy</b>. Entropy says yes to everything, and every cast pushes its meter up: freak weather, then broken physics, then riots, then wounds to the gods themselves.
-  At 100 comes <b>heat death</b> and the Final Night falls at once. Too many megas end the world.</p>
 </section>
 
-<section class="panel" id="try">
-  <h2><span class="num">IV.</span>The five things to try</h2>
-  <div class="trials">
-
-    <div class="trial">
-      <div class="rune" aria-hidden="true">&#9876;</div>
-      <div>
-        <h3>1. Challenge a rival to a typed duel</h3>
-        <p>Double-click a rival's piece. If it's out of reach, your demigod teleports beside it first and loses about 1 to 2 health on the way. Then a carved wooden box rises on the table and opens. Inside, on a hex stage built from the place where you're fighting, two figure-drawing mannequins act out every blow.</p>
-        <p>You have <b>30 seconds</b>. Type a move and hit <kbd>Enter</kbd> to strike. Every line is a blow, judged at once by the rules and a d20. Lines with an action verb, a body part, an item you hold or the ground you're on hit harder, so <span class="say">I vault the crate and drive my knee into their ribs</span> beats <span class="say">hit</span>. Repeating yourself and spamming both cost you.</p>
-        <p>Both lines show up masked as you type: each letter flashes for an instant, then hides: <span class="mask">*****p</span>. Read fast and you'll know their move. The <span class="box-blue">blue box</span> is your duel. A <span class="box-red">red box</span> means you're watching someone else's.</p>
-      </div>
-    </div>
-
-    <div class="trial">
-      <div class="rune" aria-hidden="true">&#9650;</div>
-      <div>
-        <h3>2. Cast a mega on a fault line</h3>
-        <p>Pick up a power hex and drag it over the globe. While a mega is in your hand, the planet's real tectonic plate boundaries glow into view. A mega's strength follows its distance to the nearest fault: within about 200 km of a plate boundary it hits about two and a half times as hard, and more than 1,000 km from any fault it's a quarter-strength fizzle. Find the lines. Drop it on them.</p>
-      </div>
-    </div>
-
-    <div class="trial">
-      <div class="rune" aria-hidden="true">&#10711;</div>
-      <div>
-        <h3>3. Slow time by typing a will</h3>
-        <p>Start typing in the WILL scroll and time slows for <b>every</b> player, for up to 30 seconds, and everyone is told who did it. Your <kbd>Enter</kbd> closes the window and cuts off anyone who typed slower. Time takes a toll for it.</p>
-        <p>Try: <span class="say">raise an army in Lagos and march on the nearest rival</span><br>
-        <span class="say">r: arm my demigods with holy spears</span><br>
-        <span class="say">heal my demigods</span></p>
-      </div>
-    </div>
-
-    <div class="trial">
-      <div class="rune" aria-hidden="true">&#10022;</div>
-      <div>
-        <h3>4. Summon your demigod across the world</h3>
-        <p>Grab one of your own demigods and drag it anywhere: onto the board, or onto the other side of the globe. It flashes, whooshes and lands that beat. Summoning often goes wrong (expect to lose 1 to 2 health), but it never drops you below 2.5. Teleport next to a rival, then double-click it and challenge at once.</p>
-      </div>
-    </div>
-
-    <div class="trial">
-      <div class="rune" aria-hidden="true">&#9760;</div>
-      <div>
-        <h3>5. Resurrect, curse and chase quests</h3>
-        <p><b>Resurrect.</b> Fallen? Plead to Death in your WILL: <span class="say">my demigods come back to life</span>. Even a god with both demigods down can plead. Death keeps a price list in sparks and years of life, and when you can't pay, it sets you an errand.</p>
-        <p><b>Curse.</b> <span class="say">curse &lt;rival&gt;'s Right Hand with withering</span> (no healing reaches it), or seal a grave with <span class="say">no resurrection for &lt;rival&gt;</span>. Also: bind, silence, hex. A curse costs sparks, and it's rolled: on a natural 1 it turns on you.</p>
-        <p><b>Quests.</b> Every curse comes with a way to break it: a mystic quest along the lines of "the wings of a butterfly that crossed a strait, burned at dawn on the shrine of the one who cursed you". Ask <span class="say">what does my quest need?</span> and go do it.</p>
-      </div>
-    </div>
-
-  </div>
+<section class="panel" id="controls">
+  <h2><span class="num">IV.</span>Controls</h2>
+  <h3>The view</h3>
+  <table class="controls">
+    <tr><td>Drag the globe</td><td>Spin the world.</td></tr>
+    <tr><td>Click the globe</td><td>Dive to that region.</td></tr>
+    <tr><td>Drag the board</td><td>Pan. The land under your pointer stays under your pointer.</td></tr>
+    <tr><td>Mouse wheel (or <kbd>+</kbd> <kbd>&minus;</kbd>)</td><td>Zoom one level. Over a demigod, it zooms onto it.</td></tr>
+    <tr><td>Double-click empty board</td><td>Zoom in one level.</td></tr>
+    <tr><td>Right-click</td><td>Zoom out one level.</td></tr>
+    <tr><td><kbd>R</kbd>, <kbd>Home</kbd> or RESET VIEW</td><td>Back to the start view.</td></tr>
+  </table>
+  <h3>Your demigods and rivals</h3>
+  <table class="controls">
+    <tr><td>Click a demigod</td><td>Select it.</td></tr>
+    <tr><td>Double-click <b>your</b> demigod (piece or card)</td><td>Centre the view on it at the same zoom, with a gold ring under it.</td></tr>
+    <tr><td>Double-click a <b>rival</b></td><td>In reach: the <b>CHALLENGE</b> card with your odds (section VI). Far away: centre the view on it.</td></tr>
+    <tr><td>Drag your demigod (piece or card) onto the board or the globe</td><td><b>Summon</b> it there. It flashes and lands that beat, but summoning is risky: expect to lose 1 to 2 health (it never drops you below 2.5).</td></tr>
+  </table>
+  <h3>Powers</h3>
+  <table class="controls">
+    <tr><td>Drag a power onto the <b>globe</b></td><td>A <b>MEGA</b>: costs a bolt, hits on map scale, and every other god gains a bolt. Each mega arms your rivals.</td></tr>
+    <tr><td>Drag a power onto the <b>board</b></td><td>A <b>MINI</b>: costs a spark, hits a small spot.</td></tr>
+    <tr><td>Drop on your own demigod</td><td>The game warns you ("Careful: that's YOUR OWN&hellip;") and keeps the power in your hand. Drop it there again to strike anyway.</td></tr>
+  </table>
+  <h3>Keys</h3>
+  <table class="controls">
+    <tr><td><kbd>Enter</kbd></td><td>Open the WILL / send it. (<kbd>Shift</kbd>+<kbd>Enter</kbd> is a new line.)</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Roll the WILL up (your text stays), close a card, the TREE or the chat, or open and close the lobby.</td></tr>
+  </table>
 </section>
 
-<section class="panel parch" id="feedback">
-  <h2><span class="num">V.</span>What we want to hear from you</h2>
-  <p>Tell Benito everything, in your own words. Blunt is good. "That felt bad" helps us more than polite silence.</p>
-  <div class="two">
-    <ul>
-      <li><b>The first five minutes.</b> Did you get in? Did you know what to do? Where did you get stuck?</li>
-      <li><b>The duel.</b> Did the box, the stage and the mannequins feel like a fight? Too dark, too busy, too slow? What should a hit feel like?</li>
-      <li><b>Your words.</b> Did the world do what you wrote? When it didn't, did the twist make sense or feel unfair?</li>
-    </ul>
-    <ul>
-      <li><b>Balance.</b> Megas, minis, summoning risk, curse prices, duel length: what felt wrong?</li>
-      <li><b>Controls.</b> Zooming, turning the globe, dragging powers. Anything fighting you?</li>
-      <li><b>The best and worst moment.</b> One of each, please.</li>
-      <li><b>Bugs.</b> What you did, what happened, and the log file (see below).</li>
-    </ul>
+<section class="panel" id="will">
+  <h2><span class="num">V.</span>The will</h2>
+  <p>Type what your demigods do, in plain words, then press <kbd>Enter</kbd> (or SEND). Start a line with <code>r:</code> for your Right Hand, <code>l:</code> for your Left.</p>
+  <p><b>Slowing time.</b> The moment you start typing, time slows for <b>every</b> player, for up to 30 seconds, and everyone is told who did it.
+  Your <kbd>Enter</kbd> sends your will and cuts off anyone still typing. Time takes a toll for it: a bolt, plus a little debt.</p>
+  <p>Name who, where and with what. Say how big. Try:<br>
+    <span class="say">raise an army of 10,000 fishermen at the harbour of Lagos</span><br>
+    <span class="say">arm yourself with an obsidian blade and hunt the nearest rival</span><br>
+    <span class="say">Nature, heal my Right Hand</span><br>
+    <span class="say">r: march north and topple their shrine</span></p>
+  <h3>The four hot buttons</h3>
+  <div class="loop">
+    <div><b>&#9765; Ankh</b>Bring back a fallen demigod. Only shows when one has fallen.</div>
+    <div><b>&#127993; Bow</b>Arm and hunt a rival.</div>
+    <div><b>&#127858; Meal</b>Heal your most hurt demigod.</div>
+    <div><b>&#9876; Armies</b>Raise an army.</div>
   </div>
+  <p style="margin-top:14px">Hover one to read its line. A press fills the WILL with that line and sends it after a <b>5-second countdown</b> ("goes in 5 &middot; type to make it yours").
+  Edit the line and it won't go by itself: it's your will then. Press another button to swap the line and restart the count.</p>
+  <h3>Powers, Entropy and fault lines</h3>
+  <p>Powers are separate: typing never casts a power, and a power never carries orders. You start with 1 bolt and 5 sparks.
+  The seven gods are Time, Nature, Consequence, Death, Chance, Memory and <b>Entropy</b>. Every cast pushes the Entropy meter up, and at 100 comes <b>heat death</b>: the Final Night falls at once. Too many megas end the world.</p>
+  <p>While a mega is in your hand, the planet's real tectonic plate boundaries glow. Megas hit far harder on a fault line, and hardest of all where plates meet; far from any fault they fizzle. Find the lines.</p>
+</section>
+
+<section class="panel" id="duels">
+  <h2><span class="num">VI.</span>Duels</h2>
+  <p>Double-click a rival in reach. The <b>CHALLENGE</b> card shows who fights whom and your chance to win.
+  <kbd>Enter</kbd> or <kbd>DUEL</kbd> to fight, <kbd>Esc</kbd> or <i>Not now</i> to back off.
+  If the rival is on your board but not in reach, the button reads <b>TELEPORT + DUEL</b>: your demigod jumps beside it first, which can cost 1 to 2 health.</p>
+  <p>The narrator calls <i>"CLASH! Will against will."</i> You have <b>30 seconds</b>. <b>Each Enter is a blow</b>: type your move and press Enter to strike.
+  Every line is judged at once by the rules and a d20. Lines with an action verb, a body part, an item you hold or the ground you're on hit harder, so
+  <span class="say">I vault the rock and drive my knee into their ribs</span> beats <span class="say">hit</span>. Repeats, very short lines and gibberish cost you, and so does spamming Enter.</p>
+  <p><b>Only what's real.</b> You can use only what your demigod holds or what's there on the board (a tree, a rock, the mud). Name a pistol you don't have and the blow whiffs: "you have no pistol".</p>
+  <p>Your rival's line shows up masked as they type, with only the newest letters showing: <span class="mask">*****p</span>. Read fast and you'll know their move.</p>
+</section>
+
+<section class="panel" id="falling">
+  <h2><span class="num">VII.</span>Falling, and coming back</h2>
+  <p>Each demigod has 10 health. You're out only when <b>both</b> fall.</p>
+  <p>Fallen? Plead to Death in your WILL: <span class="say">Death, bring back my demigods</span>, or press the <b>ankh</b> hot button, or <kbd>PLEAD TO DEATH</kbd> on the card that tells you they fell.
+  Even a god with both demigods down can plead. Death names a price in sparks; when you can't pay, it sets you a quest. You can also WATCH, or RETURN TO LOBBY.</p>
+  <p class="dim">Curses, seals and mystic quests are in the game too: ask the WILL <span class="say">what does my quest need?</span> and go do it.</p>
+</section>
+
+<section class="panel" id="tree">
+  <h2><span class="num">VIII.</span>The Tree of Consequence</h2>
+  <p>The game remembers everything, by place and time, from the whole planet down to a single 3-metre hex. Press <kbd>TREE</kbd> in the header to see it as a star map:
+  bigger nodes remember more, brighter ones are more recent. Click a node to see what it holds and how one fact travels up into what the Dungeon Master knows. <i>CLOSE</i> or <kbd>Esc</kbd> to leave.</p>
+</section>
+
+<section class="panel" id="audio">
+  <h2><span class="num">IX.</span>Audio</h2>
+  <p>A narrator speaks at the big moments: the welcome, the start of a match, your duel's clash and its end, victory and defeat. Any key skips a line.
+  The crackling in the background sound is fixed. Volumes (Master, Music, Sound effects, Voices) are under SETTINGS in the lobby.</p>
 </section>
 
 <section class="panel" id="trouble">
-  <h2><span class="num">VI.</span>Troubleshooting</h2>
-  <div class="cant">
-    <div class="t">CAN'T REACH THE GAME</div>
-    <div class="b">If this stone card sits over the table, the game can't get to the server yet. It retries every few seconds by itself.</div>
-  </div>
+  <h2><span class="num">X.</span>Tell us, and troubleshooting</h2>
   <div class="two">
     <div class="card">
-      <h3>"...has no access key"</h3>
-      <p>The key didn't load, or it's wrong. Check:</p>
+      <h3>What we want to hear</h3>
+      <p>Everything, in your own words. Blunt is good. "That felt bad" helps us more than polite silence. <code>PLAYTEST_CHECKLIST.md</code> has short checks and a bug template.</p>
       <ul>
-        <li>The file is exactly <code>FinalNight\Config\FN7Key.txt</code>, inside the <code>FinalNight</code> folder next to the exe.</li>
-        <li>It isn't secretly <code>FN7Key.txt.txt</code>.</li>
-        <li>It holds just the key, copied exactly (no quotes needed).</li>
-        <li>Restart the game after fixing it. Still no luck? Ask Benito for the key again.</li>
+        <li><b>The first five minutes.</b> Did you get in? Did you know what to do?</li>
+        <li><b>Your words.</b> Did the world do what you wrote? Did the twists feel fair?</li>
+        <li><b>The duel.</b> Did it feel like a fight? What should a hit feel like?</li>
+        <li><b>Controls.</b> Spinning, panning, zooming, dragging. Anything fighting you?</li>
+        <li><b>Balance.</b> Megas, minis, summoning risk, duel length.</li>
+        <li><b>The best and worst moment.</b> One of each, please.</li>
       </ul>
     </div>
     <div class="card">
+      <div class="cant"><div class="t">CAN'T REACH THE GAME</div><div class="b">The game can't get to the server yet. It retries every few seconds by itself.</div></div>
+      <h3>"&hellip;this copy of the game has no access key"</h3>
+      <ul>
+        <li>The file is exactly <code>FinalNight\Config\FN7Key.txt</code>, next to the exe.</li>
+        <li>It isn't secretly <code>FN7Key.txt.txt</code>.</li>
+        <li>It holds just the key, copied exactly. Restart the game after fixing it; still stuck, ask for the key again.</li>
+      </ul>
       <h3>"Check your internet"</h3>
       <ul>
-        <li>The game connects out over a normal secure web connection (port 443). If Windows Firewall or your antivirus asks, allow <code>FinalNight</code>.</li>
-        <li>A work, school or VPN network might block it. Try another network.</li>
-        <li>The server restarts itself between matches. Give it a minute.</li>
+        <li>The game connects over a normal secure web connection (port 443). If the firewall or antivirus asks, allow <code>FinalNight</code>.</li>
+        <li>A work, school or VPN network might block it. Try another.</li>
+        <li>The server restarts itself now and then. Give it a minute.</li>
       </ul>
-      <h3 style="margin-top:12px">"Windows protected your PC"</h3>
+      <h3>"Windows protected your PC"</h3>
       <p>It's a jam build, so it isn't code-signed. Click <i>More info</i>, then <i>Run anyway</i>.</p>
+      <h3>Slow or choppy?</h3>
+      <p>Performance depends on your PC. Close other heavy programs and tell us your graphics card.</p>
     </div>
   </div>
-  <p class="dim" style="margin-top:16px">Found a bug? Send Benito the log: <code>FinalNight\Saved\Logs\FinalNight.log</code> in the game folder.</p>
+  <p class="dim" style="margin-top:16px">Found a bug? Send us the log: <code>FinalNight\Saved\Logs\FinalNight.log</code> in the game folder.</p>
 </section>
 
 <footer>
@@ -433,7 +445,7 @@ footer .fine { font-size: 13.5px; max-width: 680px; margin: 0 auto; }
   <div style="margin-top:36px">Made for the Epic AI MegaJam 2026 by</div>
   <div class="names">Chris &amp; Benito</div>
   <p class="fine">Plate boundaries: Bird, P. (2002), PB2002; GeoJSON by Hugo Ahlenius, Nordpil (ODC-BY 1.0).<br>
-  3D figures made with Meshy. Images in the game are generated.<br>
+  3D figures made with Meshy. Images in the game are generated. Voices are designed voices, no real person's voice.<br>
   Built in Unreal Engine.</p>
 </footer>
 
