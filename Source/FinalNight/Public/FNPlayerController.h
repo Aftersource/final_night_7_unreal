@@ -27,5 +27,11 @@ private:
 	TSharedPtr<class SWidget> RootContainer;
 	FRotator BaseRot;
 	FRotator Lean = FRotator::ZeroRotator;
+	// Zoom gestures (Chris's rule, 2026-11-14 20:10): double-click on empty map = one level in at the cursor, right-click
+	// = one level out, a single click never moves the view, and nothing fires within a demigod's extended click box.
+	double LastLeftClickAt = -1.0;
+	FVector2D LastLeftClickPos = FVector2D::ZeroVector;
+	/** The demigod whose extended click box (the kit's ~160 px reach) is under the cursor, else empty. */
+	FString DemigodUnderCursor() const;
 	FRotator LeanVel = FRotator::ZeroRotator;   // the head turn's velocity (a critically damped follow, see PlayerTick)
 };
