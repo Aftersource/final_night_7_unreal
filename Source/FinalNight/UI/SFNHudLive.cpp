@@ -1300,6 +1300,7 @@ void SFNHudLive::ReadDemigods(const TSharedPtr<FJsonObject>& PV)
 			if (!S.PortraitHash.IsEmpty() && !S.PortraitUrl.IsEmpty()) RequestPortrait(S.PortraitHash, S.PortraitUrl);
 		}
 		S.Side = FN7HudJson::Str(G, TEXT("side"));
+		S.Skin = FN7HudJson::Str(G, TEXT("skin"));
 		S.Player = FN7HudJson::Str(G, TEXT("player"));
 		const FString AuraHex = FN7HudJson::Str(G, TEXT("aura"));
 		if (AuraHex.StartsWith(TEXT("#")) && AuraHex.Len() >= 7) { S.Aura = FLinearColor::FromSRGBColor(FColor::FromHex(AuraHex)); S.bHasAura = true; }
@@ -1651,6 +1652,7 @@ void SFNHudLive::UpdateTable()
 		D.Ref = S.Ref;
 		D.Name = S.Name;
 		D.Side = S.Side;
+		D.Skin = S.Skin;
 		D.bAlive = S.bAlive;
 		D.bHasPos = S.bHasPos;
 		D.Lat = S.Lat;

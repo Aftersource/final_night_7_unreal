@@ -207,6 +207,7 @@ private:
 		int32 Sparks = -1;
 		// rules 0.7.0
 		FString Side;          // left / right
+		FString Skin;          // the server's mannequin skin
 		FString Player;        // the player (god) this demigod belongs to
 		FLinearColor Aura = FLinearColor::White;
 		bool bHasAura = false;
