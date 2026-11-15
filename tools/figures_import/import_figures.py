@@ -12,8 +12,11 @@ slugs = [s.strip() for s in os.environ["FN7_FIGURES"].split(",") if s.strip()]
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 reg = unreal.AssetRegistryHelpers.get_asset_registry()
 
-for slug in slugs:
-    glb = os.path.join(src, slug, slug + "_statue.glb")
+for entry in slugs:
+    # "kestrel_god=bot_kestrel_god": the source folder, filed under the slug the seat code derives from the player name
+    srcslug, _, slug = entry.partition("=")
+    slug = slug or srcslug
+    glb = os.path.join(src, srcslug, srcslug + "_statue.glb")
     if not os.path.exists(glb):
         print("FN7FIG missing", glb)
         continue

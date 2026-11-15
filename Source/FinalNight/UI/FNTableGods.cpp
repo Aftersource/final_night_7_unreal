@@ -41,6 +41,7 @@ namespace FN7Gods
 	static constexpr float GodPedestalTop = 92.f;
 	// The marble gods (stone/marble statues like The Thinker or Michelangelo's David): heroic, base on the cap.
 	static constexpr float GodStatueHeight = 128.f;   // the faceted figure stands ~96: half again
+	static constexpr float GodStatueFootprint = 100.f; // cm across at most
 	static constexpr float GodStatueYaw = -90.f;      // Meshy's glTF front -> the pedestal's +X (toward the table)
 	static const FLinearColor GodMarble(0.62f, 0.60f, 0.57f);
 	static const FLinearColor GodMarbleDark(0.40f, 0.385f, 0.36f);
@@ -225,7 +226,9 @@ void AFNGodPedestal::UpdateStatue(const FString& Player)
 		}
 		Statue->SetStaticMesh(Mesh);
 		const FBoxSphereBounds B = Mesh->GetBounds();
-		const float Scale = GodStatueHeight / FMath::Max(1.f, (float)B.BoxExtent.Z * 2.f);
+		// Heroic height, but no wider than a common footprint (a reclining god on a couch would tower otherwise).
+		const float Scale = FMath::Min(GodStatueHeight / FMath::Max(1.f, (float)B.BoxExtent.Z * 2.f),
+			GodStatueFootprint / FMath::Max(1.f, 2.f * (float)FMath::Max(B.BoxExtent.X, B.BoxExtent.Y)));
 		Statue->SetRelativeScale3D(FVector(Scale));
 		Statue->SetRelativeRotation(FRotator(0.f, GodStatueYaw, 0.f));
 		// Its own stone base sits on the pedestal's cap; centred over the column.
