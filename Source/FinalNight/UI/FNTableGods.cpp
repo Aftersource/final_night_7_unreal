@@ -1,4 +1,11 @@
 #include "FNTableGods.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "FNStyle.h"
+#include "FNWood.h"
+#include "SFNScroll.h"
+#include "Components/WidgetComponent.h"
 #include "FNGodStatue.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Animation/AnimSequence.h"
@@ -179,6 +186,38 @@ void AFNGodPedestal::BuildBody()
 	}
 	PlateBack->RegisterComponent();
 	Parts.Add(PlateBack);
+	// The scroll that replaces the flat plate: a bowed parchment sheet (a cylinder-curved world widget) with turned rods,
+	// our Slate font, gently swaying.
+	Plate->SetVisibility(false, true);   // (the plate and its stone stay built, hidden)
+	Scroll = NewObject<UWidgetComponent>(this);
+	Scroll->SetupAttachment(RootComponent);
+	Scroll->SetWidgetSpace(EWidgetSpace::World);
+	Scroll->SetDrawSize(FVector2D(380.f, 140.f));
+	Scroll->SetPivot(FVector2D(0.5f, 1.f));
+	Scroll->SetGeometryMode(EWidgetGeometryMode::Cylinder);
+	Scroll->SetCylinderArcAngle(38.f);
+	Scroll->SetTwoSided(true);
+	Scroll->SetBlendMode(EWidgetBlendMode::Transparent);
+	Scroll->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Scroll->SetRelativeScale3D(FVector(0.17f));
+	Scroll->SetSlateWidget(
+		SNew(SBox).WidthOverride(380.f).HeightOverride(140.f).HAlign(HAlign_Center).VAlign(VAlign_Bottom)
+		[
+			SNew(SFNScroll).bStartOpen(true).RodHeight(16.f).ContentPadding(FMargin(30.f, 8.f))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+				[
+					SAssignNew(ScrollName, STextBlock).Font(FN7Style::Type::Font(46, TEXT("Bold"))).ColorAndOpacity(FN7Wood::Ink()).Text(FText::GetEmpty())
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+				[
+					SAssignNew(ScrollTag, STextBlock).Font(FN7Style::Type::Font(22, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk()).Text(FText::GetEmpty())
+				]
+			]
+		]);
+	Scroll->RegisterComponent();
+	Parts.Add(Scroll);
 }
 
 void AFNGodPedestal::BuildFeature(int32 InKind)
@@ -397,6 +436,14 @@ void AFNGodPedestal::SetGod(const FFNTableGod& God)
 		const TCHAR* PlateTag = !God.bAlive ? TEXT("OUT") : !God.bConnected ? TEXT("AWAY") : God.bHuman ? TEXT("HUMAN") : TEXT("AI");
 		Plate->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *God.Player, PlateTag)));
 		Plate->SetTextRenderColor((God.bAlive ? Aura : GodGrey * 2.f).ToFColor(true));
+		if (ScrollName.IsValid())
+		{
+			// the name in the god's aura, darkened to read on the parchment; the tag in red ink
+			const FLinearColor A = God.bAlive ? Aura : GodGrey * 2.f;
+			ScrollName->SetText(FText::FromString(God.Player));
+			ScrollName->SetColorAndOpacity(FLinearColor(A.R * 0.38f, A.G * 0.38f, A.B * 0.38f, 1.f));
+			ScrollTag->SetText(FText::FromString(PlateTag));
+		}
 		if (PlateBack)
 		{
 			// sized to the longer line (about 0.6 of the size a letter), two lines tall, just behind the letters
@@ -438,6 +485,17 @@ void AFNGodPedestal::Tick(float Dt)
 		Cubes[i]->SetRelativeRotation(FRotator(T * 90.f, T * 120.f, 0.f));
 	}
 	GodFaceCamera(Plate, GodCameraLocation(GetWorld(), GetActorLocation() + FVector(0, 340.f * S, 190.f * S)));
+	if (Scroll)
+	{
+		// over the statue's head (or the faceted figure's), facing the camera, swaying a little like hung cloth
+		const float HeadZ = GodPedestalTop + (bHasStatue ? GodStatueHeight : 96.f) + 6.f;
+		Scroll->SetRelativeLocation(FVector(0.f, 0.f, HeadZ + 1.2f * FMath::Sin(T * 0.9f)));
+		const FVector Cam = GodCameraLocation(GetWorld(), GetActorLocation() + FVector(0, 340.f * S, 190.f * S));
+		FRotator R = (Cam - Scroll->GetComponentLocation()).Rotation();
+		R.Pitch = 0.f;
+		R.Roll = 2.5f * FMath::Sin(T * 0.7f + Phase);
+		Scroll->SetWorldRotation(R);
+	}
 	if (bHasStatue && Statue)
 	{
 		// A statue that seems to breathe: a slow look around its seat, and the mist glows with the aura's pulse.

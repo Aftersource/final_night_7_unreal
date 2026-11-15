@@ -74,7 +74,11 @@ private:
 	TArray<UStaticMeshComponent*> Cubes;       // AI ring
 	UPointLightComponent* Glow = nullptr;
 	UTextRenderComponent* Plate = nullptr;
-	UPROPERTY() TObjectPtr<UStaticMeshComponent> PlateBack;   // a small dark stone plate behind the name (Benito's audit 14: readable)
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> PlateBack;
+	/** The god's name on a small 3D parchment scroll above its head, in our font, facing the camera (Chris, 2026-11-15:
+	 *  "for other gods, their text goes above their head on a 3d scroll / parchment paper with our regular font"). */
+	UPROPERTY() TObjectPtr<class UWidgetComponent> Scroll;
+	TSharedPtr<class STextBlock> ScrollName, ScrollTag;   // a small dark stone plate behind the name (Benito's audit 14: readable)
 	/** The player's marble god statue (Content/Figures/<name>_god/SM_<name>_god, from figures.json) on the pedestal in
 	 *  place of the faceted figure; none: the faceted figure, in marble. */
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Statue;
