@@ -142,7 +142,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBox)
-			.WidthOverride(600.f)
+			.WidthOverride_Lambda([this]() { return FOptionalSize(PageWidth()); })
 			[
 				// The tablet in the chosen look (1 the black onyx marble Chris asked for, then parchment, carved wood, dark glass,
 				// gilded slate, star map), switched by the 1-6 buttons beside LOBBY.
@@ -280,6 +280,12 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 						SAssignNew(Welcome, SFNWelcomePage).Net(Net.Get()).Name(Name)
 						.OnSignedIn_Lambda([this]() { Page = EPage::Lobby; AccountNote.Reset(); RebuildHouse(); })
 						.OnSkip_Lambda([this]() { Page = EPage::Lobby; })
+					]
+					// SETTINGS: the account's settings document.
+					+ SWidgetSwitcher::Slot()
+					[
+						SAssignNew(Settings, SFNSettingsPage).Net(Net.Get())
+						.OnBack_Lambda([this]() { Page = EPage::Lobby; })
 					], FMargin(Space::XL + Space::S, Space::XL))
 			]
 		]
@@ -722,8 +728,13 @@ FSlateColor SFNStartPanel::LInk() const { return FN7Looks::Ink(Look); }
 FSlateColor SFNStartPanel::LDim() const { return FN7Looks::Dim(Look); }
 FSlateColor SFNStartPanel::LAccent() const { return FN7Looks::Accent(Look); }
 
-int32 SFNStartPanel::PageLook() const { return Page == EPage::Welcome && Welcome.IsValid() ? Welcome->GetLook() : Look; }
-float SFNStartPanel::PageWidth() const { return 600.f; }
+int32 SFNStartPanel::PageLook() const
+{
+	if (Page == EPage::Welcome && Welcome.IsValid()) return Welcome->GetLook();
+	if (Page == EPage::Settings && Settings.IsValid()) return Settings->GetLook();
+	return Look;
+}
+float SFNStartPanel::PageWidth() const { return Page == EPage::Settings ? 760.f : 600.f; }
 
 void SFNStartPanel::OnBooted(bool bSignedIn)
 {
@@ -800,6 +811,13 @@ TSharedRef<SWidget> SFNStartPanel::MakeAccountStrip()
 					})
 				]
 			]
+		]
+		// The signed-in menu: the account's own screens.
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, Space::XS, 0.f)
+			[ Small(LOCTEXT("MenuSettings", "SETTINGS"), [this]() { Page = EPage::Settings; if (Settings.IsValid()) Settings->Open(); UE_LOG(LogTemp, Display, TEXT("FN7 lobby: settings opened")); }) ]
 		]
 		// A guest logging out gives the account up (ACCOUNTS.md §2): say so first.
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)

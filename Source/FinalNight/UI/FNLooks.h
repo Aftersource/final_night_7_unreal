@@ -23,6 +23,8 @@ namespace FN7Looks
 	FINALNIGHT_API TSharedRef<SWidget> Frame(TAttribute<int32> Look, TSharedRef<SWidget> Inner, const FMargin& Pad);
 	/** The 1-6 switch (small square buttons, the current one lit; a tooltip names each look). */
 	FINALNIGHT_API TSharedRef<SWidget> Switch(TAttribute<int32> Look, TFunction<void(int32)> OnPick);
+	/** A choice chip: the chosen one filled orange with dark text, the others the dark pill with light text. */
+	FINALNIGHT_API TSharedRef<SWidget> Chip(TAttribute<FText> Label, TFunction<bool()> IsOn, TFunction<void()> OnClick, int32 FontSize = 10, FMargin Pad = FMargin(10.f, 3.f));
 	/** Text on the look's surface: dark ink on parchment and wood, light ink on the dark ones. */
 	FINALNIGHT_API FLinearColor Ink(int32 Look);
 	FINALNIGHT_API FLinearColor Dim(int32 Look);
