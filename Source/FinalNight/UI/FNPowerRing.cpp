@@ -756,8 +756,11 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 		// Exactly one handler fires: near a demigod or over the kit's UI nothing does (eaten here); else the registered
 		// board handler, or, with none, the double-click falls through to the game (the player controller's zoom).
 		UWorld* World = Studio.IsValid() ? Studio->GetWorld() : nullptr;
-		if (FN7Kit::BlocksBoardGesture(World, Px)) return FReply::Handled();
+		if (FN7Kit::BlocksBoardGesture(World, Px)) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked (near a demigod or over the kit)")); return FReply::Handled(); }
 		if (FN7Kit::RunBoardDoubleClick(Px)) return FReply::Handled();
+		// This layer takes the board's presses (a single click must never move the view), so the player controller never
+		// sees a board double-click: the zoom happens here, the same anchored, eased step as its own (MapClick).
+		if (Studio.IsValid() && Studio->MapClick(true)) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: in (kit double-click) at %.0f, %.0f"), Px.X, Px.Y); return FReply::Handled(); }
 		return FReply::Unhandled();
 	}
 	PressedRef.Reset();
