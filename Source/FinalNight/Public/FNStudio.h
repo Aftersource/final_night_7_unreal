@@ -54,6 +54,9 @@ enum class EFNSfx : uint8 { Click, Boom, Chime, Snuff, Quill, Impact, Swarm, Roa
  * Built from engine basic shapes; it only DISPLAYS state. SFNRootWidget owns the logic.
  * Clickable parts carry the component tag "FN:<Id>".
  */
+/** What the earth simulator says a board hex is right now (the scenery hides or swaps its trees on anything but Normal). */
+enum class EFNHexState : uint8 { Normal, Burning, Flooded, Lava, Ash, NewLand };
+
 UCLASS()
 class FINALNIGHT_API AFNStudio : public AActor
 {
@@ -61,6 +64,20 @@ class FINALNIGHT_API AFNStudio : public AActor
 
 public:
 	AFNStudio();
+
+	// --- earth-simulator hook (backend 2026-11-14 21:04) ---------------------------------------------------------------
+	// Every board height (the hex tiles, the scenery on them, cities, people, the cursor hit test) goes through
+	// BoardHeightAt. Today nothing overrides it, so it returns the board's own terraced relief (no visual change); the
+	// earth component sets per-hex overrides from the server's voxel field and calls RebuildBoard().
+	// CellKey is the server's cell code at the table's current level: "<face>:<people|houses|villages|regions>:<q>:<r>".
+	float BoardHeightAt(const FString& CellKey, float DefaultRelief) const;
+	EFNHexState HexStateAt(const FString& CellKey) const;
+	/** Height on the table in cm (as BuildTable uses: water 0.6, land 2.2..14.1); NaN = keep the relief, only set the state. */
+	void SetHexOverride(const FString& CellKey, float HeightCm, EFNHexState State);
+	void ClearHexOverrides();
+	void RebuildBoard() { RebuildIn = 0.f; }
+	/** The cell code of the board hex (Q, R) at the table's current level (on the current face). */
+	FString BoardCellKey(int32 Q, int32 R) const;
 	virtual void Tick(float DeltaSeconds) override;
 
 	static const FName PlayerEasel;
@@ -259,6 +276,11 @@ private:
 	// the scene now on the table (set by BuildTable): cube face, centre on that face's plane (m), cm per m, hex size, relief range
 	int32 TableFace = -1;
 	double TableCx = 0.0, TableCy = 0.0, TableK = 0.0, TableS = 1.0, TableLo = 0.0, TableRange = 1.0;
+	struct FHexOverride { bool bHeight = false; float HeightCm = 0.f; EFNHexState State = EFNHexState::Normal; };
+	TMap<FString, FHexOverride> HexOverrides;   // the earth simulator's per-hex heights and states (empty today)
+	/** The relief at board hex (Q, R): the override if any, else Default. Fast path: no key built while nothing overrides. */
+	float BoardHeightAtHex(int32 Q, int32 R, float Default) const { return HexOverrides.Num() == 0 ? Default : BoardHeightAt(BoardCellKey(Q, R), Default); }
+	EFNHexState HexStateAtHex(int32 Q, int32 R) const { return HexOverrides.Num() == 0 ? EFNHexState::Normal : HexStateAt(BoardCellKey(Q, R)); }
 	void PlaceTableHeroes();   // demigods standing on the table map at true scale
 	bool MapPointUnderCursor(double& Px, double& Py) const;   // the face-plane point (m) under the mouse, on top of the hexes
 	void ZoomMapAt(double Px, double Py, int32 Step);          // one zoom level (-1 closer), keeping that point under the cursor
