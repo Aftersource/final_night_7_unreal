@@ -1,0 +1,11544 @@
+{
+"beat_a": 10,
+"beat_b": 11,
+"beat_ms": 6000,
+"note": "stub: a volcano rises, ash spreads, a flood comes in from the south-west (heights in the board relief range, 3-26 cm)",
+"cells": [
+{
+"lat": 34.5,
+"lon": 6.8984,
+"a": {
+"height": 8.74,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.28,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 34.5,
+"lon": 7.9492,
+"a": {
+"height": 9.22,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.22,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 34.5,
+"lon": 9.0,
+"a": {
+"height": 7.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 34.5,
+"lon": 10.0508,
+"a": {
+"height": 5.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 34.5,
+"lon": 11.1016,
+"a": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 4.228,
+"a": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 5.2885,
+"a": {
+"height": 4.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.79,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 6.3489,
+"a": {
+"height": 7.44,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.78,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 7.4093,
+"a": {
+"height": 9.26,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.26,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 8.4698,
+"a": {
+"height": 9.7,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.7,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 9.5302,
+"a": {
+"height": 8.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 10.5907,
+"a": {
+"height": 6.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 11.6511,
+"a": {
+"height": 4.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 12.7115,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 35.25,
+"lon": 13.772,
+"a": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 1.507,
+"a": {
+"height": 5.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.06,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 2.5774,
+"a": {
+"height": 4.82,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.74,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 3.6478,
+"a": {
+"height": 4.54,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 4.7183,
+"a": {
+"height": 5.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.82,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 5.7887,
+"a": {
+"height": 6.29,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.32,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 6.8591,
+"a": {
+"height": 7.73,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.73,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 7.9296,
+"a": {
+"height": 8.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 9.0,
+"a": {
+"height": 9.05,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.05,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 10.0704,
+"a": {
+"height": 8.35,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.35,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 11.1409,
+"a": {
+"height": 7.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 12.2113,
+"a": {
+"height": 5.69,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.69,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 13.2817,
+"a": {
+"height": 4.82,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.82,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 14.3522,
+"a": {
+"height": 4.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 15.4226,
+"a": {
+"height": 5.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.0,
+"lon": 16.493,
+"a": {
+"height": 6.34,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.34,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 0.894,
+"a": {
+"height": 5.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.18,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 1.9748,
+"a": {
+"height": 6.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.39,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 3.0556,
+"a": {
+"height": 7.01,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.61,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 4.1364,
+"a": {
+"height": 7.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.75,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 5.2172,
+"a": {
+"height": 7.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.87,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 6.298,
+"a": {
+"height": 7.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 7.3788,
+"a": {
+"height": 7.8,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.8,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 8.4596,
+"a": {
+"height": 7.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 9.5404,
+"a": {
+"height": 7.75,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.75,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 10.6212,
+"a": {
+"height": 7.73,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.73,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 11.702,
+"a": {
+"height": 7.7,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.7,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 12.7828,
+"a": {
+"height": 7.63,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.63,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 13.8636,
+"a": {
+"height": 7.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 14.9444,
+"a": {
+"height": 7.03,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.03,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 16.0252,
+"a": {
+"height": 6.55,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.55,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 36.75,
+"lon": 17.106,
+"a": {
+"height": 5.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": -0.8241,
+"a": {
+"height": 3.96,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 0.2674,
+"a": {
+"height": 4.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 1.359,
+"a": {
+"height": 5.47,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.98,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 2.4506,
+"a": {
+"height": 7.32,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.73,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 3.5422,
+"a": {
+"height": 9.12,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.45,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 4.6337,
+"a": {
+"height": 10.2,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.88,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 5.7253,
+"a": {
+"height": 10.2,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.2,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 6.8169,
+"a": {
+"height": 9.24,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.24,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 7.9084,
+"a": {
+"height": 7.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 9.0,
+"a": {
+"height": 6.77,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.77,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 10.0916,
+"a": {
+"height": 6.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 11.1831,
+"a": {
+"height": 7.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 12.2747,
+"a": {
+"height": 8.35,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.35,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 13.3663,
+"a": {
+"height": 9.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 14.4578,
+"a": {
+"height": 9.89,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.89,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 15.5494,
+"a": {
+"height": 9.19,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.19,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 16.641,
+"a": {
+"height": 7.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 17.7326,
+"a": {
+"height": 5.59,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.59,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 37.5,
+"lon": 18.8241,
+"a": {
+"height": 3.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": -1.476,
+"a": {
+"height": 4.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.79,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": -0.3733,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 0.7295,
+"a": {
+"height": 3.84,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 1.8322,
+"a": {
+"height": 5.52,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.01,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 2.9349,
+"a": {
+"height": 8.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.06,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 4.0377,
+"a": {
+"height": 10.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.1,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 5.1404,
+"a": {
+"height": 12.24,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.24,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 6.2432,
+"a": {
+"height": 12.07,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.07,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 7.3459,
+"a": {
+"height": 10.44,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.44,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 8.4486,
+"a": {
+"height": 8.18,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.18,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 9.5514,
+"a": {
+"height": 6.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 10.6541,
+"a": {
+"height": 5.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 11.7568,
+"a": {
+"height": 6.96,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.96,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 12.8596,
+"a": {
+"height": 8.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 13.9623,
+"a": {
+"height": 10.8,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.8,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 15.0651,
+"a": {
+"height": 11.54,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.54,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 16.1678,
+"a": {
+"height": 10.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 17.2705,
+"a": {
+"height": 8.3,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.3,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 18.3733,
+"a": {
+"height": 5.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 38.25,
+"lon": 19.476,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": -3.2577,
+"a": {
+"height": 8.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.26,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": -2.1433,
+"a": {
+"height": 7.51,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.8,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": -1.029,
+"a": {
+"height": 5.76,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.1,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 0.0853,
+"a": {
+"height": 4.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 1.1997,
+"a": {
+"height": 4.63,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 2.314,
+"a": {
+"height": 6.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.32,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 3.4283,
+"a": {
+"height": 9.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.4,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 4.5427,
+"a": {
+"height": 11.62,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.62,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 5.657,
+"a": {
+"height": 13.1,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.1,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 6.7713,
+"a": {
+"height": 12.91,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.91,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 7.8857,
+"a": {
+"height": 11.23,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.23,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 9.0,
+"a": {
+"height": 8.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 10.1143,
+"a": {
+"height": 7.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 11.2287,
+"a": {
+"height": 6.53,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.53,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 12.343,
+"a": {
+"height": 7.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 13.4573,
+"a": {
+"height": 9.46,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.46,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 14.5717,
+"a": {
+"height": 11.28,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.28,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 15.686,
+"a": {
+"height": 11.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 16.8003,
+"a": {
+"height": 10.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 17.9147,
+"a": {
+"height": 8.59,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.59,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 19.029,
+"a": {
+"height": 5.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 20.1433,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.0,
+"lon": 21.2577,
+"a": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": -3.9532,
+"a": {
+"height": 7.97,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.99,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": -2.8269,
+"a": {
+"height": 8.4,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.16,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": -1.7005,
+"a": {
+"height": 7.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.94,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": -0.5741,
+"a": {
+"height": 6.94,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.58,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 0.5522,
+"a": {
+"height": 6.34,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.34,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 1.6786,
+"a": {
+"height": 6.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.44,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 2.805,
+"a": {
+"height": 7.92,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.97,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 3.9313,
+"a": {
+"height": 9.84,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.84,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 5.0577,
+"a": {
+"height": 11.69,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.69,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 6.1841,
+"a": {
+"height": 12.77,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.77,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 7.3104,
+"a": {
+"height": 12.7,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.7,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 8.4368,
+"a": {
+"height": 11.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 9.5632,
+"a": {
+"height": 10.03,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.03,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 10.6896,
+"a": {
+"height": 8.74,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.74,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 11.8159,
+"a": {
+"height": 8.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 12.9423,
+"a": {
+"height": 8.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 14.0687,
+"a": {
+"height": 9.89,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.89,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 15.195,
+"a": {
+"height": 10.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 16.3214,
+"a": {
+"height": 11.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 17.4478,
+"a": {
+"height": 10.27,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.27,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 18.5741,
+"a": {
+"height": 8.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 19.7005,
+"a": {
+"height": 6.24,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.24,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 20.8269,
+"a": {
+"height": 4.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 39.75,
+"lon": 21.9532,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": -4.6664,
+"a": {
+"height": 5.95,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.18,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": -3.5275,
+"a": {
+"height": 6.79,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.51,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": -2.3887,
+"a": {
+"height": 7.46,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.78,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": -1.2498,
+"a": {
+"height": 7.97,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.99,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": -0.1109,
+"a": {
+"height": 8.4,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.16,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 1.0279,
+"a": {
+"height": 8.86,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.35,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 2.1668,
+"a": {
+"height": 9.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.57,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 3.3057,
+"a": {
+"height": 10.03,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.03,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 4.4445,
+"a": {
+"height": 10.68,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.68,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 5.5834,
+"a": {
+"height": 11.26,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.26,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 6.7223,
+"a": {
+"height": 11.66,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.66,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 7.8611,
+"a": {
+"height": 11.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 9.0,
+"a": {
+"height": 11.69,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.69,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 10.1389,
+"a": {
+"height": 11.4,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.4,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 11.2777,
+"a": {
+"height": 11.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 12.4166,
+"a": {
+"height": 10.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 13.5555,
+"a": {
+"height": 10.49,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.49,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 14.6943,
+"a": {
+"height": 10.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 15.8332,
+"a": {
+"height": 9.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 16.9721,
+"a": {
+"height": 9.43,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.43,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 18.1109,
+"a": {
+"height": 8.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 19.2498,
+"a": {
+"height": 7.97,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.97,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 20.3887,
+"a": {
+"height": 7.06,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.06,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 21.5275,
+"a": {
+"height": 6.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 40.5,
+"lon": 22.6664,
+"a": {
+"height": 5.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": -5.398,
+"a": {
+"height": 5.76,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.1,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": -4.2462,
+"a": {
+"height": 5.38,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.94,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": -3.0943,
+"a": {
+"height": 5.47,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.98,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": -1.9425,
+"a": {
+"height": 6.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.37,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": -0.7906,
+"a": {
+"height": 8.02,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.02,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 0.3612,
+"a": {
+"height": 9.89,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.76,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 1.513,
+"a": {
+"height": 11.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.38,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 2.6649,
+"a": {
+"height": 12.26,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.26,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 3.8167,
+"a": {
+"height": 12.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 4.9686,
+"a": {
+"height": 11.52,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.52,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 6.1204,
+"a": {
+"height": 10.75,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.75,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 7.2722,
+"a": {
+"height": 10.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 8.4241,
+"a": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 9.5759,
+"a": {
+"height": 11.69,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.69,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 10.7278,
+"a": {
+"height": 12.77,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.77,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 11.8796,
+"a": {
+"height": 13.44,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.44,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 13.0314,
+"a": {
+"height": 13.25,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.25,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 14.1833,
+"a": {
+"height": 12.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 15.3351,
+"a": {
+"height": 10.49,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.49,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 16.487,
+"a": {
+"height": 8.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 17.6388,
+"a": {
+"height": 7.56,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.56,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 18.7906,
+"a": {
+"height": 7.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 19.9425,
+"a": {
+"height": 7.37,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.37,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 21.0943,
+"a": {
+"height": 7.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 22.2462,
+"a": {
+"height": 8.04,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.04,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 41.25,
+"lon": 23.398,
+"a": {
+"height": 7.46,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.46,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": -6.1491,
+"a": {
+"height": 7.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.9,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": -4.9838,
+"a": {
+"height": 6.48,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.39,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": -3.8185,
+"a": {
+"height": 5.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.86,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": -2.6532,
+"a": {
+"height": 4.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": -1.4879,
+"a": {
+"height": 5.86,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.15,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": -0.3225,
+"a": {
+"height": 8.26,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.11,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 0.8428,
+"a": {
+"height": 11.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.26,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 2.0081,
+"a": {
+"height": 13.51,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.51,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 3.1734,
+"a": {
+"height": 14.52,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.52,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 4.3387,
+"a": {
+"height": 13.97,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.97,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 5.504,
+"a": {
+"height": 12.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 6.6694,
+"a": {
+"height": 10.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 7.8347,
+"a": {
+"height": 9.77,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.77,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 42.0,
+"lon": 9.0,
+"a": {
+"height": 10.25,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.25,
+"material": "ash",
+"water": 0.0,
+"heat": 0.13
+}
+},
+{
+"lat": 42.0,
+"lon": 10.1653,
+"a": {
+"height": 11.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.88,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 42.0,
+"lon": 11.3306,
+"a": {
+"height": 13.85,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.85,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 12.496,
+"a": {
+"height": 15.17,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.17,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 13.6613,
+"a": {
+"height": 15.07,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.07,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 14.8266,
+"a": {
+"height": 13.39,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.39,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 15.9919,
+"a": {
+"height": 10.68,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.68,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 17.1572,
+"a": {
+"height": 7.97,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.97,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 18.3225,
+"a": {
+"height": 6.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 19.4879,
+"a": {
+"height": 5.9,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.9,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 20.6532,
+"a": {
+"height": 6.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 21.8185,
+"a": {
+"height": 8.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 22.9838,
+"a": {
+"height": 9.26,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.26,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.0,
+"lon": 24.1491,
+"a": {
+"height": 8.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": -5.7415,
+"a": {
+"height": 8.64,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.26,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": -4.5622,
+"a": {
+"height": 7.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.66,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": -3.3828,
+"a": {
+"height": 5.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.03,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": -2.2035,
+"a": {
+"height": 5.14,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.84,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": -1.0242,
+"a": {
+"height": 6.29,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.32,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 0.1551,
+"a": {
+"height": 8.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.35,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 1.3344,
+"a": {
+"height": 12.02,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.02,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 2.5137,
+"a": {
+"height": 14.59,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.59,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 3.6931,
+"a": {
+"height": 15.67,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.67,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 4.8724,
+"a": {
+"height": 15.02,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.02,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 6.0517,
+"a": {
+"height": 13.2,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.2,
+"material": "ash",
+"water": 0.0,
+"heat": 0.15
+}
+},
+{
+"lat": 42.75,
+"lon": 7.231,
+"a": {
+"height": 11.26,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.26,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 42.75,
+"lon": 8.4103,
+"a": {
+"height": 10.22,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.22,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 42.75,
+"lon": 9.5897,
+"a": {
+"height": 10.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.66,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 42.75,
+"lon": 10.769,
+"a": {
+"height": 12.36,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.36,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 42.75,
+"lon": 11.9483,
+"a": {
+"height": 14.45,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.45,
+"material": "ash",
+"water": 0.0,
+"heat": 0.15
+}
+},
+{
+"lat": 42.75,
+"lon": 13.1276,
+"a": {
+"height": 15.84,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.84,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 14.3069,
+"a": {
+"height": 15.65,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.65,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 15.4863,
+"a": {
+"height": 13.78,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.78,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 16.6656,
+"a": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 17.8449,
+"a": {
+"height": 7.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 19.0242,
+"a": {
+"height": 5.86,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.86,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 20.2035,
+"a": {
+"height": 5.59,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.59,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 21.3828,
+"a": {
+"height": 6.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 22.5622,
+"a": {
+"height": 8.38,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.38,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 42.75,
+"lon": 23.7415,
+"a": {
+"height": 9.43,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.43,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": -6.5203,
+"a": {
+"height": 8.71,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.28,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": -5.3264,
+"a": {
+"height": 8.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.26,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": -4.1325,
+"a": {
+"height": 7.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.9,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": -2.9387,
+"a": {
+"height": 6.84,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.54,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": -1.7448,
+"a": {
+"height": 6.7,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.49,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": -0.5509,
+"a": {
+"height": 7.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.9,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 0.6429,
+"a": {
+"height": 9.91,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.91,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 1.8368,
+"a": {
+"height": 12.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 3.0307,
+"a": {
+"height": 14.59,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.59,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 4.2245,
+"a": {
+"height": 15.58,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.58,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 43.5,
+"lon": 5.4184,
+"a": {
+"height": 15.26,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.26,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 43.5,
+"lon": 6.6123,
+"a": {
+"height": 14.04,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.04,
+"material": "ash",
+"water": 0.0,
+"heat": 0.25
+}
+},
+{
+"lat": 43.5,
+"lon": 7.8061,
+"a": {
+"height": 12.67,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.67,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 43.5,
+"lon": 9.0,
+"a": {
+"height": 11.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.88,
+"material": "ash",
+"water": 0.0,
+"heat": 0.3
+}
+},
+{
+"lat": 43.5,
+"lon": 10.1939,
+"a": {
+"height": 12.07,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.07,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 43.5,
+"lon": 11.3877,
+"a": {
+"height": 13.15,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.15,
+"material": "ash",
+"water": 0.0,
+"heat": 0.25
+}
+},
+{
+"lat": 43.5,
+"lon": 12.5816,
+"a": {
+"height": 14.47,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.47,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 43.5,
+"lon": 13.7755,
+"a": {
+"height": 15.26,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.26,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 43.5,
+"lon": 14.9693,
+"a": {
+"height": 14.9,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.9,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 16.1632,
+"a": {
+"height": 13.25,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.25,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 17.3571,
+"a": {
+"height": 10.8,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.8,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 18.5509,
+"a": {
+"height": 8.33,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.33,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 19.7448,
+"a": {
+"height": 6.67,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.67,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 20.9387,
+"a": {
+"height": 6.24,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.24,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 22.1325,
+"a": {
+"height": 6.86,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.86,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 23.3264,
+"a": {
+"height": 7.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 43.5,
+"lon": 24.5203,
+"a": {
+"height": 8.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": -7.3213,
+"a": {
+"height": 6.55,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.42,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": -6.1123,
+"a": {
+"height": 7.49,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.8,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": -4.9034,
+"a": {
+"height": 8.04,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.02,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": -3.6944,
+"a": {
+"height": 8.33,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.14,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": -2.4854,
+"a": {
+"height": 8.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.26,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": -1.2764,
+"a": {
+"height": 9.12,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.45,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": -0.0674,
+"a": {
+"height": 10.01,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.01,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 1.1416,
+"a": {
+"height": 11.23,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.23,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 2.3506,
+"a": {
+"height": 12.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 3.5596,
+"a": {
+"height": 13.75,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.75,
+"material": "ash",
+"water": 0.0,
+"heat": 0.13
+}
+},
+{
+"lat": 44.25,
+"lon": 4.7685,
+"a": {
+"height": 14.54,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.54,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 44.25,
+"lon": 5.9775,
+"a": {
+"height": 14.9,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.9,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 44.25,
+"lon": 7.1865,
+"a": {
+"height": 14.88,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.88,
+"material": "ash",
+"water": 0.0,
+"heat": 0.35
+}
+},
+{
+"lat": 44.25,
+"lon": 8.3955,
+"a": {
+"height": 14.64,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.64,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 44.25,
+"lon": 9.6045,
+"a": {
+"height": 14.38,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.38,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 44.25,
+"lon": 10.8135,
+"a": {
+"height": 14.18,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.18,
+"material": "ash",
+"water": 0.0,
+"heat": 0.35
+}
+},
+{
+"lat": 44.25,
+"lon": 12.0225,
+"a": {
+"height": 14.09,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.09,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 44.25,
+"lon": 13.2315,
+"a": {
+"height": 14.02,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.02,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 44.25,
+"lon": 14.4404,
+"a": {
+"height": 13.75,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.75,
+"material": "ash",
+"water": 0.0,
+"heat": 0.13
+}
+},
+{
+"lat": 44.25,
+"lon": 15.6494,
+"a": {
+"height": 13.1,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.1,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 16.8584,
+"a": {
+"height": 12.05,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.05,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 18.0674,
+"a": {
+"height": 10.73,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.73,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 19.2764,
+"a": {
+"height": 9.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 20.4854,
+"a": {
+"height": 8.33,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.33,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 21.6944,
+"a": {
+"height": 7.61,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.61,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 22.9034,
+"a": {
+"height": 7.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 24.1123,
+"a": {
+"height": 6.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 44.25,
+"lon": 25.3213,
+"a": {
+"height": 6.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": -6.9212,
+"a": {
+"height": 5.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.91,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": -5.6965,
+"a": {
+"height": 5.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.18,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": -4.4718,
+"a": {
+"height": 7.2,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.68,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": -3.2471,
+"a": {
+"height": 8.86,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.35,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": -2.0224,
+"a": {
+"height": 10.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.0,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": -0.7977,
+"a": {
+"height": 11.81,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.81,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 0.427,
+"a": {
+"height": 12.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 1.6517,
+"a": {
+"height": 12.6,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.6,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 2.8765,
+"a": {
+"height": 12.53,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.53,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 45.0,
+"lon": 4.1012,
+"a": {
+"height": 12.62,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.62,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 45.0,
+"lon": 5.3259,
+"a": {
+"height": 13.2,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.2,
+"material": "ash",
+"water": 0.0,
+"heat": 0.3
+}
+},
+{
+"lat": 45.0,
+"lon": 6.5506,
+"a": {
+"height": 14.33,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.33,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 45.0,
+"lon": 7.7753,
+"a": {
+"height": 15.72,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 27.72,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 45.0,
+"lon": 9.0,
+"a": {
+"height": 16.78,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 28.78,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 45.0,
+"lon": 10.2247,
+"a": {
+"height": 17.02,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 29.02,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 45.0,
+"lon": 11.4494,
+"a": {
+"height": 16.3,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 16.3,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 45.0,
+"lon": 12.6741,
+"a": {
+"height": 14.93,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.93,
+"material": "ash",
+"water": 0.0,
+"heat": 0.3
+}
+},
+{
+"lat": 45.0,
+"lon": 13.8988,
+"a": {
+"height": 13.27,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.27,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 45.0,
+"lon": 15.1235,
+"a": {
+"height": 11.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.81,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 45.0,
+"lon": 16.3483,
+"a": {
+"height": 10.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.87,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 17.573,
+"a": {
+"height": 10.51,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.51,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 18.7977,
+"a": {
+"height": 10.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 20.0224,
+"a": {
+"height": 10.56,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.56,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 21.2471,
+"a": {
+"height": 10.15,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.15,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 22.4718,
+"a": {
+"height": 9.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 23.6965,
+"a": {
+"height": 7.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.0,
+"lon": 24.9212,
+"a": {
+"height": 5.9,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.9,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": -7.7543,
+"a": {
+"height": 5.09,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.84,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": -6.5133,
+"a": {
+"height": 4.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": -5.2722,
+"a": {
+"height": 4.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": -4.0311,
+"a": {
+"height": 6.6,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.44,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": -2.7901,
+"a": {
+"height": 9.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.54,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": -1.549,
+"a": {
+"height": 12.1,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.1,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": -0.308,
+"a": {
+"height": 13.97,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.97,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 0.9331,
+"a": {
+"height": 14.47,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.47,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 2.1742,
+"a": {
+"height": 13.78,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.78,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 3.4152,
+"a": {
+"height": 12.55,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.55,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 45.75,
+"lon": 4.6563,
+"a": {
+"height": 11.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.81,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 45.75,
+"lon": 5.8973,
+"a": {
+"height": 12.24,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.24,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 45.75,
+"lon": 7.1384,
+"a": {
+"height": 14.04,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 26.04,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 45.75,
+"lon": 8.3795,
+"a": {
+"height": 16.56,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 28.56,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 45.75,
+"lon": 9.6205,
+"a": {
+"height": 18.48,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 30.48,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 45.75,
+"lon": 10.8616,
+"a": {
+"height": 18.86,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 30.86,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 45.75,
+"lon": 12.1027,
+"a": {
+"height": 17.74,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 17.74,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 45.75,
+"lon": 13.3437,
+"a": {
+"height": 15.36,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.36,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 45.75,
+"lon": 14.5848,
+"a": {
+"height": 12.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.5,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 45.75,
+"lon": 15.8258,
+"a": {
+"height": 10.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 17.0669,
+"a": {
+"height": 8.98,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.98,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 18.308,
+"a": {
+"height": 9.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 19.549,
+"a": {
+"height": 10.27,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.27,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 20.7901,
+"a": {
+"height": 11.33,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.33,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 22.0311,
+"a": {
+"height": 11.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 23.2722,
+"a": {
+"height": 10.25,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.25,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 24.5133,
+"a": {
+"height": 7.82,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.82,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 45.75,
+"lon": 25.7543,
+"a": {
+"height": 4.94,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.94,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": -8.613,
+"a": {
+"height": 6.96,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.58,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": -7.3549,
+"a": {
+"height": 5.33,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.94,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": -6.0969,
+"a": {
+"height": 4.25,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": -4.8388,
+"a": {
+"height": 4.61,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": -3.5807,
+"a": {
+"height": 6.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.46,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": -2.3227,
+"a": {
+"height": 9.77,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.77,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": -1.0646,
+"a": {
+"height": 12.96,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.96,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 0.1935,
+"a": {
+"height": 15.05,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.05,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 1.4516,
+"a": {
+"height": 15.5,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.5,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 2.7096,
+"a": {
+"height": 14.47,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.47,
+"material": "ash",
+"water": 0.0,
+"heat": 0.15
+}
+},
+{
+"lat": 46.5,
+"lon": 3.9677,
+"a": {
+"height": 12.84,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.84,
+"material": "ash",
+"water": 0.0,
+"heat": 0.25
+}
+},
+{
+"lat": 46.5,
+"lon": 5.2258,
+"a": {
+"height": 11.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.78,
+"material": "ash",
+"water": 0.0,
+"heat": 0.35
+}
+},
+{
+"lat": 46.5,
+"lon": 6.4839,
+"a": {
+"height": 12.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 24.17,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 46.5,
+"lon": 7.7419,
+"a": {
+"height": 14.23,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 26.23,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 46.5,
+"lon": 9.0,
+"a": {
+"height": 17.4,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 29.4,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 46.5,
+"lon": 10.2581,
+"a": {
+"height": 18.89,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 30.89,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 46.5,
+"lon": 11.5161,
+"a": {
+"height": 19.27,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 31.27,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 46.5,
+"lon": 12.7742,
+"a": {
+"height": 17.98,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 17.98,
+"material": "ash",
+"water": 0.0,
+"heat": 0.35
+}
+},
+{
+"lat": 46.5,
+"lon": 14.0323,
+"a": {
+"height": 15.24,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.24,
+"material": "ash",
+"water": 0.0,
+"heat": 0.25
+}
+},
+{
+"lat": 46.5,
+"lon": 15.2904,
+"a": {
+"height": 11.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.93,
+"material": "ash",
+"water": 0.0,
+"heat": 0.15
+}
+},
+{
+"lat": 46.5,
+"lon": 16.5484,
+"a": {
+"height": 9.22,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.22,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 17.8065,
+"a": {
+"height": 7.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 19.0646,
+"a": {
+"height": 8.4,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.4,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 20.3227,
+"a": {
+"height": 9.91,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.91,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 21.5807,
+"a": {
+"height": 11.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 22.8388,
+"a": {
+"height": 11.71,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.71,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 24.0969,
+"a": {
+"height": 10.39,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.39,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 25.3549,
+"a": {
+"height": 7.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 46.5,
+"lon": 26.613,
+"a": {
+"height": 4.32,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.32,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": -8.223,
+"a": {
+"height": 7.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.66,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": -6.9472,
+"a": {
+"height": 5.93,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.18,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": -5.6715,
+"a": {
+"height": 5.18,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.86,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": -4.3957,
+"a": {
+"height": 5.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.06,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": -3.1199,
+"a": {
+"height": 7.44,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.44,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": -1.8441,
+"a": {
+"height": 10.18,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.18,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": -0.5683,
+"a": {
+"height": 12.94,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.94,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 0.7074,
+"a": {
+"height": 14.81,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.81,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 1.9832,
+"a": {
+"height": 15.31,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.31,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 3.259,
+"a": {
+"height": 14.59,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.59,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 47.25,
+"lon": 4.5348,
+"a": {
+"height": 13.37,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.37,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 47.25,
+"lon": 5.8106,
+"a": {
+"height": 12.62,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.62,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 47.25,
+"lon": 7.0863,
+"a": {
+"height": 13.01,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 25.01,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 47.25,
+"lon": 8.3621,
+"a": {
+"height": 14.64,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 26.64,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 47.25,
+"lon": 9.6379,
+"a": {
+"height": 16.56,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 28.56,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 47.25,
+"lon": 10.9137,
+"a": {
+"height": 17.86,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 29.86,
+"material": "ash",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 47.25,
+"lon": 12.1894,
+"a": {
+"height": 18.1,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 18.1,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 47.25,
+"lon": 13.4652,
+"a": {
+"height": 16.94,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 16.94,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 47.25,
+"lon": 14.741,
+"a": {
+"height": 14.54,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.54,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 47.25,
+"lon": 16.0168,
+"a": {
+"height": 11.69,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.69,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 17.2926,
+"a": {
+"height": 9.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 18.5683,
+"a": {
+"height": 8.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 19.8441,
+"a": {
+"height": 8.35,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.35,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 21.1199,
+"a": {
+"height": 9.43,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.43,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 22.3957,
+"a": {
+"height": 10.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 23.6715,
+"a": {
+"height": 10.66,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.66,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 24.9472,
+"a": {
+"height": 9.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 47.25,
+"lon": 26.223,
+"a": {
+"height": 6.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": -7.8248,
+"a": {
+"height": 6.86,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.54,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": -6.5306,
+"a": {
+"height": 6.79,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.51,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": -5.2364,
+"a": {
+"height": 6.94,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.58,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": -3.9422,
+"a": {
+"height": 7.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": -2.648,
+"a": {
+"height": 8.86,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.86,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": -1.3537,
+"a": {
+"height": 10.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": -0.0595,
+"a": {
+"height": 12.17,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.17,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 1.2347,
+"a": {
+"height": 13.44,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.44,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 2.5289,
+"a": {
+"height": 14.09,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.09,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 48.0,
+"lon": 3.8231,
+"a": {
+"height": 14.21,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.21,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 48.0,
+"lon": 5.1173,
+"a": {
+"height": 14.06,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.06,
+"material": "ash",
+"water": 0.0,
+"heat": 0.3
+}
+},
+{
+"lat": 48.0,
+"lon": 6.4116,
+"a": {
+"height": 14.04,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.04,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 48.0,
+"lon": 7.7058,
+"a": {
+"height": 14.42,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 26.42,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 48.0,
+"lon": 9.0,
+"a": {
+"height": 15.1,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 27.1,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 48.0,
+"lon": 10.2942,
+"a": {
+"height": 15.72,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 27.72,
+"material": "lava",
+"water": 0.0,
+"heat": 1.0
+}
+},
+{
+"lat": 48.0,
+"lon": 11.5884,
+"a": {
+"height": 16.01,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 16.01,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 48.0,
+"lon": 12.8827,
+"a": {
+"height": 15.77,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.77,
+"material": "ash",
+"water": 0.0,
+"heat": 0.3
+}
+},
+{
+"lat": 48.0,
+"lon": 14.1769,
+"a": {
+"height": 14.86,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.86,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 48.0,
+"lon": 15.4711,
+"a": {
+"height": 13.39,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.39,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 48.0,
+"lon": 16.7653,
+"a": {
+"height": 11.69,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.69,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 18.0595,
+"a": {
+"height": 10.2,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.2,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 19.3537,
+"a": {
+"height": 9.24,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.24,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 20.648,
+"a": {
+"height": 8.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 21.9422,
+"a": {
+"height": 8.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 23.2364,
+"a": {
+"height": 8.9,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.9,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 24.5306,
+"a": {
+"height": 8.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.0,
+"lon": 25.8248,
+"a": {
+"height": 7.49,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.49,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": -8.7312,
+"a": {
+"height": 5.14,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.86,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": -7.4178,
+"a": {
+"height": 6.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.34,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": -6.1044,
+"a": {
+"height": 7.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.9,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": -4.7909,
+"a": {
+"height": 9.02,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.02,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": -3.4775,
+"a": {
+"height": 9.94,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.94,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": -2.1641,
+"a": {
+"height": 10.46,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.46,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": -0.8507,
+"a": {
+"height": 10.75,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.75,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 0.4628,
+"a": {
+"height": 10.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 1.7762,
+"a": {
+"height": 11.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 3.0896,
+"a": {
+"height": 12.31,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.31,
+"material": "ash",
+"water": 0.0,
+"heat": 0.13
+}
+},
+{
+"lat": 48.75,
+"lon": 4.403,
+"a": {
+"height": 13.44,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.44,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 48.75,
+"lon": 5.7164,
+"a": {
+"height": 14.64,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.64,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 48.75,
+"lon": 7.0299,
+"a": {
+"height": 15.58,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.58,
+"material": "ash",
+"water": 0.0,
+"heat": 0.35
+}
+},
+{
+"lat": 48.75,
+"lon": 8.3433,
+"a": {
+"height": 15.98,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.98,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 48.75,
+"lon": 9.6567,
+"a": {
+"height": 15.7,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.7,
+"material": "ash",
+"water": 0.0,
+"heat": 0.39
+}
+},
+{
+"lat": 48.75,
+"lon": 10.9701,
+"a": {
+"height": 14.88,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.88,
+"material": "ash",
+"water": 0.0,
+"heat": 0.35
+}
+},
+{
+"lat": 48.75,
+"lon": 12.2836,
+"a": {
+"height": 13.85,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.85,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 48.75,
+"lon": 13.597,
+"a": {
+"height": 12.94,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.94,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 48.75,
+"lon": 14.9104,
+"a": {
+"height": 12.34,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.34,
+"material": "ash",
+"water": 0.0,
+"heat": 0.13
+}
+},
+{
+"lat": 48.75,
+"lon": 16.2238,
+"a": {
+"height": 12.02,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.02,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 17.5372,
+"a": {
+"height": 11.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 18.8507,
+"a": {
+"height": 11.45,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.45,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 20.1641,
+"a": {
+"height": 10.73,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.73,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 21.4775,
+"a": {
+"height": 9.65,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.65,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 22.7909,
+"a": {
+"height": 8.3,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.3,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 24.1044,
+"a": {
+"height": 6.96,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.96,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 25.4178,
+"a": {
+"height": 5.86,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.86,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 48.75,
+"lon": 26.7312,
+"a": {
+"height": 5.16,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.16,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": -8.3347,
+"a": {
+"height": 3.77,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": -7.0013,
+"a": {
+"height": 5.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.18,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": -5.6678,
+"a": {
+"height": 8.57,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.57,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": -4.3344,
+"a": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": -3.001,
+"a": {
+"height": 11.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.93,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": -1.6675,
+"a": {
+"height": 11.83,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.83,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": -0.3341,
+"a": {
+"height": 10.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 0.9994,
+"a": {
+"height": 9.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 2.3328,
+"a": {
+"height": 9.67,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.67,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 3.6662,
+"a": {
+"height": 10.63,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.63,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 49.5,
+"lon": 4.9997,
+"a": {
+"height": 12.62,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.62,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 49.5,
+"lon": 6.3331,
+"a": {
+"height": 14.93,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.93,
+"material": "ash",
+"water": 0.0,
+"heat": 0.25
+}
+},
+{
+"lat": 49.5,
+"lon": 7.6666,
+"a": {
+"height": 16.66,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 16.66,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 49.5,
+"lon": 9.0,
+"a": {
+"height": 17.11,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 17.11,
+"material": "ash",
+"water": 0.0,
+"heat": 0.3
+}
+},
+{
+"lat": 49.5,
+"lon": 10.3334,
+"a": {
+"height": 16.08,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 16.08,
+"material": "ash",
+"water": 0.0,
+"heat": 0.29
+}
+},
+{
+"lat": 49.5,
+"lon": 11.6669,
+"a": {
+"height": 14.04,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.04,
+"material": "ash",
+"water": 0.0,
+"heat": 0.25
+}
+},
+{
+"lat": 49.5,
+"lon": 13.0003,
+"a": {
+"height": 11.83,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.83,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 49.5,
+"lon": 14.3338,
+"a": {
+"height": 10.34,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.34,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 49.5,
+"lon": 15.6672,
+"a": {
+"height": 10.01,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.01,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 17.0006,
+"a": {
+"height": 10.68,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.68,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 18.3341,
+"a": {
+"height": 11.76,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.76,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 19.6675,
+"a": {
+"height": 12.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 21.001,
+"a": {
+"height": 11.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 22.3344,
+"a": {
+"height": 10.18,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.18,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 23.6678,
+"a": {
+"height": 7.68,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.68,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 25.0013,
+"a": {
+"height": 5.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 49.5,
+"lon": 26.3347,
+"a": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": -7.9289,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": -6.5746,
+"a": {
+"height": 5.76,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.76,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": -5.2203,
+"a": {
+"height": 9.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": -3.866,
+"a": {
+"height": 11.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": -2.5117,
+"a": {
+"height": 12.91,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.91,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": -1.1573,
+"a": {
+"height": 12.46,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.46,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 0.197,
+"a": {
+"height": 10.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 1.5513,
+"a": {
+"height": 9.26,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.26,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 2.9056,
+"a": {
+"height": 8.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 4.2599,
+"a": {
+"height": 9.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 5.6142,
+"a": {
+"height": 11.95,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.95,
+"material": "ash",
+"water": 0.0,
+"heat": 0.15
+}
+},
+{
+"lat": 50.25,
+"lon": 6.9685,
+"a": {
+"height": 14.74,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.74,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 50.25,
+"lon": 8.3228,
+"a": {
+"height": 16.82,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 16.82,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 50.25,
+"lon": 9.6772,
+"a": {
+"height": 17.26,
+"material": "snow",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 17.26,
+"material": "ash",
+"water": 0.0,
+"heat": 0.21
+}
+},
+{
+"lat": 50.25,
+"lon": 11.0315,
+"a": {
+"height": 15.84,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.84,
+"material": "ash",
+"water": 0.0,
+"heat": 0.19
+}
+},
+{
+"lat": 50.25,
+"lon": 12.3858,
+"a": {
+"height": 13.2,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.2,
+"material": "ash",
+"water": 0.0,
+"heat": 0.15
+}
+},
+{
+"lat": 50.25,
+"lon": 13.7401,
+"a": {
+"height": 10.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 15.0944,
+"a": {
+"height": 8.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 16.4487,
+"a": {
+"height": 8.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 17.803,
+"a": {
+"height": 9.65,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.65,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 19.1573,
+"a": {
+"height": 11.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 20.5117,
+"a": {
+"height": 12.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 21.866,
+"a": {
+"height": 12.12,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.12,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 23.2203,
+"a": {
+"height": 10.1,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.1,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 24.5746,
+"a": {
+"height": 7.01,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.01,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 50.25,
+"lon": 25.9289,
+"a": {
+"height": 3.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": -8.8891,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "water",
+"water": 1.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": -7.5131,
+"a": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": -6.137,
+"a": {
+"height": 6.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": -4.7609,
+"a": {
+"height": 8.95,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.95,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": -3.3848,
+"a": {
+"height": 11.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": -2.0087,
+"a": {
+"height": 12.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": -0.6326,
+"a": {
+"height": 12.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.19,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 0.7435,
+"a": {
+"height": 10.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 2.1196,
+"a": {
+"height": 9.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 3.4956,
+"a": {
+"height": 8.71,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.71,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 4.8717,
+"a": {
+"height": 9.55,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.55,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 6.2478,
+"a": {
+"height": 11.59,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.59,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 7.6239,
+"a": {
+"height": 14.04,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.04,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 51.0,
+"lon": 9.0,
+"a": {
+"height": 15.82,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 15.82,
+"material": "ash",
+"water": 0.0,
+"heat": 0.13
+}
+},
+{
+"lat": 51.0,
+"lon": 10.3761,
+"a": {
+"height": 16.13,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 16.13,
+"material": "ash",
+"water": 0.0,
+"heat": 0.12
+}
+},
+{
+"lat": 51.0,
+"lon": 11.7522,
+"a": {
+"height": 14.81,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 14.81,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 13.1283,
+"a": {
+"height": 12.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 14.5044,
+"a": {
+"height": 9.82,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.82,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 15.8804,
+"a": {
+"height": 8.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 17.2565,
+"a": {
+"height": 7.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 18.6326,
+"a": {
+"height": 9.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 20.0087,
+"a": {
+"height": 10.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.51,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 21.3848,
+"a": {
+"height": 11.5,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.5,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 22.7609,
+"a": {
+"height": 11.11,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.11,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 24.137,
+"a": {
+"height": 9.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 25.5131,
+"a": {
+"height": 6.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.0,
+"lon": 26.8891,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": -8.4852,
+"a": {
+"height": 4.01,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.01,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": -7.0864,
+"a": {
+"height": 4.92,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.92,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": -5.6876,
+"a": {
+"height": 6.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": -4.2888,
+"a": {
+"height": 8.5,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.5,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": -2.89,
+"a": {
+"height": 10.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.13,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": -1.4911,
+"a": {
+"height": 11.04,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.04,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": -0.0923,
+"a": {
+"height": 11.09,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.09,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 1.3065,
+"a": {
+"height": 10.56,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.56,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 2.7053,
+"a": {
+"height": 9.94,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.94,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 4.1041,
+"a": {
+"height": 9.79,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.79,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 5.503,
+"a": {
+"height": 10.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 6.9018,
+"a": {
+"height": 11.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 8.3006,
+"a": {
+"height": 12.89,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.89,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 9.6994,
+"a": {
+"height": 13.82,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.82,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 11.0982,
+"a": {
+"height": 13.9,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.9,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 12.497,
+"a": {
+"height": 13.03,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.03,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 13.8959,
+"a": {
+"height": 11.52,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.52,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 15.2947,
+"a": {
+"height": 9.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 16.6935,
+"a": {
+"height": 8.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 18.0923,
+"a": {
+"height": 8.4,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.4,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 19.4911,
+"a": {
+"height": 8.71,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.71,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 20.89,
+"a": {
+"height": 9.24,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.24,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 22.2888,
+"a": {
+"height": 9.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 23.6876,
+"a": {
+"height": 8.95,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.95,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 25.0864,
+"a": {
+"height": 7.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 51.75,
+"lon": 26.4852,
+"a": {
+"height": 5.71,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.71,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": -8.0707,
+"a": {
+"height": 6.07,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.07,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": -6.6482,
+"a": {
+"height": 6.77,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.77,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": -5.2256,
+"a": {
+"height": 7.3,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.3,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": -3.803,
+"a": {
+"height": 7.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": -2.3805,
+"a": {
+"height": 8.23,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.23,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": -0.9579,
+"a": {
+"height": 8.81,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.81,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 0.4646,
+"a": {
+"height": 9.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.5,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 1.8872,
+"a": {
+"height": 10.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.22,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 3.3098,
+"a": {
+"height": 10.87,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.87,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 4.7323,
+"a": {
+"height": 11.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 6.1549,
+"a": {
+"height": 11.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 7.5774,
+"a": {
+"height": 11.64,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.64,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 9.0,
+"a": {
+"height": 11.47,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.47,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 10.4226,
+"a": {
+"height": 11.26,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.26,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 11.8451,
+"a": {
+"height": 11.04,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.04,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 13.2677,
+"a": {
+"height": 10.85,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.85,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 14.6902,
+"a": {
+"height": 10.68,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.68,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 16.1128,
+"a": {
+"height": 10.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 17.5354,
+"a": {
+"height": 10.01,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.01,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 18.9579,
+"a": {
+"height": 9.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 20.3805,
+"a": {
+"height": 8.62,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.62,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 21.803,
+"a": {
+"height": 7.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.75,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 23.2256,
+"a": {
+"height": 6.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.91,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 24.6482,
+"a": {
+"height": 6.17,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.17,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 52.5,
+"lon": 26.0707,
+"a": {
+"height": 5.57,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.57,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": -7.6448,
+"a": {
+"height": 7.97,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.97,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": -6.1974,
+"a": {
+"height": 8.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": -4.7501,
+"a": {
+"height": 7.92,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.92,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": -3.3027,
+"a": {
+"height": 6.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.98,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": -1.8553,
+"a": {
+"height": 6.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.36,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": -0.4079,
+"a": {
+"height": 6.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 1.0394,
+"a": {
+"height": 7.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.9,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 2.4868,
+"a": {
+"height": 9.79,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.79,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 3.9342,
+"a": {
+"height": 11.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.66,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 5.3816,
+"a": {
+"height": 12.77,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.77,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 6.8289,
+"a": {
+"height": 12.72,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.72,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 8.2763,
+"a": {
+"height": 11.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 9.7237,
+"a": {
+"height": 10.08,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.08,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 11.1711,
+"a": {
+"height": 8.76,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.76,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 12.6184,
+"a": {
+"height": 8.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 14.0658,
+"a": {
+"height": 8.76,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.76,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 15.5132,
+"a": {
+"height": 9.84,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.84,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 16.9606,
+"a": {
+"height": 10.85,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.85,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 18.4079,
+"a": {
+"height": 11.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 19.8553,
+"a": {
+"height": 10.3,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.3,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 21.3027,
+"a": {
+"height": 8.47,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.47,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 22.7501,
+"a": {
+"height": 6.29,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.29,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 24.1974,
+"a": {
+"height": 4.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.42,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 53.25,
+"lon": 25.6448,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": -7.2066,
+"a": {
+"height": 9.02,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.02,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": -5.7333,
+"a": {
+"height": 9.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": -4.2599,
+"a": {
+"height": 8.18,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.18,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": -2.7866,
+"a": {
+"height": 6.38,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.38,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": -1.3133,
+"a": {
+"height": 5.09,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.09,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 0.16,
+"a": {
+"height": 5.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 1.6334,
+"a": {
+"height": 6.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 3.1067,
+"a": {
+"height": 9.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 4.58,
+"a": {
+"height": 11.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 6.0533,
+"a": {
+"height": 13.32,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.32,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 7.5267,
+"a": {
+"height": 13.08,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 13.08,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 9.0,
+"a": {
+"height": 11.33,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.33,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 10.4733,
+"a": {
+"height": 8.93,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.93,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 11.9467,
+"a": {
+"height": 6.96,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.96,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 13.42,
+"a": {
+"height": 6.29,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.29,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 14.8933,
+"a": {
+"height": 7.15,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.15,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 16.3666,
+"a": {
+"height": 9.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.0,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 17.84,
+"a": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 19.3133,
+"a": {
+"height": 11.45,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.45,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 20.7866,
+"a": {
+"height": 10.49,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.49,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 22.2599,
+"a": {
+"height": 8.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.06,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 23.7333,
+"a": {
+"height": 5.06,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.06,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.0,
+"lon": 25.2066,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": -5.2546,
+"a": {
+"height": 9.12,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.12,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": -3.7542,
+"a": {
+"height": 7.92,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.92,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": -2.2537,
+"a": {
+"height": 6.12,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.12,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": -0.7532,
+"a": {
+"height": 4.8,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.8,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 0.7473,
+"a": {
+"height": 4.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 2.2478,
+"a": {
+"height": 6.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 3.7483,
+"a": {
+"height": 8.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.81,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 5.2488,
+"a": {
+"height": 11.28,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 11.28,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 6.7493,
+"a": {
+"height": 12.67,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.67,
+"material": "rock",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 8.2498,
+"a": {
+"height": 12.36,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 12.36,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 9.7502,
+"a": {
+"height": 10.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 11.2507,
+"a": {
+"height": 8.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 12.7512,
+"a": {
+"height": 6.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 14.2517,
+"a": {
+"height": 5.5,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.5,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 15.7522,
+"a": {
+"height": 6.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 17.2527,
+"a": {
+"height": 8.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.16,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 18.7532,
+"a": {
+"height": 9.91,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.91,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 20.2537,
+"a": {
+"height": 10.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.58,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 21.7542,
+"a": {
+"height": 9.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 54.75,
+"lon": 23.2546,
+"a": {
+"height": 7.25,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.25,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": -4.7604,
+"a": {
+"height": 7.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.78,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": -3.2315,
+"a": {
+"height": 7.18,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.18,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": -1.7026,
+"a": {
+"height": 6.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": -0.1736,
+"a": {
+"height": 5.45,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.45,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 1.3553,
+"a": {
+"height": 5.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 2.8842,
+"a": {
+"height": 6.6,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.6,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 4.4132,
+"a": {
+"height": 8.28,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.28,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 5.9421,
+"a": {
+"height": 9.89,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.89,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 7.4711,
+"a": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 9.0,
+"a": {
+"height": 10.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 10.58,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 10.5289,
+"a": {
+"height": 9.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.41,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 12.0579,
+"a": {
+"height": 7.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 13.5868,
+"a": {
+"height": 6.43,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.43,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 15.1158,
+"a": {
+"height": 5.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.88,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 16.6447,
+"a": {
+"height": 6.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.31,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 18.1736,
+"a": {
+"height": 7.32,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.32,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 19.7026,
+"a": {
+"height": 8.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 21.2315,
+"a": {
+"height": 8.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 55.5,
+"lon": 22.7604,
+"a": {
+"height": 7.75,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.75,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": -2.6907,
+"a": {
+"height": 6.1,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.1,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": -1.1319,
+"a": {
+"height": 6.41,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.41,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 0.4268,
+"a": {
+"height": 6.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 1.9856,
+"a": {
+"height": 7.03,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.03,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 3.5443,
+"a": {
+"height": 7.37,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.37,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 5.1031,
+"a": {
+"height": 7.7,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.7,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 6.6619,
+"a": {
+"height": 7.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 8.2206,
+"a": {
+"height": 8.14,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.14,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 9.7794,
+"a": {
+"height": 8.11,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.11,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 11.3381,
+"a": {
+"height": 7.92,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.92,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 12.8969,
+"a": {
+"height": 7.66,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.66,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 14.4557,
+"a": {
+"height": 7.32,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.32,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 16.0144,
+"a": {
+"height": 7.03,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.03,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 17.5732,
+"a": {
+"height": 6.74,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.74,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 19.1319,
+"a": {
+"height": 6.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.48,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 56.25,
+"lon": 20.6907,
+"a": {
+"height": 6.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.17,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": -2.1303,
+"a": {
+"height": 4.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.94,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": -0.5403,
+"a": {
+"height": 6.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.62,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 1.0498,
+"a": {
+"height": 7.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.99,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 2.6398,
+"a": {
+"height": 8.52,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.52,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 4.2299,
+"a": {
+"height": 8.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 5.8199,
+"a": {
+"height": 7.1,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.1,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 7.41,
+"a": {
+"height": 6.0,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.0,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 9.0,
+"a": {
+"height": 5.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.38,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 10.59,
+"a": {
+"height": 5.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 12.1801,
+"a": {
+"height": 6.43,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.43,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 13.7701,
+"a": {
+"height": 7.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.54,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 15.3602,
+"a": {
+"height": 8.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.28,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 16.9502,
+"a": {
+"height": 8.23,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.23,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 18.5403,
+"a": {
+"height": 7.25,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.25,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.0,
+"lon": 20.1303,
+"a": {
+"height": 5.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.64,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 1.697,
+"a": {
+"height": 8.66,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.66,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 3.3199,
+"a": {
+"height": 9.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 9.34,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 4.9428,
+"a": {
+"height": 8.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.45,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 6.5657,
+"a": {
+"height": 6.48,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 6.48,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 8.1886,
+"a": {
+"height": 4.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 4.42,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 9.8114,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 11.4343,
+"a": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 13.0572,
+"a": {
+"height": 5.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.14,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 14.6801,
+"a": {
+"height": 7.2,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.2,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 57.75,
+"lon": 16.303,
+"a": {
+"height": 8.69,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 8.69,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 58.5,
+"lon": 5.6852,
+"a": {
+"height": 7.97,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 7.97,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 58.5,
+"lon": 7.3426,
+"a": {
+"height": 5.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 5.78,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 58.5,
+"lon": 9.0,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 58.5,
+"lon": 10.6574,
+"a": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "grass",
+"water": 0.0,
+"heat": 0.0
+}
+},
+{
+"lat": 58.5,
+"lon": 12.3148,
+"a": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+},
+"b": {
+"height": 3.72,
+"material": "forest",
+"water": 0.0,
+"heat": 0.0
+}
+}
+]
+}
