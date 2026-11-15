@@ -682,8 +682,7 @@ void AFNStudio::UpdateTable(float Dt)
 		if (Step != 0 && TableFace >= 0)
 		{
 			if (!MapPointUnderCursor(Px, Py)) { Px = TableCx; Py = TableCy; }
-			ZoomMapAt(Px, Py, Step);
-			PlaySfx(EFNSfx::Click, 0.35f);
+			ZoomMapAt(Px, Py, Step);   // FN7 (Mac session): no click per wheel step (the zoom has its whoosh; Chris heard clicks)
 		}
 		// the Globe: press on it and drag to spin it; a press-and-release without dragging picks that spot
 		float MX = 0.f, MY = 0.f;

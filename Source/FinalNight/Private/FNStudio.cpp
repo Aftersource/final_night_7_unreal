@@ -400,7 +400,8 @@ void AFNStudio::Tick(float DeltaSeconds)
 		TypeShown = FMath::Min<float>(TypeFull.Len(), TypeShown + DeltaSeconds * FMath::Max(70.f, TypeFull.Len() / 5.f));
 		const int32 N = (int32)TypeShown;
 		EaselBody->SetText(FText::FromString(TypeFull.Left(N)));
-		if (N - TypeLastQuill >= 5) { TypeLastQuill = N; PlaySfx(EFNSfx::Quill, 0.6f + 0.4f * Rng.FRand()); }
+		// FN7 (Mac session): the quill scratches every 20 characters, softly (every 5 at full gain read as clicking).
+		if (N - TypeLastQuill >= 20) { TypeLastQuill = N; PlaySfx(EFNSfx::Quill, 0.25f + 0.15f * Rng.FRand()); }
 	}
 
 	UpdateFx(DeltaSeconds);

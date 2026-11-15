@@ -109,7 +109,9 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 	Root->SetHovered(Id);
 	if (WasInputKeyJustPressed(EKeys::LeftMouseButton) && !Root->IsTyping())
 	{
-		Studio->PlaySfx(EFNSfx::Click, Id != NAME_None ? 1.f : 0.5f);
+		// FN7 (Mac session, 2026-11-15, Chris asked about the clicking noises in the game and where they come from): a click only on a
+		// real clickable prop, never on a press over nothing or on the globe (that press is a grab of the planet).
+		if (Id != NAME_None && Id != AFNStudio::Globe) Studio->PlaySfx(EFNSfx::Click, 1.f);
 		// FN7 rule (Chris, 2026-11-14, asked that the view stop warping around; Mac session with the backend's go-ahead): a single
 		// click NEVER moves the board view: no click-to-zoom on the map (MapClick) and no centring on a clicked demigod
 		// marker (ClickDemigod -> CenterMapOn). View changes: the wheel, right-click (out), RESET VIEW / R / Home.
