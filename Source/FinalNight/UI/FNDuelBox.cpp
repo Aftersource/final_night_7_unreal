@@ -9,6 +9,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "UObject/UObjectIterator.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -39,14 +41,18 @@ namespace FN7Box
 	static const FVector BoxAt(0.f, 134.f, 92.f);       // studio space: over the board, the lid clear in front of the globe (its face reaches Y ~58)
 	static constexpr float RiseFrom = -46.f;           // cm below its place when it starts to rise
 	static constexpr float RiseTime = 0.95f, OpenTime = 0.85f, DrawerTime = 0.4f;
+	static constexpr float SlamTime = 0.9f;            // the portraits slam in (the HUD) before the box starts to rise
+	static constexpr float FighterScale = 1.9f;        // miniatures: a fighter is ~1/5 of the box's height, readable from the wide shot
+	static const TCHAR* HexMesh = TEXT("/Game/Earth/SM_HexPrism.SM_HexPrism");   // a real hexagonal prism (r 50, h 100, base at 0)
 
-	static const FLinearColor WoodDark(0.05f, 0.028f, 0.014f);
-	static const FLinearColor WoodMid(0.1f, 0.058f, 0.027f);
-	static const FLinearColor WoodLight(0.17f, 0.1f, 0.045f);
+	// Dark stained wood (walnut): it is lit only by the box's own key and candle now, never the table's spots.
+	static const FLinearColor WoodDark(0.03f, 0.012f, 0.005f);
+	static const FLinearColor WoodMid(0.062f, 0.028f, 0.011f);
+	static const FLinearColor WoodLight(0.11f, 0.055f, 0.022f);
 	static const FLinearColor Gilt(0.78f, 0.56f, 0.2f);
 	static const FLinearColor GiltDark(0.24f, 0.155f, 0.05f);
 	static const FLinearColor LidFace(0.034f, 0.019f, 0.009f);   // the spots hit the lid square on: it needs the darkest wood
-	static const FLinearColor TileA(0.13f, 0.115f, 0.075f), TileB(0.095f, 0.082f, 0.052f);   // the table's spots wash flat tops pale
+	static const FLinearColor TileA(0.16f, 0.145f, 0.12f), TileB(0.115f, 0.105f, 0.088f), TileC(0.2f, 0.18f, 0.145f);   // worn flagstones
 	static const FLinearColor Parchment(0.86f, 0.79f, 0.62f);
 
 	static FLinearColor Hex(const TCHAR* H)
@@ -200,35 +206,37 @@ void AFNDuelBox::Build()
 		}
 	}
 
-	// The hex stage: every hex within the radius, two tones, three crossed boxes per hex (instanced).
+	// The hex stage: every hex within the radius, one hexagonal flagstone each (instanced), three tones.
 	{
-		UInstancedStaticMeshComponent* Tiles[2];
-		for (int32 k = 0; k < 2; ++k)
+		UInstancedStaticMeshComponent* Tiles[3];
+		UStaticMesh* Hex = LoadObject<UStaticMesh>(nullptr, HexMesh);
+		for (int32 k = 0; k < 3; ++k)
 		{
 			UInstancedStaticMeshComponent* I = NewObject<UInstancedStaticMeshComponent>(this);
 			I->SetupAttachment(Lift);
-			I->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, Cube));
+			I->SetStaticMesh(Hex ? Hex : LoadObject<UStaticMesh>(nullptr, Cyl));
 			I->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			if (BaseMat)
 			{
 				UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(BaseMat, I);
-				M->SetVectorParameterValue(TEXT("Color"), k ? TileB : TileA);
+				M->SetVectorParameterValue(TEXT("Color"), k == 0 ? TileA : k == 1 ? TileB : TileC);
 				I->SetMaterial(0, M);
 			}
 			I->RegisterComponent();
 			Tiles[k] = I;
 		}
-		const float R = S * 0.95f;   // hex circumradius in cm, a hair of gap
+		const float R = S * 0.93f;   // hex circumradius in cm, a grout line between stones
 		for (int32 q = -StageRadius; q <= StageRadius; ++q)
 			for (int32 r = -StageRadius; r <= StageRadius; ++r)
 			{
 				if (FMath::Abs(q + r) > StageRadius) continue;
 				FVector C = HexLocal(q, r);
 				if (FMath::Abs(C.X) > W * 0.5f - RimT - S * 0.9f || FMath::Abs(C.Y) > D * 0.5f - RimT - S * 0.8f) continue;
-				C.Z = SlabH + TileH * 0.5f;
-				const int32 Tone = ((q - r) % 3 + 3) % 3 == 0 ? 1 : 0;
-				for (int32 k = 0; k < 3; ++k)
-					Tiles[Tone]->AddInstance(FTransform(FRotator(0.f, 30.f + 60.f * k, 0.f), C, FVector(R * 1.7320508f, R, TileH) / 100.f));
+				C.Z = SlabH;
+				const int32 Tone = ((q - r) % 3 + 3) % 3;
+				const float Wear = 0.92f + 0.16f * FMath::Frac(FMath::Sin((float)(q * 12.9898 + r * 78.233)) * 43758.5453f);   // stones not quite level
+				if (Hex) Tiles[Tone]->AddInstance(FTransform(FRotator::ZeroRotator, C, FVector(R / 50.f, R / 50.f, TileH * Wear / 100.f)));
+				else Tiles[Tone]->AddInstance(FTransform(FRotator::ZeroRotator, C + FVector(0, 0, TileH * 0.5f), FVector(R * 2.f, R * 2.f, TileH) / 100.f));
 			}
 	}
 
@@ -295,12 +303,27 @@ void AFNDuelBox::Build()
 	Burst->SetVisibility(false);
 	UPointLightComponent* L = NewObject<UPointLightComponent>(this);
 	L->SetupAttachment(Lift);
-	L->SetRelativeLocation(FVector(0.f, 40.f, 70.f));
-	L->SetIntensity(14.f);   // the studio's scale of light (its spots run 9-10): the wood stays dark, the skins read
-	L->SetAttenuationRadius(220.f);
-	L->SetLightColor(FLinearColor(1.f, 0.85f, 0.65f));
+	L->SetRelativeLocation(FVector(-26.f, 52.f, 74.f));   // a warm key from the front left, above the audience
+	L->SetIntensity(18.f);   // the box's key: the table's spots dim to a quarter while it holds the camera (DimTable)
+	L->SetAttenuationRadius(240.f);
+	L->SetLightColor(FLinearColor(1.f, 0.78f, 0.52f));
 	L->SetCastShadows(false);
 	L->RegisterComponent();
+	KeyLight = L;
+	// A candle on the front-right corner of the rim, flickering: the box's second light.
+	{
+		const FVector At(W * 0.5f - 9.f, D * 0.5f - 9.f, SlabH + RimH);
+		Part(Lift, Cyl, At + FVector(0, 0, 4.f), FVector(3.2f, 3.2f, 8.f), FLinearColor(0.75f, 0.68f, 0.52f));
+		CandleFlame = Part(Lift, Sphere, At + FVector(0, 0, 9.6f), FVector(1.3f, 1.3f, 2.4f), FLinearColor(1.f, 0.6f, 0.15f) * 6.f);
+		CandleLight = NewObject<UPointLightComponent>(this);
+		CandleLight->SetupAttachment(Lift);
+		CandleLight->SetRelativeLocation(At + FVector(0, 0, 13.f));
+		CandleLight->SetIntensity(9.f);
+		CandleLight->SetAttenuationRadius(120.f);
+		CandleLight->SetLightColor(FLinearColor(1.f, 0.55f, 0.2f));
+		CandleLight->SetCastShadows(false);
+		CandleLight->RegisterComponent();
+	}
 	TeamLight = NewObject<UPointLightComponent>(this);
 	TeamLight->SetupAttachment(Lift);
 	TeamLight->SetRelativeLocation(FVector(0.f, 30.f, LidH * 0.75f));
@@ -335,13 +358,27 @@ void AFNDuelBox::Build()
 	}
 }
 
+void AFNDuelBox::DimTable(float Alpha)
+{
+	// House lights down: while the box holds the camera, the table's spotlights fall to a quarter (they washed the box's
+	// tops pale) and the box's own warm key and candle carry it; they come back as it closes. (Lighting channels would
+	// shield it more neatly but light nothing on this renderer: channel-1 primitives stayed black.)
+	if (Alpha <= 0.f && DimmedSpots.Num() == 0) return;
+	if (DimmedSpots.Num() == 0)
+		for (TObjectIterator<USpotLightComponent> It; It; ++It)
+			if (It->GetWorld() == GetWorld() && It->GetOwner() != this && It->IsVisible()) DimmedSpots.Add(*It, It->Intensity);
+	for (const TPair<TWeakObjectPtr<USpotLightComponent>, float>& P : DimmedSpots)
+		if (USpotLightComponent* L = P.Key.Get()) L->SetIntensity(P.Value * FMath::Lerp(1.f, 0.25f, FMath::Clamp(Alpha, 0.f, 1.f)));
+	if (Alpha <= 0.f) DimmedSpots.Reset();
+}
+
 USkeletalMeshComponent* AFNDuelBox::Fighter(const FString& Skin)
 {
 	USkeletalMeshComponent* M = NewObject<USkeletalMeshComponent>(this);
 	M->SetupAttachment(Lift);
 	M->RegisterComponent();
 	M->SetSkeletalMesh(LoadObject<USkeletalMesh>(nullptr, FN7Box::MeshPath));
-	M->SetRelativeScale3D(FVector(FN7Box::S / 100.f));   // 1.7 m of mannequin = 1.7 m of stage
+	M->SetRelativeScale3D(FVector(FN7Box::S * FN7Box::FighterScale / 100.f));   // a miniature: bigger than the stage's scale, readable
 	M->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 	M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	return M;
@@ -461,7 +498,8 @@ void AFNDuelBox::Open(const TSharedPtr<FFNDuelSession>& InSession, AFNStudio* St
 		BuildScene(InSession->Scene);
 	}
 	SetActorHiddenInGame(false);
-	if (Phase == EPhase::Hidden || Phase == EPhase::Closing) { Phase = EPhase::Rising; PhaseT = 0.f; }
+	if (Phase == EPhase::Hidden) { Phase = EPhase::Rising; PhaseT = bTakeCamera ? -FN7Box::SlamTime : 0.f; }   // taking the camera: the portraits slam in first
+	else if (Phase == EPhase::Closing) { Phase = EPhase::Rising; PhaseT = 0.f; }
 
 	if (bTakeCamera && !bTookCamera && Camera)
 		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
@@ -471,6 +509,7 @@ void AFNDuelBox::Open(const TSharedPtr<FFNDuelSession>& InSession, AFNStudio* St
 			UpdateCamera(TEXT("wide"), 1.f);
 			PC->SetViewTargetWithBlend(Camera, 1.1f, VTBlend_EaseInOut, 2.f);
 			bTookCamera = true;
+			bDimsTable = true;
 		}
 	UE_LOG(LogTemp, Display, TEXT("FN7 duel box: open %s%s"), *ShownDuel, bTookCamera ? TEXT(" (camera on the box)") : TEXT(""));
 }
@@ -641,7 +680,7 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 				LastContact = FMath::Max(LastContact, Tm);
 				if (!bLive || Tm <= From || Tm > T) continue;
 				const FString On = Str(C, TEXT("on"));
-				BurstAt = (On == TEXT("a") ? Pa.At : On == TEXT("b") ? Pb.At : (Pa.At + Pb.At) * 0.5f) + FVector(0, 0, 12.f);
+				BurstAt = (On == TEXT("a") ? Pa.At : On == TEXT("b") ? Pb.At : (Pa.At + Pb.At) * 0.5f) + FVector(0, 0, 26.f);   // over the miniatures' heads
 				Burst->SetText(FText::FromString(Str(C, TEXT("text"))));
 				Burst->SetVisibility(true);
 				BurstLeft = 0.7f;
@@ -663,6 +702,12 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 		bool bFlip = false;
 		Panel->TryGetBoolField(TEXT("flip"), bFlip);
 		if (bFlip) Cap = TEXT("INITIATIVE FLIPS!  ") + Cap;
+		if (bFlip && bFresh && bLive)
+		{
+			FlashAt = FPlatformTime::Seconds();   // the HUD flashes white (FlashAlpha)
+			bCamInit = false;                     // and the camera cuts, no glide
+			bFlipSide = !bFlipSide;               // to the other side of the stage
+		}
 		Caption = Cap;
 		LastPanel = Cur;
 		LastPanelT = T;
@@ -689,18 +734,18 @@ void AFNDuelBox::UpdateCamera(const FString& Shot, float Dt)
 	if (!Camera || !FighterA || !FighterB) return;
 	const FTransform B = GetActorTransform();
 	const FVector A = FighterA->GetRelativeLocation(), Bp = FighterB->GetRelativeLocation();
-	FVector Mid = (A + Bp) * 0.5f + FVector(0, 0, 6.f);
+	FVector Mid = (A + Bp) * 0.5f + FVector(0, 0, 10.f);   // the miniatures' chests
 	const float Sep = FVector::Dist2D(A, Bp);
-	float Dist = FMath::Max(95.f, Sep * 1.5f + 60.f);
+	float Dist = FMath::Max(115.f, Sep * 1.45f + 75.f);
 	FVector Dir(0.f, 1.f, 0.5f);
 	if (Shot.IsEmpty() || Shot == TEXT("wide"))
 	{
-		// The whole box, as in the concept: the lid (CLASH, the sky, the two plaques) over the stage.
-		Mid = FVector(0.f, -16.f, 70.f);
-		Dir = FVector(0.f, 1.f, 0.3f);
-		Dist = 265.f;
+		// The whole box, closer than before: the lid's CLASH and plaques at the top of the frame, the fighters readable.
+		Mid = FVector(0.f, -8.f, 58.f);
+		Dir = FVector(0.f, 1.f, 0.36f);
+		Dist = 222.f;
 	}
-	else if (Shot == TEXT("low")) Dir = FVector(0.f, 1.f, 0.16f);
+	else if (Shot == TEXT("low")) Dir = FVector(0.f, 1.f, 0.27f);   // low, but over the 10 cm rim's horizon: the frame stays on the stage, not the table beyond
 	else if (Shot == TEXT("side")) Dir = FVector(0.75f, 0.65f, 0.35f);
 	else if (Shot == TEXT("over_a") || Shot == TEXT("over_b"))
 	{
@@ -710,6 +755,7 @@ void AFNDuelBox::UpdateCamera(const FString& Shot, float Dt)
 		Dir = FVector(Away.X * 0.8f, FMath::Max(0.45f, Away.Y * 0.8f + 0.5f), 0.4f);
 	}
 	else if (Shot == TEXT("close_a") || Shot == TEXT("close_b")) { Dir = FVector((Shot == TEXT("close_a") ? -0.25f : 0.25f), 1.f, 0.32f); Dist *= 0.78f; }
+	if (bFlipSide && !(Shot.IsEmpty() || Shot == TEXT("wide"))) Dir.X = FMath::Abs(Dir.X) < 0.2f ? -0.3f : -Dir.X;   // after a flip: the mirror angle (never wider than the shot's own, so never outside the box)
 	Dir.Y = FMath::Max(Dir.Y, 0.35f);   // always from the front: never behind the lid
 	const FVector WantLook = Mid;
 	const FVector WantPos = Mid + Dir.GetSafeNormal() * Dist;
@@ -734,6 +780,14 @@ void AFNDuelBox::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	if (Phase == EPhase::Hidden || !bBuilt) return;
 	PhaseT += DeltaSeconds;
+	SetActorHiddenInGame(Phase == EPhase::Rising && PhaseT < 0.f);   // waiting under the table while the portraits slam in
+	if (CandleLight)
+	{
+		const float Tm = (float)FPlatformTime::Seconds();
+		const float F = 0.82f + 0.12f * FMath::PerlinNoise1D(Tm * 7.3f) + 0.06f * FMath::PerlinNoise1D(Tm * 23.f + 5.f);
+		CandleLight->SetIntensity(9.f * F);
+		if (CandleFlame) CandleFlame->SetRelativeScale3D(FVector(0.013f, 0.013f, 0.024f * (0.85f + 0.3f * F)));
+	}
 	float Rise = 1.f, Lid = 1.f, Draw = 1.f;
 	if (Phase == EPhase::Rising)
 	{
@@ -747,7 +801,7 @@ void AFNDuelBox::Tick(float DeltaSeconds)
 		Draw = 1.f - EaseInOut(PhaseT / 0.3f);
 		Lid = 1.f - EaseInOut((PhaseT - 0.2f) / 0.7f);
 		Rise = 1.f - EaseInOut((PhaseT - 0.9f) / 0.7f);
-		if (PhaseT > 1.7f) { Phase = EPhase::Hidden; SetActorHiddenInGame(true); ShownDuel.Reset(); ShownScene = nullptr; return; }
+		if (PhaseT > 1.7f) { Phase = EPhase::Hidden; SetActorHiddenInGame(true); ShownDuel.Reset(); ShownScene = nullptr; DimTable(0.f); bDimsTable = false; return; }
 	}
 	Lift->SetRelativeLocation(FVector(0.f, 0.f, RiseFrom * (1.f - Rise)));
 	Lift->SetRelativeScale3D(FVector(FMath::Lerp(0.72f, 1.f, FMath::Clamp(Rise, 0.f, 1.2f))));
@@ -755,6 +809,7 @@ void AFNDuelBox::Tick(float DeltaSeconds)
 	LidHinge->SetRelativeRotation(FQuat(FVector::XAxisVector, FMath::DegreesToRadians(FMath::Lerp(-90.f, 8.f, FMath::Clamp(Lid, 0.f, 1.f)))));
 	Drawer->SetRelativeLocation(FVector(0.f, D * 0.5f - 8.f + 10.f * FMath::Clamp(Draw, 0.f, 1.f), 3.2f));
 	SceneRoot->SetVisibility(Lid > 0.5f, true);
+	if (bDimsTable) DimTable(FMath::Clamp(Phase == EPhase::Closing ? Lid : FMath::Max(Rise, Lid), 0.f, 1.f));
 	FighterA->SetVisibility(Lid > 0.5f);
 	FighterB->SetVisibility(Lid > 0.5f);
 	PlayStage(NowMs ? NowMs() : 0.0, DeltaSeconds);

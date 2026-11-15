@@ -210,6 +210,54 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.ShadowOffset(FVector2D(1.f, 1.f)).ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f))
 			.Text_Lambda([this]() { return FText::FromString(BoardInfo); })
 		]
+		// The duel's opening slam: two portraits fly in from the sides and hit, VS punches in, then the box rises.
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+		[
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("NoBorder")).Padding(0.f)
+			.Visibility_Lambda([this]() { return FPlatformTime::Seconds() - SlamAt < 1.25 ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.ColorAndOpacity_Lambda([this]() { const float T = (float)(FPlatformTime::Seconds() - SlamAt); return FLinearColor(1.f, 1.f, 1.f, FMath::Clamp((1.25f - T) / 0.35f, 0.f, 1.f)); })
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[ SlamCard(true) ]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(28.f, 0.f)
+				[
+					SNew(STextBlock).Text(FText::FromString(TEXT("VS")))
+					.Font(FN7Style::Type::Font(64, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.82f, 0.4f))
+					.ShadowOffset(FVector2D(3.f, 3.f)).ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f))
+					.RenderTransformPivot(FVector2D(0.5f, 0.5f))
+					.RenderTransform_Lambda([this]()
+					{
+						const float T = (float)(FPlatformTime::Seconds() - SlamAt);
+						const float U = FMath::Clamp((T - 0.28f) / 0.2f, 0.f, 1.f);
+						return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FMath::Lerp(3.2f, 1.f, U * U)));
+					})
+					.Visibility_Lambda([this]() { return FPlatformTime::Seconds() - SlamAt > 0.28 ? EVisibility::HitTestInvisible : EVisibility::Hidden; })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[ SlamCard(false) ]
+			]
+		]
+		// The flash of an initiative flip in the duel box, and of the slam's impact.
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).Padding(0.f)
+			.BorderBackgroundColor_Lambda([this]()
+			{
+				float A = 0.f;
+				if (AFNStudio* St = FindStudio())
+					if (const AFNDuelBox* Box = AFNDuelBox::Get(St->GetWorld(), false)) A = Box->FlashAlpha() * 0.75f;
+				const float T = (float)(FPlatformTime::Seconds() - SlamAt);
+				if (T > 0.33f && T < 0.53f) A = FMath::Max(A, 0.55f * (1.f - (T - 0.33f) / 0.2f));
+				return FSlateColor(FLinearColor(1.f, 0.97f, 0.9f, A));
+			})
+			.Visibility_Lambda([this]()
+			{
+				if (FPlatformTime::Seconds() - SlamAt < 0.6) return EVisibility::HitTestInvisible;
+				if (AFNStudio* St = FindStudio())
+					if (const AFNDuelBox* Box = AFNDuelBox::Get(St->GetWorld(), false))
+						if (Box->FlashAlpha() > 0.f) return EVisibility::HitTestInvisible;
+				return EVisibility::Collapsed;
+			})
+		]
 		// "Updating in N s": shown before the Mac session restarts this editor on a new build.
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 120.f, 0.f, 0.f))
 		[
@@ -2076,6 +2124,52 @@ void SFNHudLive::UpdateBoardInfo()
 	BoardInfo = T->Text.ToString();
 }
 
+TSharedRef<SWidget> SFNHudLive::SlamCard(bool bA)
+{
+	// A framed portrait (or the name's initial on stone when the image isn't loaded), flying in from its side.
+	return SNew(SBox)
+		.RenderTransform_Lambda([this, bA]()
+		{
+			const float T = (float)(FPlatformTime::Seconds() - SlamAt);
+			const float U = FMath::Clamp(T / 0.33f, 0.f, 1.f);
+			const float C1 = 1.9f, C3 = C1 + 1.f;
+			const float E = 1.f + C3 * FMath::Cube(U - 1.f) + C1 * FMath::Square(U - 1.f);   // ease out, overshooting
+			const float Shake = (T > 0.33f && T < 0.5f) ? FMath::Sin(T * 140.f) * 6.f * (0.5f - T) / 0.17f : 0.f;
+			return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FVector2f((bA ? -1.f : 1.f) * 1100.f * (1.f - E) + Shake, 0.f)));
+		})
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			[
+				SNew(SBorder).BorderImage(FN7Wood::StoneBrush()).Padding(8.f)
+				.BorderBackgroundColor(bA ? FLinearColor(0.45f, 0.65f, 1.f) : FLinearColor(1.f, 0.5f, 0.42f))
+				[
+					SNew(SBox).WidthOverride(230.f).HeightOverride(230.f)
+					[
+						SNew(SOverlay)
+						+ SOverlay::Slot()
+						[
+							SNew(SImage).Image_Lambda([this, bA]() { return bA ? &SlamBrushA : &SlamBrushB; })
+							.Visibility_Lambda([this, bA]() { return (bA ? bSlamTexA : bSlamTexB) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+						]
+						+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+						[
+							SNew(STextBlock).Font(FN7Style::Type::Font(96, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.95f, 0.88f, 0.72f))
+							.Text_Lambda([this, bA]() { const FString& N = bA ? SlamNameA : SlamNameB; return FText::FromString(N.Left(1).ToUpper()); })
+							.Visibility_Lambda([this, bA]() { return (bA ? bSlamTexA : bSlamTexB) ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+						]
+					]
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 8.f, 0.f, 0.f)
+			[
+				SNew(STextBlock).Font(FN7Style::Type::Font(20, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.93f, 0.78f))
+				.ShadowOffset(FVector2D(2.f, 2.f)).ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.9f))
+				.Text_Lambda([this, bA]() { return FText::FromString(bA ? SlamNameA : SlamNameB); })
+			]
+		];
+}
+
 void SFNHudLive::OpenDuelBox()
 {
 	if (!Duel.IsValid()) return;
@@ -2084,9 +2178,29 @@ void SFNHudLive::OpenDuelBox()
 	if (!Box) return;
 	// Yours always takes the camera; another's when you're not in the middle of something.
 	const bool bTake = !Duel->MySide.IsEmpty() || !IsBusyForGlide();
+	const bool bWasHidden = !Box->IsShowing();
 	TWeakObjectPtr<UFNNetClient> WN = Net;
 	Box->Open(Duel, St, bTake, [WN]() { UFNNetClient* N = WN.Get(); return N ? N->NowServerMs() : 0.0; });
-	Box->SetPortraits(MediaTexture(LoadedArt(Duel->A, false)), MediaTexture(LoadedArt(Duel->B, false)));
+	UTexture2D* TexA = MediaTexture(LoadedArt(Duel->A, false));
+	UTexture2D* TexB = MediaTexture(LoadedArt(Duel->B, false));
+	Box->SetPortraits(TexA, TexB);
+	if (bWasHidden && bTake)
+	{
+		// The two portraits slam in from the sides, VS between them, before the box rises (FN7Box::SlamTime).
+		auto Brush = [](FSlateBrush& B, UTexture2D* T)
+		{
+			B = FSlateBrush();
+			if (T) { B.SetResourceObject(T); B.ImageSize = FVector2D(230.f, 230.f); B.DrawAs = ESlateBrushDrawType::Image; }
+		};
+		Brush(SlamBrushA, TexA);
+		Brush(SlamBrushB, TexB);
+		SlamNameA = Duel->AName;
+		SlamNameB = Duel->BName;
+		bSlamTexA = TexA != nullptr;
+		bSlamTexB = TexB != nullptr;
+		SlamAt = FPlatformTime::Seconds();
+		UE_LOG(LogTemp, Display, TEXT("FN7 duel box: slam %s vs %s (portraits %d/%d)"), *SlamNameA, *SlamNameB, bSlamTexA ? 1 : 0, bSlamTexB ? 1 : 0);
+	}
 }
 
 void SFNHudLive::CloseDuelBox()
