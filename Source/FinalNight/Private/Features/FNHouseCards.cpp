@@ -1,4 +1,5 @@
 #include "Features/FNHouseCards.h"
+#include "../../UI/FN7KitHitTest.h"
 #include "FNStudio.h"
 #include "FNNetClient.h"
 #include "../../UI/FNMedia.h"
@@ -179,7 +180,7 @@ void AFNHouseCards::Tick(float DeltaSeconds)
 	SinceAsk += DeltaSeconds;
 	SinceDraw += DeltaSeconds;
 	UWorld* W = GetWorld();
-	if (!W || SinceDraw < 1.f / 30.f) return;
+	if (!W || (SinceDraw < 1.f / 30.f && !FN7Kit::BoardMovingAny(W))) return;   // FN7 (Mac session): every frame while the map moves
 	SinceDraw = 0.f;
 	if (!Net.IsValid())
 		for (TObjectIterator<UFNNetClient> It; It; ++It)

@@ -9,6 +9,8 @@ class UWorld;
  * in, right-click = one level out, a single click never moves the view, and NONE of it inside a demigod's extended
  * click box or over the kit's UI). Viewport pixels, as APlayerController::GetMousePosition gives them.
  */
+class AFNStudio;
+
 namespace FN7Kit
 {
 	/** A near miss on a demigod's diorama box or board piece: within 1.35x its own click zone (that zone is already 1.7x
@@ -19,6 +21,11 @@ namespace FN7Kit
 	FINALNIGHT_API bool IsOverKitUI(UWorld* World, const FVector2D& ViewportPixel);
 	/** The player just moved the view on purpose (a demigod double-click's centre, a zoom): the automatic glides keep
 	 *  their hands off for a few seconds (FNEventGlide). */
+	/** The table's map is moving this frame (the hand's slide, a zoom, a centring glide, or just re-centred): every
+	 *  layer on it (towns, armies, people, earth effects...) redraws EVERY frame while this is true, so nothing trails
+	 *  the land (Chris, 2026-11-15: the towns and similar are not moving with the primary tabletop map). */
+	FINALNIGHT_API bool BoardMoving(AFNStudio* St);
+	FINALNIGHT_API bool BoardMovingAny(UWorld* World);
 	FINALNIGHT_API void NoteUserView();
 	FINALNIGHT_API double SinceUserView();
 	/** Either of the two: no board gesture may start here. */

@@ -73,6 +73,38 @@ namespace FN7Kit
 		return FString();
 	}
 
+	bool BoardMoving(AFNStudio* St)
+	{
+		if (!St) return false;
+		if (St->IsBoardPanning() || St->IsZoomAnimating()) return true;
+		// anything else that moves the land (a centring glide, a coasting hand, a re-centre): the board's centre hex, seen
+		// in the world, moved since the last frame (sampled once a frame), or did within the last 0.3 s
+		static uint64 Frame = 0;
+		static bool bLast = false;
+		static FVector LastW = FVector::ZeroVector;
+		static FString LastKey;
+		static double MovedAt = -1e9;
+		if (Frame == GFrameCounter) return bLast;
+		Frame = GFrameCounter;
+		int32 Q = 0, R = 0;
+		double La = 0.0, Lo = 0.0;
+		FVector Wp = FVector::ZeroVector;
+		FString Key;
+		if (St->BoardCentreHex(Q, R) && St->BoardHexLatLon(Q, R, La, Lo) && St->BoardPointFor(La, Lo, Wp)) Key = St->BoardCellKey(Q, R);
+		const double Now = FPlatformTime::Seconds();
+		if (Key != LastKey || !Wp.Equals(LastW, 0.01)) MovedAt = Now;
+		LastKey = Key;
+		LastW = Wp;
+		bLast = Now - MovedAt < 0.3;
+		return bLast;
+	}
+	bool BoardMovingAny(UWorld* World)
+	{
+		if (!World) return false;
+		if (TActorIterator<AFNStudio> It(World); It) return BoardMoving(*It);
+		return false;
+	}
+
 	static double GUserViewAt = -1e9;
 	void NoteUserView() { GUserViewAt = FPlatformTime::Seconds(); }
 	double SinceUserView() { return FPlatformTime::Seconds() - GUserViewAt; }
