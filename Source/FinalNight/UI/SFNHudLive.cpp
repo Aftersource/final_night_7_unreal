@@ -36,6 +36,7 @@
 #include "FNTableGods.h"
 #include "FNDuelStage.h"
 #include "FNDuelBox.h"
+#include "FN7KitHitTest.h"
 #include "FNStarBackdrop.h"
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
@@ -523,6 +524,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	{
 		TWeakPtr<SFNHudLive> WeakSelf = StaticCastSharedRef<SFNHudLive>(AsShared());
 		RingInput->SetIsMine([WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() && Self->WhyNotSummon(Ref).IsEmpty(); });
+		FN7Kit::SetRivalTest([WeakSelf](const FString& Ref) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return !Self.IsValid() || !Self->IsMyDemigod(Ref); });
 		RingInput->SetOnFigureWheel([WeakSelf](const FString& Ref, float Delta) { const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin(); return Self.IsValid() && Self->OnDemigodWheel(Ref, Delta); });
 		RingInput->SetOnFigureDoubleClick([WeakSelf](const FString& Ref) { if (const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin()) Self->OnDemigodDoubleClick(Ref); });
 		RingInput->SetSummonCheck(
@@ -2849,7 +2851,7 @@ void SFNHudLive::FetchProfileArt(const FString& Player)
 
 void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 {
-	// Double-click a demigod: centre the table (same zoom) and the globe on it; yours also glows. A single click never moves anything.
+	// Double-click a rival's demigod: the challenge. Nothing moves the view (your own demigod's double-click zooms in there).
 	AFNStudio* St = FindStudio();
 	AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr);
 	double La = 0.0, Lo = 0.0;
@@ -2858,12 +2860,9 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 	const bool bMine = IsMyDemigod(Ref);
 	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: %s %s %s"), *Ref, bMine ? TEXT("(yours)") : TEXT("(rival)"), bPos ? *FString::Printf(TEXT("-> centre %.4f, %.4f"), La, Lo) : TEXT("(not on the map)"));
 	if (!St || !bPos) { Toast(TEXT("That demigod isn't on the map.")); return; }
-	// Chris reported that double clicking does not centre the globe map and table map: the table centres on it at the zoom you're at
-	// (no deeper zoom), and the globe turns to face it (held there ~30 s against the auto-turn to your lead demigod).
-	St->CenterBoardAndGlobe(La, Lo);
-	GlobeHoldLat = La;
-	GlobeHoldLon = Lo;
-	GlobeHoldUntil = FPlatformTime::Seconds() + 30.0;
+	// The view stays where the hand put it (Chris, 2026-11-15, asked for hand movement like a Molyneux game, with a double click if you're
+	// not near an enemy's demigod ... to zoom in, right click to zoom out ... whatever else is going on is so annoying"):
+	// a double-click on your own demigod zooms in there (SFNPowerRingInput); on a rival's it challenges, nothing moves.
 	if (!bMine)
 	{
 		// A rival: a challenge, always one confirm away (the challenge felt harder to reach than it should be). In reach (the two pieces

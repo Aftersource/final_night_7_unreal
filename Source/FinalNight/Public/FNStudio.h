@@ -121,6 +121,11 @@ public:
 	void FocusBoard(double Lat, double Lon, int32 Level);
 	/** Same level and within about one hexagon of the current centre: a focus there changes nothing (no rebuild). */
 	bool IsSameBoardSpot(double Lat, double Lon, int32 Level) const;
+	/** FN7 god's hand (Mac session, UI/FNBoardAoe.cpp): drag the board and the land slides with the cursor; it re-centres
+	 *  (rebuilds) every two hexes, seamlessly, and the globe turns along. */
+	bool BeginBoardPan(const FVector2D& ViewportPixel);
+	void PanBoardTo(const FVector2D& ViewportPixel);
+	void EndBoardPan();
 	/** The plate (fault) lines on the globe and the board: 0 hidden .. 1 glowing. The kit fades them in only while a mega
 	 *  is in hand (FFNPowerDragDrop::OnMegaArmed). */
 	void SetFaultLinesAlpha(float Alpha);
@@ -289,6 +294,10 @@ private:
 	TArray<TArray<float>> GhostRadius;    // per ghost set: each instance's half-width
 	FTransform GhostBase;
 	bool bZoomGhost = false;
+	bool bBoardPan = false;
+	FVector PanFromHit = FVector::ZeroVector;   // studio-local table point the hand took hold of
+	bool TablePointAt(const FVector2D& ViewportPixel, FVector& OutLocal) const;
+	void CommitBoardPan(const FVector& Offset);
 	double PickLat = 46.5, PickLon = 9.0, PickRadiusM = 300000.0;
 	// the scene now on the table (set by BuildTable): cube face, centre on that face's plane (m), cm per m, hex size, relief range
 	int32 TableFace = -1;

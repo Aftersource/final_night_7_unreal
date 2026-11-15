@@ -408,6 +408,86 @@ void AFNStudio::PreviewFocus(double Lat, double Lon, int32 Level)
 	RebuildIn = -1.f;
 }
 
+namespace FN7View
+{
+	struct FAnim { float T = -1.f, Dur = 0.45f, S0 = 1.f; FVector From = FVector::ZeroVector, To = FVector::ZeroVector; };
+	static TMap<TWeakObjectPtr<AFNStudio>, FAnim> Anims;
+}
+
+bool AFNStudio::TablePointAt(const FVector2D& ViewportPixel, FVector& OutLocal) const
+{
+	// Where the cursor's ray meets the table plane (a little above the ground: the hand holds the land's surface).
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	FVector O, D;
+	if (!PC || !PC->DeprojectScreenPositionToWorld(ViewportPixel.X, ViewportPixel.Y, O, D)) return false;
+	O = GetActorTransform().InverseTransformPosition(O);
+	D = GetActorTransform().InverseTransformVectorNoScale(D);
+	if (D.Z > -1e-3f) return false;
+	const float Z = FN7Board::ActionC.Z + 4.f;
+	OutLocal = O + D * ((Z - O.Z) / D.Z);
+	return true;
+}
+
+bool AFNStudio::BeginBoardPan(const FVector2D& ViewportPixel)
+{
+	FVector Hit;
+	if (!MapPivot || TableK <= 0.0 || !TablePointAt(ViewportPixel, Hit)) return false;
+	// Any zoom or slide in flight ends where it is going: the hand holds the board as it now stands.
+	ZoomAnimT = -1.f;
+	if (FN7View::FAnim* A = FN7View::Anims.Find(this)) A->T = -1.f;
+	EndZoomGhost();
+	MapPivot->SetRelativeScale3D(FVector::OneVector);
+	MapPivot->SetRelativeLocation(FVector::ZeroVector);
+	PanFromHit = Hit;
+	bBoardPan = true;
+	UE_LOG(LogTemp, Display, TEXT("FN7 hand: takes hold of the board at %.0f, %.0f"), ViewportPixel.X, ViewportPixel.Y);
+	return true;
+}
+
+void AFNStudio::CommitBoardPan(const FVector& Offset)
+{
+	// The land moved Offset (studio cm) with the hand: centre the board where that puts it, rebuilt on the same planet
+	// grid (PlaneToHex), so every tile lands where the slide left it; the globe turns along.
+	using namespace FNPlanet;
+	const double Cx = TableCx - Offset.X / TableK, Cy = TableCy + Offset.Y / TableK;
+	double La, Lo;
+	VecToLatLon(PlaneToVec(TableFace, Cx, Cy), La, Lo);
+	PickLat = FMath::Clamp(La, -89.9, 89.9);
+	PickLon = Lo;
+	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
+	bUserPicked = true;
+	if (bHasFocus) FocusDir = PickDir;
+	if (MapPivot) MapPivot->SetRelativeLocation(FVector::ZeroVector);
+	NoteRebuild(TEXT("hand"));
+	BuildTable();
+	RebuildIn = -1.f;
+}
+
+void AFNStudio::PanBoardTo(const FVector2D& ViewportPixel)
+{
+	FVector Hit;
+	if (!bBoardPan || !MapPivot || !TablePointAt(ViewportPixel, Hit)) return;
+	FVector Off = Hit - PanFromHit;
+	Off.Z = 0.f;
+	MapPivot->SetRelativeLocation(Off);   // the land slides with the hand, this frame
+	// Every two hexes: re-centre (rebuild) so the board stays full to its rim; the hand keeps its hold.
+	const float Step = (float)(2.0 * TableS * TableK);
+	if (Off.Size2D() > FMath::Max(Step, 6.f))
+	{
+		CommitBoardPan(Off);
+		PanFromHit = Hit;
+	}
+}
+
+void AFNStudio::EndBoardPan()
+{
+	if (!bBoardPan) return;
+	bBoardPan = false;
+	const FVector Off = MapPivot ? MapPivot->GetRelativeLocation() : FVector::ZeroVector;
+	if (Off.Size2D() > 0.05f) CommitBoardPan(Off);
+	UE_LOG(LogTemp, Display, TEXT("FN7 hand: lets go of the board at %.4f, %.4f"), PickLat, PickLon);
+}
+
 void AFNStudio::NoteRebuild(const TCHAR* Why)
 {
 	// How often the board rebuilds (Benito's bridge found a storm: 203 in a minute from the wheel near a demigod).
@@ -505,13 +585,14 @@ void AFNStudio::TickZoomGhost(float NewScale, float Ease)
 	// board = 1 -> 1/S0 on the old), so the two move as one zoom; it flattens into the table as the new level rises.
 	const float G = NewScale / FMath::Max(0.001f, ZoomAnimS0);
 	// Going in it flattens by half-way (it is growing); going out it settles with the new level.
-	const float Flat = FMath::Clamp(1.f - Ease * (G > 1.f ? 2.2f : 1.35f), 0.f, 1.f);
+	const float Flat = FMath::Clamp(1.f - Ease * (G > 1.f ? 1.6f : 1.35f), 0.f, 1.f);
 	TickGhostTransform(G, FVector(ZoomAnchor.X * (1.f - G), ZoomAnchor.Y * (1.f - G), ZoomAnchor.Z * (1.f - Flat)), Flat);
 }
 
 void AFNStudio::TickGhostTransform(float G, const FVector& Loc, float Flat)
 {
 	if (!bZoomGhost || !GhostPivot) return;
+	if (Flat < 0.04f) { EndZoomGhost(); return; }   // sunk into the table: gone, no flat plates left under the new level
 	GhostPivot->SetRelativeScale3D(GhostBase.GetScale3D() * FVector(G, G, FMath::Max(0.01f, Flat)));
 	GhostPivot->SetRelativeLocation(GhostBase.GetLocation() + Loc);
 	// What leaves the table's disc drops out (going in, the old tiles grow past the rim and would cover the room).
@@ -549,11 +630,6 @@ void AFNStudio::EndZoomGhost()
 	bZoomGhost = false;
 }
 
-namespace FN7View
-{
-	struct FAnim { float T = -1.f, Dur = 0.45f, S0 = 1.f; FVector From = FVector::ZeroVector, To = FVector::ZeroVector; };
-	static TMap<TWeakObjectPtr<AFNStudio>, FAnim> Anims;
-}
 
 void AFNStudio::BeginViewAnim(bool bHaveOld, const FVector& OldLocal, const FVector& NewLocal, float ScaleFrom)
 {
@@ -563,7 +639,7 @@ void AFNStudio::BeginViewAnim(bool bHaveOld, const FVector& OldLocal, const FVec
 	FN7View::FAnim& A = FN7View::Anims.FindOrAdd(this);
 	A.T = 0.f;
 	A.Dur = 0.45f;
-	A.S0 = FMath::Clamp(ScaleFrom, 0.03f, 2.5f);
+	A.S0 = ScaleFrom < 1.f ? FMath::Max(ScaleFrom, 0.55f) : FMath::Min(ScaleFrom, 1.8f);   // ~1.8x of visible zoom per step, never a speck (see ZoomMapAt)
 	A.To = NewLocal;
 	A.From = bHaveOld ? OldLocal : NewLocal;
 	MapPivot->SetRelativeScale3D(FVector(A.S0));
@@ -581,14 +657,14 @@ void AFNStudio::TickViewAnim(float Dt)
 	const float Sc = FMath::Exp(FMath::Loge(A->S0) * (1.f - E));         // even speed in log scale, like a web map
 	const FVector P = FMath::Lerp(A->From, A->To, E);                    // the point glides from where it was to its place
 	const bool bLevel = !FMath::IsNearlyEqual(A->S0, 1.f, 0.01f);
-	const float Rise = bLevel ? FMath::Max(0.02f, E) : 1.f;              // a new level rises from flat (as ZoomMapAt's)
+	const float Rise = bLevel ? 0.55f + 0.45f * E : 1.f;                 // a new level settles up a little (as ZoomMapAt's)
 	MapPivot->SetRelativeScale3D(FVector(Sc, Sc, Rise));
 	MapPivot->SetRelativeLocation(FVector(P.X - A->To.X * Sc, P.Y - A->To.Y * Sc, P.Z - A->To.Z * Rise));
 	if (bZoomGhost)
 	{
 		// The old level moves with the same transform at the old zoom (scale Sc / S0), flattening away.
 		const float G = Sc / FMath::Max(0.001f, A->S0);
-		const float Flat = FMath::Clamp(1.f - E * (G > 1.f ? 2.2f : 1.35f), 0.f, 1.f);
+		const float Flat = FMath::Clamp(1.f - E * (G > 1.f ? 1.6f : 1.35f), 0.f, 1.f);
 		TickGhostTransform(G, FVector(P.X - A->From.X * G, P.Y - A->From.Y * G, A->From.Z * (1.f - Flat)), Flat);
 	}
 	if (U >= 1.f)

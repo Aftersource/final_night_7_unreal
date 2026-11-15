@@ -22,6 +22,10 @@ namespace FN7Kit
 	/** Which rule blocks a board gesture here, for the log ("" = none): "figure dg:3 at 31 px", "duel box up",
 	 *  "power hex 2", "pouch", "panel news". */
 	FINALNIGHT_API FString WhyBlocked(UWorld* World, const FVector2D& ViewportPixel);
+	/** Whose demigod is whose (set by the HUD): only a rival's demigod blocks a board gesture (Chris noted that a double click if
+	 *  you're not near an enemy's demigod ... to zoom in"); near your own, a double-click zooms. */
+	FINALNIGHT_API void SetRivalTest(TFunction<bool(const FString&)> IsRival);
+	FINALNIGHT_API bool IsRival(const FString& Ref);
 
 	/** The one place an empty-board double-click goes. The kit's input layer sees every double-click first: on a figure
 	 *  it runs the demigod's action and stops; on empty board (and not over kit UI) it calls this; so the two can never

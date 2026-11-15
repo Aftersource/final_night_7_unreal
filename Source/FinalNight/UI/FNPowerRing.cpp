@@ -720,9 +720,17 @@ FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
 	{
 		// A plain click on the board does nothing. The view should not keep warping around the map: the studio's board click
 		// zoomed in at the cursor). Right-click still zooms out (passes through).
+		// Pressed on the board: the god's hand takes hold of it (the hand should move like a Molyneux game): drag and the
+		// land slides with the hand; let go without moving and nothing happens.
 		double La, Lo, HexM;
 		FVector W;
-		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM)) return FReply::Handled();
+		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM))
+		{
+			bHandArmed = true;
+			bHandPanning = false;
+			HandFrom = Px;
+			return FReply::Handled().CaptureMouse(SharedThis(this));
+		}
 		return FReply::Unhandled();   // not the board: the game gets the click
 	}
 	// Captured either way: a drag summons it (or says why not), a double-click zooms to it, a click does nothing.
@@ -733,6 +741,12 @@ FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
 
 FReply SFNPowerRingInput::OnMouseButtonUp(const FGeometry&, const FPointerEvent& E)
 {
+	if (bHandArmed && E.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		if (bHandPanning && Studio.IsValid()) Studio->EndBoardPan();
+		bHandArmed = bHandPanning = false;
+		return FReply::Handled().ReleaseMouseCapture();
+	}
 	if (!PressedRef.IsEmpty() && E.GetEffectingButton() == EKeys::LeftMouseButton) { PressedRef.Reset(); return FReply::Handled(); }
 	if (Pressed < 0 || E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
 	AFNPowerRing* R = Ring();
@@ -749,8 +763,9 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
 	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px,
 		[this](const FString& R) { return !(IsMine && IsMine(R)); });   // overlapping: the enemy first (the challenge)
-	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s"), Ref.IsEmpty() ? TEXT("none") : *Ref);
-	if (Ref.IsEmpty())
+	const bool bRival = !Ref.IsEmpty() && FN7Kit::IsRival(Ref);
+	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s%s"), Ref.IsEmpty() ? TEXT("none") : *Ref, Ref.IsEmpty() ? TEXT("") : (bRival ? TEXT(" (rival)") : TEXT(" (yours: zoom in here)")));
+	if (!bRival)
 	{
 		// Empty map or globe: the one board double-click handler (FN7Kit::SetBoardDoubleClick: zoom one level in), unless
 		// it's near a demigod or over the kit's UI; nothing else ever moves the view. The view should stop warping around.
@@ -808,6 +823,17 @@ FReply SFNPowerRingInput::OnDragDetected(const FGeometry&, const FPointerEvent& 
 
 FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E)
 {
+	if (bHandArmed)
+	{
+		FVector2D P;
+		if (!E.IsMouseButtonDown(EKeys::LeftMouseButton)) { if (bHandPanning && Studio.IsValid()) Studio->EndBoardPan(); bHandArmed = bHandPanning = false; return FReply::Handled().ReleaseMouseCapture(); }
+		if (ToPixel(G, E.GetScreenSpacePosition(), P) && Studio.IsValid())
+		{
+			if (!bHandPanning && FVector2D::Distance(P, HandFrom) > 5.0) bHandPanning = Studio->BeginBoardPan(HandFrom);
+			if (bHandPanning) Studio->PanBoardTo(P);
+		}
+		return FReply::Handled();
+	}
 	AFNPowerRing* R = Ring();
 	FVector2D Px;
 	const int32 Was = HoverHex;
@@ -837,6 +863,7 @@ void SFNPowerRingInput::OnMouseLeave(const FPointerEvent&)
 
 FCursorReply SFNPowerRingInput::OnCursorQuery(const FGeometry&, const FPointerEvent&) const
 {
+	if (bHandPanning) return FCursorReply::Cursor(EMouseCursor::GrabHandClosed);
 	if (HoverHex >= 0 || bHoverMine) return FCursorReply::Cursor(EMouseCursor::GrabHand);
 	if (bHoverFigure) return FCursorReply::Cursor(EMouseCursor::Hand);
 	return bHoverPouch ? FCursorReply::Cursor(EMouseCursor::Hand) : FCursorReply::Unhandled();
