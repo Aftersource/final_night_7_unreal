@@ -127,11 +127,12 @@ private:
 	FSlateColor LAccent() const;
 	// The account screens on the same tablet (ACCOUNTS.md §13): WELCOME before the lobby when the server offers
 	// accounts and this computer has no session; the lobby's strip shows who is signed in (the main menu, step 5).
-	enum class EPage : uint8 { Lobby = 0, Welcome = 1, Settings = 2, Demigods = 3 };
+	enum class EPage : uint8 { Lobby = 0, Welcome = 1, Settings = 2, Demigods = 3, God = 4 };
 	EPage Page = EPage::Lobby;
 	TSharedPtr<class SFNWelcomePage> Welcome;
 	TSharedPtr<class SFNSettingsPage> Settings;
 	TSharedPtr<class SFNDemigodsPage> Demigods;
+	TSharedPtr<class SFNGodPage> God;
 	bool bLogoutAsk = false;
 	bool bLinking = false;
 	FString AccountNote;
