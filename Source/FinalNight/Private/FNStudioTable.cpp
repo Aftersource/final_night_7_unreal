@@ -228,13 +228,38 @@ void AFNStudio::BuildTable()
 				LeafSet->AddInstance(FTransform(FRotator::ZeroRotator, At + FVector(0, 0, Sz * 0.55f), FVector(Sz * 0.55f / 100.f)));
 			};
 			auto Stone = [&](const FVector& At, float Sz, int32 i) { RockSet->AddInstance(FTransform(FRotator(0.f, 360.f * Dice(i), 0.f), At + FVector(0, 0, Sz * 0.15f), FVector(Sz / 100.f, Sz * 0.75f / 100.f, Sz * 0.5f / 100.f))); };
+			// true scale where a tree is visible (PEOPLE 3 m and HOUSES 30 m hexes); farther out a single tree is
+			// smaller than a speck, so a forest hexagon becomes one solid canopy block (board-game forest tile)
+			const float CmPerM = Hw / (1.7320508f * (float)S);
+			const bool bTreesVisible = MapLevel <= 1;
+			auto Tree = [&](const FVector& At, float Meters, int32 i) { const float Sz = Meters * CmPerM; if (Dice(i + 20) < 0.6f) Pine(At, Sz); else Leafy(At, Sz * 0.8f); };
+			auto Canopy = [&]()   // seven packed, squashed crowns: reads as dense forest from above
+			{
+				for (int32 i = 0; i < 7; ++i)
+				{
+					const float A = PI / 3.f * i, Rr = i == 6 ? 0.f : Hw * 0.27f;
+					LeafSet->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(FMath::Cos(A) * Rr, FMath::Sin(A) * Rr, Hw * 0.08f), FVector(Hw * 0.36f / 100.f, Hw * 0.36f / 100.f, Hw * (0.18f + 0.08f * Dice(i)) / 100.f)));
+				}
+			};
 			switch (T.B)
 			{
-			case Forest: for (int32 i = 0; i < 3; ++i) { const float Sz = Hw * (0.45f + 0.25f * Dice(i + 10)); if (Dice(i + 20) < 0.6f) Pine(Spot(i, 0.28f), Sz); else Leafy(Spot(i, 0.28f), Sz * 0.8f); } break;
-			case Grass:  if (Dice(1) < 0.35f) Leafy(Spot(2, 0.3f), Hw * 0.4f); else if (Dice(1) < 0.5f) Stone(Spot(3, 0.3f), Hw * 0.12f, 4); break;
-			case Beach:  if (Dice(1) < 0.25f) Stone(Spot(3, 0.3f), Hw * 0.1f, 4); break;
+			case Forest:
+				if (MapLevel == 0) Tree(Spot(0, 0.15f), 9.f + 6.f * Dice(10), 0);                                  // one tree, crown wider than its hexagon
+				else if (bTreesVisible) for (int32 i = 0; i < 7; ++i) Tree(Spot(i, 0.42f), 8.f + 8.f * Dice(i + 10), i); // a thick wood of small trees
+				else Canopy();
+				break;
+			case Grass:
+				if (MapLevel == 0) { if (Dice(1) < 0.12f) Tree(Spot(2, 0.2f), 7.f + 5.f * Dice(11), 2); else if (Dice(1) < 0.3f) Stone(Spot(3, 0.3f), 0.8f * CmPerM, 4); }
+				else if (bTreesVisible) { if (Dice(1) < 0.3f) for (int32 i = 0; i < 2; ++i) Tree(Spot(i, 0.4f), 7.f + 6.f * Dice(i + 10), i); }
+				else if (Dice(1) < 0.15f) LeafSet->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0, 0, Hw * 0.05f), FVector(Hw * 0.3f / 100.f, Hw * 0.3f / 100.f, Hw * 0.12f / 100.f)));   // a copse
+				break;
+			case Beach:  if (Dice(1) < 0.25f) Stone(Spot(3, 0.3f), FMath::Min(Hw * 0.1f, 1.f * CmPerM), 4); break;
 			case Rock:
-				if (Dice(1) < 0.45f)   // a mountain: grey cone with a snowy tip
+				if (bTreesVisible)   // up close a mountain is bigger than the board: boulders at true size instead
+				{
+					for (int32 i = 0; i < 2; ++i) Stone(Spot(i, 0.3f), FMath::Min(Hw * 0.9f, (1.5f + 3.f * Dice(i + 30)) * CmPerM), i);
+				}
+				else if (Dice(1) < 0.45f)   // a mountain: grey cone with a snowy tip
 				{
 					const float Ht = Hw * (0.9f + 0.6f * Dice(5));
 					PeakSet->AddInstance(FTransform(FRotator(0.f, 360.f * Dice(6), 0.f), Top, FVector(Hw * 0.95f / 100.f, Hw * 0.95f / 100.f, Ht / 100.f)));
