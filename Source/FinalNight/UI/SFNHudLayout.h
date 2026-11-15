@@ -129,6 +129,7 @@ public:
 		SLATE_EVENT(FOnFNHudLobby, OnLobby)
 		/** RESET VIEW in the header (R / Home do the same). */
 		SLATE_EVENT(FOnFNHudResetView, OnResetView)
+		SLATE_EVENT(FOnFNHudResetView, OnHowToPlay)
 		/** Dragging one of your two demigod cards summons it. */
 		SLATE_EVENT(FOnFNHudCardDrag, OnCardDrag)
 		/** Double-clicking one of your demigod cards zooms the board to it. */
@@ -158,6 +159,7 @@ private:
 	FOnFNHudTakeSeat OnTakeSeat;
 	FOnFNHudLobby OnLobby;
 	FOnFNHudResetView OnResetView;
+	FOnFNHudResetView OnHowToPlay;
 	FOnFNHudCardDrag OnCardDrag;
 	FOnFNHudCardDouble OnCardDoubleClick;
 	bool bTypingSignalled = false;
