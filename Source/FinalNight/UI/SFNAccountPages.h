@@ -6,10 +6,13 @@
 class UFNNetClient;
 class SFNTextBox;
 class SEditableTextBox;
+class SBox;
+class FJsonObject;
 
 /**
  * The account screens, each on the lobby's tablet with its own six looks (FNLooks; Chris: six to pick a favourite):
  * WELCOME (ACCOUNTS.md §13 steps 2-4: a name, PLAY AS GUEST, SIGN IN WITH GOOGLE when the server offers it).
+ * SETTINGS (§6: the whole document, GET on open, PUT on APPLY; the server's detail shown on a refusal).
  * Every page: a header (title, the screen's word, the 1-6 switch), its look's ink, the same calls whatever the look.
  */
 namespace FN7AccountUi
@@ -48,6 +51,47 @@ private:
 
 	void PlayAsGuest();
 	void SignInGoogle();
+	FSlateColor Ink() const;
+	FSlateColor Dim() const;
+	FSlateColor Accent() const;
+};
+
+class FINALNIGHT_API SFNSettingsPage : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SFNSettingsPage) {}
+		SLATE_ARGUMENT(UFNNetClient*, Net)
+		SLATE_EVENT(FSimpleDelegate, OnBack)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	int32 GetLook() const { return Look; }
+	/** GET /api/me/settings and show it (called each time the page opens). */
+	void Open();
+
+private:
+	TWeakObjectPtr<UFNNetClient> Net;
+	FSimpleDelegate OnBack;
+	int32 Look = 1;
+	int32 Tab = 0;
+	TSharedPtr<FJsonObject> Doc;     // the document being edited (PUT whole)
+	TSharedPtr<FJsonObject> Server;  // the last copy the server answered (REVERT)
+	FString Status;
+	bool bBad = false;
+	bool bBusy = false;
+	TSharedPtr<SBox> Body;
+	TSharedPtr<SFNTextBox> BindAction, BindChord;
+
+	void Rebuild();
+	void Apply();
+	TSharedRef<SWidget> TabBody(int32 InTab);
+	TSharedPtr<FJsonObject> Sec(const FString& Key) const;
+	TSharedRef<SWidget> Row(const FText& Label, TSharedRef<SWidget> Control) const;
+	TSharedRef<SWidget> Slider(const FText& Label, const FString& SecKey, const FString& Key, float Min, float Max, float Def, bool bPercent);
+	TSharedRef<SWidget> Toggle(const FText& Label, const FString& SecKey, const FString& Key, bool bDef);
+	TSharedRef<SWidget> Choice(const FText& Label, const FString& SecKey, const FString& Key, const TArray<FString>& Values, const TArray<FText>& Labels);
+	TSharedRef<SWidget> Field(const FText& Label, const FString& SecKey, const FString& Key, const FText& Hint, int32 MaxLen);
+	TSharedRef<SWidget> Keybinds();
 	FSlateColor Ink() const;
 	FSlateColor Dim() const;
 	FSlateColor Accent() const;

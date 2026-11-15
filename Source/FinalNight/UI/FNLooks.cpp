@@ -25,12 +25,6 @@ namespace FN7LooksDetail
 	static const FSlateBrush* GoldRim() { static const FSlateRoundedBoxBrush B(FLinearColor(0.42f, 0.3f, 0.08f), 12.f, FLinearColor(1.f, 0.8f, 0.36f), 2.f); return &B; }
 	static const FSlateBrush* Night() { static const FSlateRoundedBoxBrush B(FLinearColor(0.012f, 0.02f, 0.06f, 0.96f), 12.f, FLinearColor(0.85f, 0.72f, 0.4f, 0.7f), 1.f); return &B; }
 	static const FSlateBrush* Dot() { static const FSlateRoundedBoxBrush B(FLinearColor::White, 2.f); return &B; }
-	/** The pill, without its padding: the digit fits a 20 px square (with the pill's padding it collapsed to nothing). */
-	static const FButtonStyle& Square()
-	{
-		static FButtonStyle S = []() { FButtonStyle B = FN7Style::PillButton(); B.SetNormalPadding(FMargin(0.f)); B.SetPressedPadding(FMargin(0.f)); return B; }();
-		return S;
-	}
 
 	/** The star map's sky: fixed stars (the same every time) and a few gold constellation lines. */
 	class SStarMap : public SLeafWidget
@@ -161,6 +155,24 @@ TSharedRef<SWidget> FN7Looks::Frame(TAttribute<int32> Look, TSharedRef<SWidget> 
 		];
 }
 
+TSharedRef<SWidget> FN7Looks::Chip(TAttribute<FText> Label, TFunction<bool()> IsOn, TFunction<void()> OnClick, int32 FontSize, FMargin Pad)
+{
+	return SNew(SButton)
+		.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
+		.ContentPadding(FMargin(0.f))
+		.OnClicked_Lambda([OnClick]() { OnClick(); return FReply::Handled(); })
+		[
+			SNew(SBorder)
+			.BorderImage_Lambda([IsOn]() { return IsOn() ? FN7Style::Brush::PillAccent() : &FN7Style::PillButton().Normal; })
+			.Padding(Pad)
+			.HAlign(HAlign_Center).VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).Font(FN7Style::Type::Font(FontSize, TEXT("Bold"))).Text(Label)
+				.ColorAndOpacity_Lambda([IsOn]() { return FSlateColor(IsOn() ? FLinearColor(0.06f, 0.035f, 0.015f) : FN7Style::Color::Text()); })
+			]
+		];
+}
+
 TSharedRef<SWidget> FN7Looks::Switch(TAttribute<int32> Look, TFunction<void(int32)> OnPick)
 {
 	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
@@ -168,20 +180,9 @@ TSharedRef<SWidget> FN7Looks::Switch(TAttribute<int32> Look, TFunction<void(int3
 	{
 		Row->AddSlot().AutoWidth().Padding(1.5f, 0.f)
 		[
-			SNew(SBox).WidthOverride(20.f).HeightOverride(18.f)
+			SNew(SBox).WidthOverride(20.f).HeightOverride(18.f).ToolTipText(Name(V))
 			[
-				SNew(SButton)
-				.ButtonStyle(&FN7LooksDetail::Square())
-				.ContentPadding(FMargin(0.f))
-				.HAlign(HAlign_Center).VAlign(VAlign_Center)
-				.ToolTipText(Name(V))
-				.ButtonColorAndOpacity_Lambda([Look, V]() { return Look.Get() == V ? FN7Style::Color::Accent() : FLinearColor(1.f, 1.f, 1.f, 0.55f); })
-				.OnClicked_Lambda([OnPick, V]() { OnPick(V); return FReply::Handled(); })
-				[
-					SNew(STextBlock).Font(FN7Style::Type::Font(9, TEXT("Bold")))
-					.ColorAndOpacity_Lambda([Look, V]() { return FSlateColor(Look.Get() == V ? FLinearColor(0.05f, 0.03f, 0.02f) : FN7Style::Color::Text()); })
-					.Text(FText::AsNumber(V))
-				]
+				Chip(FText::AsNumber(V), [Look, V]() { return Look.Get() == V; }, [OnPick, V]() { OnPick(V); }, 9, FMargin(0.f))
 			]
 		];
 	}
