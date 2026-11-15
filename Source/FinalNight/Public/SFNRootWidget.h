@@ -38,6 +38,8 @@ public:
 
 	void OnWorldClick(FName Id);
 	void SetHovered(FName Id) { HoveredId = Id; }
+	/** True on the "Click anywhere on the table to begin" screen: a click on empty table space starts the game. */
+	bool WantsEmptyClick() const { return State == EState::Tutorial; }
 	bool IsTyping() const { return State == EState::Writing || State == EState::DuelWriting; }
 
 private:
