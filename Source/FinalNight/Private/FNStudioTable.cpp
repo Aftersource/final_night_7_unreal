@@ -178,7 +178,11 @@ void AFNStudio::BuildTable()
 	double Lo = 1e30, Hi = -1e30, Crowd = 0, People = 0;
 	int32 Mix[NumBiomes] = {};
 	for (const FT& T : Cells) { const double L = FMath::Max(0.0, T.Elev); Lo = FMath::Min(Lo, L); Hi = FMath::Max(Hi, L); Crowd = FMath::Max(Crowd, T.People); People += T.People; Mix[T.B]++; }
-	const double Range = FMath::Max3(Hi - Lo, R * 0.002, 1.0);   // exaggerated: an action-game table, not a survey map
+	double Range = FMath::Max3(Hi - Lo, R * 0.002, 1.0);   // exaggerated: an action-game table, not a survey map
+	// FN7 (Mac session, view-fix go-ahead): while the hand pans the board, the relief keeps the scale it had when the hand
+	// took hold; re-normalising it to each new window made every hill jump at every re-centre (Chris asked that this hold while dragging
+	// around it's glitching, snapping around"). A zoom or a centring clears the hold.
+	if (bReliefHold && TableRange > 0.0) { Lo = TableLo; Range = TableRange; }
 	TableFace = Face; TableCx = Cx; TableCy = Cy; TableK = K; TableS = S; TableLo = Lo; TableRange = Range;
 	const float TileW = (float)(S * K) * 0.97f;
 	const float HexW = (float)(S * K) * 1.7320508f;   // flat-to-flat width of one hexagon on the table (cm)
@@ -586,6 +590,7 @@ void AFNStudio::ZoomMapAt(double Px, double Py, int32 Step)
 	ZoomAnimS0 = F < 1.0 ? FMath::Max((float)F, 0.55f) : FMath::Min((float)F, 1.8f);
 	ZoomAnimT = 0.f;
 	BeginZoomGhost();   // FN7 (Mac session, view-fix go-ahead): the old level stays on screen through the switch (UI/FNBoardAoe.cpp)
+	bReliefHold = false;   // FN7: a new level gets its own relief scale
 	NoteRebuild(TEXT("ZoomMapAt"));
 	BuildTable();   // now, not next frame: a fast second click must land on the new scene
 	RebuildIn = -1.f;

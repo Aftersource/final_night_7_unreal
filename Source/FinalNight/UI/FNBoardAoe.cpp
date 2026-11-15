@@ -279,6 +279,7 @@ void AFNStudio::HideWillBlock()
 
 void AFNStudio::FocusBoard(double Lat, double Lon, int32 Level)
 {
+	bReliefHold = false;   // a jump to a place: its own relief scale
 	// The table's zoom levels as FNTableScene defines them in FNStudioTable.cpp (hex size in m, 22 hexes to the edge).
 	static const double LevelHexM[4] = { 3.0, 30.0, 3000.0, 120000.0 };
 	static constexpr double HexesToEdge = 22.0;
@@ -349,6 +350,7 @@ void AFNStudio::ResetView()
 
 void AFNStudio::CenterBoardAndGlobe(double Lat, double Lon)
 {
+	bReliefHold = false;   // a jump to a place: its own relief scale
 	// The zoom level stays; only the centre moves (Chris noted that double clicking is not centring the globe map and table map).
 	if (IsSameBoardSpot(Lat, Lon, MapLevel) && bUserPicked)
 	{
@@ -463,6 +465,7 @@ void AFNStudio::CommitBoardPan(const FVector& Offset)
 	if (bHasFocus) FocusDir = PickDir;
 	if (MapPivot) MapPivot->SetRelativeLocation(FVector::ZeroVector);
 	PanCommitted += Offset;
+	bReliefHold = true;   // the same hills at the same heights: the re-centre is seamless
 	NoteRebuild(TEXT("hand"));
 	BuildTable();
 	RebuildIn = -1.f;
@@ -490,24 +493,7 @@ void AFNStudio::EndBoardPan()
 {
 	if (!bBoardPan) return;
 	bBoardPan = false;
-	// Fling: the last 100 ms of the hand's speed carries on, decaying (tau 0.5 s).
-	const double Now = FPlatformTime::Seconds();
-	BoardVel = FVector::ZeroVector;
-	// The oldest sample in the last 150 ms; at a low frame rate (a stall), the newest one up to half a second old.
-	int32 Pick = INDEX_NONE;
-	for (int32 i = 0; i < PanHist.Num(); ++i) if (Now - PanHist[i].Key <= 0.15 && Now - PanHist[i].Key > 0.02) { Pick = i; break; }
-	if (Pick == INDEX_NONE) for (int32 i = PanHist.Num() - 1; i >= 0; --i) if (Now - PanHist[i].Key > 0.02 && Now - PanHist[i].Key <= 0.5) { Pick = i; break; }
-	if (Pick != INDEX_NONE)
-		BoardVel = ((PanCommitted + (MapPivot ? MapPivot->GetRelativeLocation() : FVector::ZeroVector)) - PanHist[Pick].Value) / (float)(Now - PanHist[Pick].Key);
-	BoardVel.Z = 0.f;
-	if (BoardVel.Size2D() > 25.f)
-	{
-		bBoardCoast = true;
-		LastFlingAt = Now;
-		UE_LOG(LogTemp, Display, TEXT("FN7 hand: fling board v=%.0f cm/s"), BoardVel.Size2D());
-		StartHandTicker();
-		return;
-	}
+	// Regular panning (Chris): the board stays where the hand lets go, no coasting.
 	const FVector Off = MapPivot ? MapPivot->GetRelativeLocation() : FVector::ZeroVector;
 	if (Off.Size2D() > 0.05f) CommitBoardPan(Off);
 	UE_LOG(LogTemp, Display, TEXT("FN7 hand: lets go of the board at %.4f, %.4f"), PickLat, PickLon);

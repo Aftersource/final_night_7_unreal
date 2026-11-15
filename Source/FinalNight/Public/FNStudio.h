@@ -306,6 +306,7 @@ private:
 	FTransform GhostBase;
 	bool bZoomGhost = false;
 	bool bBoardPan = false;
+	bool bReliefHold = false;   // FN7 hand: the relief scale is held while panning (FNStudioTable.cpp BuildTable)
 	bool bGlobeGrab = false, bGlobeCoast = false, bBoardCoast = false;
 	FVector GrabA = FVector::ZeroVector;
 	FQuat GrabStartQuat = FQuat::Identity;
