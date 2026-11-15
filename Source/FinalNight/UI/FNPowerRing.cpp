@@ -907,9 +907,9 @@ int32 SFNPowerRingInput::OnPaint(const FPaintArgs&, const FGeometry& G, const FS
 	const FVector2D VS = FVector2D(VC->Viewport->GetSizeXY());
 	const FVector2D Local = Px / VS * FVector2D(G.GetLocalSize());
 
-	const FText Name = bHoverPouch ? LOCTEXT("PouchName", "ENTROPY POWERS") : R->NameOf(HoverHex);
+	const FText Name = bHoverPouch ? LOCTEXT("PouchName", "ENTROPY POWERS  (MEGA = globe, MINI = board)") : R->NameOf(HoverHex);
 	const FText How = bHoverPouch ? (R->IsOpen() ? LOCTEXT("PouchClose", "click to gather them back in") : LOCTEXT("PouchOpen", "click to pour them out"))
-		: R->IsEnabled() ? LOCTEXT("How", "over the globe: MEGA, 1 bolt   on the board: MINI, 1 spark")
+		: R->IsEnabled() ? LOCTEXT("How", "MEGA = drop on the globe (1 bolt)   \u00B7   MINI = drop on the board (1 spark)")
 		: LOCTEXT("HowNone", "no bolts or sparks left");
 	const FSlateFontInfo NameFont = FN7Style::Type::Font(15, TEXT("Bold"));
 	const FSlateFontInfo HowFont = FN7Style::Type::Font(12);
