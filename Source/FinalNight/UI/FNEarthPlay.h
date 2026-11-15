@@ -49,6 +49,7 @@ public:
 private:
 	TWeakObjectPtr<UFNNetClient> Net;
 	TWeakObjectPtr<AFNStudio> Studio;
+	TSharedPtr<FJsonObject> PendingBoard;   // a board answer that arrived mid-drag
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Caps;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> CapMat;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GlobeCaps;

@@ -217,7 +217,13 @@ void AFNEarthPlay::OnReply(const TSharedPtr<FJsonObject>& D)
 		Tops.Reset();
 		for (const TSharedPtr<FJsonValue>& V : *T) Tops.Add(V->AsString());
 	}
-	if (const TSharedPtr<FJsonObject> B = Obj(D, TEXT("board"))) { ApplyBoard(B); BoardBeat = (int32)Num(D, TEXT("beat"), BoardBeat); }
+	if (const TSharedPtr<FJsonObject> B = Obj(D, TEXT("board")))
+	{
+		// Never under a moving hand: a board answer that lands mid-drag waits for the release (Tick).
+		if (AFNStudio* St = FindStudio(); St && St->IsBoardPanning()) { PendingBoard = D; return; }
+		ApplyBoard(B);
+		BoardBeat = (int32)Num(D, TEXT("beat"), BoardBeat);
+	}
 	if (const TSharedPtr<FJsonObject> T = Obj(D, TEXT("tiles"))) { ApplyTiles(T); GlobeBeat = (int32)Num(D, TEXT("beat"), GlobeBeat); }
 }
 
@@ -253,14 +259,16 @@ void AFNEarthPlay::ApplyBoard(const TSharedPtr<FJsonObject>& Board)
 		FRec Rec;
 		Rec.H16 = B[0]; Rec.Top = B[1]; Rec.Water = B[2]; Rec.Lava = B[3]; Rec.Ash = B[4]; Rec.Fire = B[5]; Rec.Snow = B[6]; Rec.Heat = (int8)B[7]; Rec.Crack = B[8];
 		const uint8 Base = Base16.FindOrAdd(Key, Rec.H16);
-		float Def; FVector DefW;
-		if (bCurrent && !DefaultTop.Contains(Key) && St->BoardHexTop(Q, R, false, Def, DefW)) DefaultTop.Add(Key, Def);
 		const FRec* Old = Cur.Find(Key);
 		const int32 OldD = Old ? ((int32)Old->H16 - Base) / 16 : 0, NewD = ((int32)Rec.H16 - Base) / 16;
 		const bool bChanged = !Old || FMemory::Memcmp(Old, &Rec, sizeof(FRec)) != 0;
 		if (bChanged && Old) ++NChanged;
 		if (bCurrent && (NewD != OldD || (Old && StateOf(*Old, TopName(Old->Top), OldD) != StateOf(Rec, TopName(Rec.Top), NewD))))
+		{
+			float Def; FVector DefW;   // the board's own tile top, only for hexes that move (cheap on a full answer)
+			if (!DefaultTop.Contains(Key) && St->BoardHexTop(Q, R, false, Def, DefW)) DefaultTop.Add(Key, Def);
 			Moves.Add({ Key, Q, R, OldD * CmPerLevel, NewD * CmPerLevel, (uint8)StateOf(Rec, TopName(Rec.Top), NewD) });
+		}
 		Cur.Add(Key, Rec);
 	}
 	MoveStart = FPlatformTime::Seconds();
@@ -660,6 +668,9 @@ void AFNEarthPlay::Tick(float Dt)
 	const double Now = FPlatformTime::Seconds();
 	AFNStudio* St = FindStudio();
 	if (!St) return;
+	// Nothing under a moving hand: answers wait, and the board is asked for only once it rests.
+	if (St->IsBoardPanning()) { CentreChangedAt = Now; return; }
+	if (PendingBoard.IsValid()) { const TSharedPtr<FJsonObject> D = PendingBoard; PendingBoard.Reset(); OnReply(D); }
 	// The board moved (a pan, a zoom): the new disc, once it has settled.
 	if (LastBeat >= 0)
 	{
@@ -674,7 +685,7 @@ void AFNEarthPlay::Tick(float Dt)
 	// The beat's blend and the rising hexes.
 	const float U = FMath::Clamp((float)((Now - CapStart) / MoveTime), 0.f, 1.f);
 	if (CapMat) CapMat->SetScalarParameterValue(TEXT("BeatT"), U * U * (3.f - 2.f * U));
-	if (bMovePending && Now - MoveStart > MoveTime + 0.05) CommitMoves();
+	if (bMovePending && Now - MoveStart > MoveTime + 0.05) CommitMoves();   // (never during a drag: see above)
 	for (TPair<int32, FPhen>& P : Phens) PlacePhen(P.Value, Now);
 	for (int32 i = Flashes.Num() - 1; i >= 0; --i)
 	{

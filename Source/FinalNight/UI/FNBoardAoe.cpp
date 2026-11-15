@@ -496,8 +496,8 @@ void AFNStudio::PanBoardTo(const FVector2D& ViewportPixel)
 	if (!bBoardPan || !MapPivot || !TablePointAt(ViewportPixel, Hit)) return;
 	FVector Off = Hit - PanFromHit;
 	Off.Z = 0.f;
-	MapPivot->SetRelativeLocation(Off);   // the land slides with the hand, this frame (re-centred every five hexes)
-	if (Off.Size2D() > FMath::Max((float)(5.0 * TableS * TableK), 6.f))
+	MapPivot->SetRelativeLocation(Off);   // the land slides with the hand, this frame (re-centred on release, or past 11 hexes)
+	if (Off.Size2D() > FMath::Max((float)(11.0 * TableS * TableK), 6.f))
 	{
 		CommitBoardPan(Off);
 		PanFromHit = Hit;
@@ -669,7 +669,7 @@ bool AFNStudio::TickHand(float Dt)
 		FVector Off = MapPivot->GetRelativeLocation() + BoardVel * Dt;
 		Off.Z = 0.f;
 		MapPivot->SetRelativeLocation(Off);
-		if (Off.Size2D() > FMath::Max((float)(5.0 * TableS * TableK), 6.f)) CommitBoardPan(Off);
+		if (Off.Size2D() > FMath::Max((float)(11.0 * TableS * TableK), 6.f)) CommitBoardPan(Off);
 		BoardVel *= FMath::Exp(-Dt / 0.5f);
 		if (BoardVel.Size2D() < 3.f)
 		{
