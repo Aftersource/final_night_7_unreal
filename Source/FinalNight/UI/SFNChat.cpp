@@ -62,7 +62,7 @@ void SFNChat::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBox)
-		.WidthOverride(Width)
+		.WidthOverride_Lambda([this]() { return bOpen ? FOptionalSize(Width) : FOptionalSize(); })   // folded: the icon's own size
 		.MaxDesiredHeight_Lambda([this]() { return FMath::Max(FreeHeight.Get(400.f), 34.f); })
 		[
 			SAssignNew(Body, SBox)
@@ -87,15 +87,92 @@ bool SFNChat::HasChatFocus() const { return Input.IsValid() && Input->HasKeyboar
 void SFNChat::LeaveFocus()
 {
 	if (HasChatFocus() && FSlateApplication::IsInitialized()) FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Cleared);
+	Close();   // Esc while typing: back to the icon
+}
+
+void SFNChat::Open()
+{
+	if (bOpen) return;
+	bOpen = true;
+	Unread = 0;
+	bHadFocus = false;
+	Rebuild();
+	if (Input.IsValid() && FSlateApplication::IsInitialized()) FSlateApplication::Get().SetKeyboardFocus(Input, EFocusCause::SetDirectly);
+	UE_LOG(LogTemp, Display, TEXT("FN7 chat: opened"));
+}
+
+void SFNChat::Close()
+{
+	if (!bOpen) return;
+	bOpen = false;
+	if (Input.IsValid() && Input->HasKeyboardFocus() && FSlateApplication::IsInitialized()) FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Cleared);
+	Rebuild();
+	UE_LOG(LogTemp, Display, TEXT("FN7 chat: folded to the icon"));
+}
+
+TSharedRef<SWidget> SFNChat::Icon()
+{
+	// A speech bubble (a rounded body, three dots, a little tail) in the look's material, 44 px; the unread count sits
+	// on its corner; a new message pulses it once.
+	using namespace FN7ChatLook;
+	const FLinearColor BubbleC = Variant == 1 || Variant == 5 ? FLinearColor(0.93f, 0.87f, 0.72f) : Variant == 2 ? FLinearColor(0.86f, 0.84f, 0.8f) : FLinearColor(0.9f, 0.9f, 0.94f);
+	const FLinearColor DotC = Variant == 1 || Variant == 5 ? FN7Wood::Ink() : FLinearColor(0.08f, 0.08f, 0.1f);
+	TSharedRef<SWidget> Glyph = SNew(SOverlay)
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(6.f, 0.f, 0.f, 1.f))
+		[
+			SNew(SBox).WidthOverride(9.f).HeightOverride(9.f)
+			.RenderTransformPivot(FVector2D(0.5f, 0.5f)).RenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(45.f))))
+			[
+				SNew(SBorder).BorderImage(White()).BorderBackgroundColor(BubbleC)
+			]
+		]
+		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Top)
+		[
+			SNew(SBox).WidthOverride(30.f).HeightOverride(21.f)
+			[
+				SNew(SBorder).BorderImage(Bubble()).BorderBackgroundColor(BubbleC).HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(0.f)
+				[
+					SNew(STextBlock).Font(FN7Style::Type::Font(11, TEXT("Bold"))).ColorAndOpacity(DotC).Text(FText::FromString(TEXT("\u2022\u2022\u2022")))
+				]
+			]
+		];
+	TSharedRef<SWidget> Button = SNew(SButton)
+		.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+		.ContentPadding(FMargin(0.f))
+		.ToolTipText(LOCTEXT("ChatIconTip", "Chat with the room (click to open, Esc to fold)"))
+		.OnClicked_Lambda([this]() { Open(); return FReply::Handled(); })
+		[
+			SNew(SBox).WidthOverride(44.f).HeightOverride(40.f).HAlign(HAlign_Center).VAlign(VAlign_Center)
+			.RenderTransformPivot(FVector2D(0.5f, 0.5f))
+			.RenderTransform_Lambda([this]() { const float S = 1.f + 0.28f * FMath::Sin(Pulse * PI); return FSlateRenderTransform(FScale2D(S)); })
+			[
+				SNew(SBox).WidthOverride(30.f).HeightOverride(27.f)[Glyph]
+			]
+		];
+	return SNew(SBox).WidthOverride(Variant == 1 ? 92.f : 60.f)   // small: the scroll look needs room for its rods
+		[
+		SNew(SOverlay)
+		+ SOverlay::Slot()[Frame(Button, true)]
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(0.f, -6.f, -6.f, 0.f))
+		[
+			SNew(SBorder).BorderImage(Bubble()).BorderBackgroundColor(FN7Style::Color::Accent()).Padding(FMargin(6.f, 0.f))
+			.Visibility_Lambda([this]() { return Unread > 0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			[
+				SNew(STextBlock).Font(FN7Style::Type::Font(10, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.05f, 0.03f, 0.02f))
+				.Text_Lambda([this]() { return FText::AsNumber(FMath::Min(Unread, 99)); })
+			]
+		]
+		];
 }
 
 void SFNChat::Add(const FFNChatMsg& M)
 {
 	Msgs.Add(M);
 	Msgs.Last().Seen = FPlatformTime::Seconds();
+	if (!bOpen) { ++Unread; Pulse = 1.f; }   // folded: the badge counts up, the icon pulses once
 	const bool bTrim = Msgs.Num() > FN7ChatLook::Keep;
 	if (bTrim) Msgs.RemoveAt(0);
-	if (FN7ChatLook::IsList(Variant) && !bTicker && List.IsValid())
+	if (bOpen && FN7ChatLook::IsList(Variant) && !bTicker && List.IsValid())
 	{
 		// The list keeps its rows and grows at the bottom (the line you are typing is never rebuilt).
 		List->AddSlot()[Row(Msgs.Last())];
@@ -114,6 +191,17 @@ void SFNChat::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime
 	if (bWant != bTicker) { bTicker = bWant; Rebuild(); }
 	const float Goal = (Variant == 5 && IsHovered()) ? 1.f : 0.f;
 	FanT = FMath::FInterpTo(FanT, Goal, InDeltaTime, 9.f);
+	Pulse = FMath::Max(0.f, Pulse - InDeltaTime / 0.5f);
+	if (bOpen)
+	{
+		// a click outside folds it; so does leaving the line you typed in, when the pointer isn't over the chat
+		const bool bDown = FSlateApplication::IsInitialized() && FSlateApplication::Get().GetPressedMouseButtons().Contains(EKeys::LeftMouseButton);
+		const bool bPress = bDown && !bMouseWasDown;
+		bMouseWasDown = bDown;
+		if (HasChatFocus()) bHadFocus = true;
+		if ((bPress && !IsHovered()) || (bHadFocus && !HasChatFocus() && !IsHovered())) Close();
+	}
+	else bMouseWasDown = false;
 }
 
 TSharedRef<SWidget> SFNChat::Buttons() const
@@ -248,7 +336,7 @@ TSharedRef<SWidget> SFNChat::Frame(TSharedRef<SWidget> Inner, bool bSlim) const
 void SFNChat::RefreshArea()
 {
 	using namespace FN7ChatLook;
-	if (!Area.IsValid()) return;
+	if (!bOpen || !Area.IsValid()) return;
 	if (bTicker) Area->SetContent(TickerLine());
 	else if (Variant == 5) Area->SetContent(Fan());
 }
@@ -259,6 +347,7 @@ void SFNChat::Rebuild()
 	BuiltVariant = Variant;
 	bBuiltTicker = bTicker;
 	List.Reset();
+	if (!bOpen) { Area.Reset(); Body->SetContent(Icon()); return; }   // folded: the icon only, no text on screen
 	Input->SetStyle(Variant == 1 ? &FN7Wood::InkTextBox() : &FN7Style::TextBox());
 	SAssignNew(Area, SBox);
 	TSharedRef<SWidget> Header = SNew(SHorizontalBox)
@@ -318,7 +407,7 @@ int32 SFNChatFloat::OnPaint(const FPaintArgs&, const FGeometry& G, const FSlateR
 {
 	using namespace FN7ChatLook;
 	const TSharedPtr<SFNChat> C = Chat.Pin();
-	if (!C.IsValid() || !IsFloat(C->GetVariant()) || !FSlateApplication::IsInitialized()) return LayerId;
+	if (!C.IsValid() || !C->IsOpen() || !IsFloat(C->GetVariant()) || !FSlateApplication::IsInitialized()) return LayerId;   // folded: no text spill
 	const bool bSeats = C->GetVariant() == 6;
 	const double Now = FPlatformTime::Seconds();
 	const FVector2D Size = G.GetLocalSize();
