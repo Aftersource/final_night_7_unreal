@@ -43,6 +43,11 @@ namespace FN7EarthPlay
 		const double La = FMath::DegreesToRadians(Lat), Lo = FMath::DegreesToRadians(Lon);
 		return FVector(R * FMath::Cos(La) * FMath::Cos(Lo), -R * FMath::Cos(La) * FMath::Sin(Lo), R * FMath::Sin(La));
 	}
+	static double Km(double La1, double Lo1, double La2, double Lo2)
+	{
+		const double P = PI / 180.0, A = FMath::Sin((La2 - La1) * P / 2), B = FMath::Sin((Lo2 - Lo1) * P / 2);
+		return 2.0 * 6371.0 * FMath::Asin(FMath::Min(1.0, FMath::Sqrt(A * A + FMath::Cos(La1 * P) * FMath::Cos(La2 * P) * B * B)));
+	}
 	static TArray<uint8> Bytes(const FString& B64) { TArray<uint8> Out; FBase64::Decode(B64, Out); return Out; }
 
 	/** The board's ring order (docs/EARTH_SIM.md §7): ring 0, then ring k from (q - k, r + k), k steps per direction. */
@@ -85,6 +90,15 @@ namespace FN7EarthPlay
 		if (R.Ash >= 24 || Top == TEXT("ash")) return EFNHexState::Ash;
 		if (DLevels > 0 || Top == TEXT("rift")) return EFNHexState::NewLand;
 		return EFNHexState::Normal;
+	}
+
+	/** One name per kind: the server's power slugs and phenomenon kinds differ for two of them. */
+	static FString Canon(const FString& Raw)
+	{
+		const FString K = Raw.Replace(TEXT(" "), TEXT("_")).ToLower();
+		if (K == TEXT("storm_clouds")) return TEXT("storm");
+		if (K == TEXT("grow_forest")) return TEXT("forest");
+		return K;
 	}
 
 	static FLinearColor KindColor(const FString& K)
@@ -342,6 +356,8 @@ void AFNEarthPlay::CommitMoves()
 		const float* Def = DefaultTop.Find(M.Key);
 		const bool bHeight = Def && !FMath::IsNearlyZero(M.To);
 		St->SetHexOverride(M.Key, bHeight ? FMath::Clamp(*Def + M.To, 0.6f, 24.f) : NAN, (EFNHexState)M.State);
+		Committed.Add(M.Key, bHeight ? M.To : NAN);   // what a heave settles back to
+		CommittedState.Add(M.Key, M.State);
 	}
 	St->RebuildBoard();
 	Moves.Reset();
@@ -425,14 +441,19 @@ void AFNEarthPlay::SyncPhenomena(const TArray<TSharedPtr<FJsonValue>>& List, con
 		FPhen& P = Phens.FindOrAdd(Id);
 		const bool bNew = P.Parts.Num() == 0;
 		P.Id = Id;
-		P.Kind = Str(O, TEXT("kind")).Replace(TEXT(" "), TEXT("_"));
+		P.Kind = Canon(Str(O, TEXT("kind")));
 		LonLat(O, TEXT("at"), P.Lon, P.Lat);
 		P.ToLon = P.Lon; P.ToLat = P.Lat;
 		if (const TSharedPtr<FJsonObject> Vel = Obj(O, TEXT("velocity"))) LonLat(Vel, TEXT("to"), P.ToLon, P.ToLat);
 		P.RadiusKm = (float)Num(O, TEXT("radius_km"), 120.0);
 		P.Intensity = (float)Num(O, TEXT("intensity"), 3.0);
 		P.FrontKm = (float)Num(O, TEXT("front_km"), -1.0);
-		if (bNew) { P.SeenAt = FPlatformTime::Seconds(); BuildPhen(P); }
+		if (bNew)
+		{
+			P.SeenAt = FPlatformTime::Seconds();
+			BuildPhen(P);
+			if (P.Kind == TEXT("earthquake")) StartHeave(P.Lat, P.Lon, 2.4f, FMath::Clamp(P.RadiusKm, 20.f, 800.f), 2.f);
+		}
 	}
 	TSet<int32> Gone;
 	if (Ended) for (const TSharedPtr<FJsonValue>& V : *Ended) if (const TSharedPtr<FJsonObject> O = V.IsValid() ? V->AsObject() : nullptr) Gone.Add((int32)Num(O, TEXT("id"), -1));
@@ -460,11 +481,14 @@ void AFNEarthPlay::BuildPhen(FPhen& P)
 	else if (K == TEXT("volcano")) { Add(Cone, C, 1); Add(Sphere, FLinearColor(0.12f, 0.11f, 0.1f), 4); }
 	else if (K == TEXT("earthquake") || K == TEXT("tidal_wave")) Add(Cube, C, 24);
 	else if (K == TEXT("flood")) Add(Cyl, C, 1);
-	else if (K == TEXT("wildfire")) Add(Cone, C, 6);
-	else if (K == TEXT("meteor")) { Add(Sphere, C * 3.f, 1); Add(Cyl, FLinearColor(0.04f, 0.03f, 0.03f), 1); }
-	else if (K == TEXT("forest")) Add(Cone, C, 7);
-	else if (K == TEXT("swarm")) Add(Sphere, C, 10);
+	else if (K == TEXT("wildfire")) Add(Cone, FLinearColor(0.95f, 0.16f, 0.01f), 9);   // saturated: an over-bright colour washes to pale yellow
+	else if (K == TEXT("meteor")) { Add(Sphere, C * 3.f, 1); Add(Cyl, FLinearColor(0.04f, 0.03f, 0.03f), 1); Add(Cyl, FLinearColor(1.f, 0.4f, 0.08f) * 3.f, 1); Add(Sphere, FLinearColor(0.15f, 0.13f, 0.12f), 3); }
+	else if (K == TEXT("forest")) Add(Cone, FLinearColor(0.02f, 0.16f, 0.04f), 10);
+	else if (K == TEXT("swarm")) Add(Sphere, FLinearColor(0.03f, 0.025f, 0.02f), 26);
 	else if (K == TEXT("lightning")) Add(Cyl, C * 4.f, 1);
+	else if (K == TEXT("plate_drift")) Add(Cube, C, 12);
+	else if (K == TEXT("raise_land")) Add(Cone, C, 1);
+	else if (K == TEXT("sink_land")) Add(Cyl, C, 1);
 	else Add(Sphere, C, 1);
 	if (K == TEXT("volcano") || K == TEXT("wildfire") || K == TEXT("meteor") || K == TEXT("lightning"))
 	{
@@ -555,36 +579,80 @@ void AFNEarthPlay::PlacePhen(FPhen& P, double Now)
 	}
 	else if (K == TEXT("wildfire") || K == TEXT("forest"))
 	{
+		// Sized to the phenomenon's reach on the table (Sz), never smaller than reads from the seat.
+		const float Sz = FMath::Clamp(Rcm * 0.18f, 8.f * S, 16.f * S);   // fire and forest stand over the board's trees
 		for (int32 i = 0; i < N; ++i)
 		{
-			const float A = i * 2.f * PI / N, Rr = Rcm * (0.25f + 0.5f * ((i * 37) % 10) / 10.f);
-			const float F = K == TEXT("wildfire") ? 0.8f + 0.3f * FMath::Sin(T * 9.f + i * 1.7f) : 1.f;
-			P.Parts[i]->SetWorldLocation(W + FVector(FMath::Cos(A) * Rr, FMath::Sin(A) * Rr, 1.f * S));
-			P.Parts[i]->SetWorldScale3D(FVector(0.025f * S, 0.025f * S, 0.04f * S * F));
+			const float A = i * 2.f * PI / N + 0.4f * ((i * 53) % 7), Rr = Rcm * (0.15f + 0.55f * ((i * 37) % 10) / 10.f);
+			const float F = K == TEXT("wildfire") ? 0.75f + 0.35f * FMath::Sin(T * 9.f + i * 1.7f) : 1.f;
+			const float Wd = Sz * (K == TEXT("wildfire") ? 0.32f : 0.38f), Ht = Sz * (K == TEXT("wildfire") ? 0.7f : 0.95f) * F;
+			P.Parts[i]->SetWorldLocation(W + FVector(FMath::Cos(A) * Rr, FMath::Sin(A) * Rr, 0.8f * S + Ht * 0.5f));
+			P.Parts[i]->SetWorldScale3D(FVector(Wd / 100.f, Wd / 100.f, Ht / 100.f));
 		}
 	}
 	else if (K == TEXT("meteor"))
 	{
-		const float Fall = FMath::Clamp(T / 0.6f, 0.f, 1.f);
+		// The fall (a fireball out of the sky), then the crater: a dark bowl with a glowing rim and smoke rising.
+		const float Fall = FMath::Clamp(T / 0.6f, 0.f, 1.f), Cr = FMath::Max(Rcm * 0.45f, 4.f * S);
 		P.Parts[0]->SetWorldLocation(W + FVector(-30.f * (1.f - Fall) * S, 0.f, 40.f * (1.f - Fall) * S));
-		P.Parts[0]->SetWorldScale3D(FVector((Fall < 1.f ? 0.05f : 0.f) * S));
-		P.Parts[1]->SetWorldLocation(W + FVector(0, 0, 0.5f * S));
-		P.Parts[1]->SetWorldScale3D(FVector(Rcm / 70.f, Rcm / 70.f, 0.003f * S));
+		P.Parts[0]->SetWorldScale3D(FVector((Fall < 1.f ? 0.06f : 0.f) * S));
+		P.Parts[1]->SetWorldLocation(W + FVector(0, 0, 0.8f * S));
+		P.Parts[1]->SetWorldScale3D(FVector(Cr / 50.f, Cr / 50.f, 0.004f * S));
+		P.Parts[2]->SetWorldLocation(W + FVector(0, 0, 0.7f * S));
+		P.Parts[2]->SetWorldScale3D(FVector(Cr * 1.15f / 50.f, Cr * 1.15f / 50.f, 0.003f * S));
+		for (int32 i = 3; i < N; ++i)
+		{
+			const float Ph = FMath::Fmod(T * 0.4f + i * 0.33f, 1.f);
+			P.Parts[i]->SetWorldLocation(W + FVector(0, 0, (3.f + Ph * 18.f) * S));
+			P.Parts[i]->SetWorldScale3D(FVector((0.04f + Ph * 0.1f) * S));
+		}
 	}
 	else if (K == TEXT("swarm"))
 	{
+		// A dark cloud of beasts boiling low over the land.
+		const float Sz = FMath::Clamp(Rcm * 0.12f, 6.f * S, 10.f * S);
 		for (int32 i = 0; i < N; ++i)
 		{
-			const float A = i * 2.3f + T * (1.2f + 0.1f * i);
-			P.Parts[i]->SetWorldLocation(W + FVector(FMath::Cos(A) * Rcm * 0.4f, FMath::Sin(A * 1.3f) * Rcm * 0.4f, (4.f + 2.f * FMath::Sin(A)) * S));
-			P.Parts[i]->SetWorldScale3D(FVector(0.012f * S));
+			const float A = i * 2.3f + T * (1.2f + 0.07f * i), Rr = Rcm * (0.15f + 0.35f * ((i * 29) % 10) / 10.f);
+			P.Parts[i]->SetWorldLocation(W + FVector(FMath::Cos(A) * Rr, FMath::Sin(A * 1.3f) * Rr, (2.5f + 1.5f * FMath::Sin(A * 0.7f)) * S));
+			P.Parts[i]->SetWorldScale3D(FVector(Sz * (0.18f + 0.06f * ((i * 7) % 3)) / 50.f));
 		}
 	}
 	else if (K == TEXT("lightning"))
 	{
-		const bool bFlash = FMath::Fmod(T, 1.3f) < 0.12f;
+		const bool bFlash = FMath::Fmod(T, 0.9f) < 0.25f;
 		P.Parts[0]->SetWorldLocation(W + FVector(0, 0, 25.f * S));
-		P.Parts[0]->SetWorldScale3D(bFlash ? FVector(0.008f * S, 0.008f * S, 0.5f * S) : FVector::ZeroVector);
+		P.Parts[0]->SetWorldScale3D(bFlash ? FVector(0.015f * S, 0.015f * S, 0.5f * S) : FVector::ZeroVector);
+	}
+	else if (K == TEXT("plate_drift"))
+	{
+		// A fault line across the drift: dark slabs in a row, creeping along the plate's way.
+		FVector To;
+		const double ToLat = P.ToLat, ToLon = P.ToLon;
+		FVector Dir = (OnBoard(ToLat, ToLon, To) && FVector::Dist2D(To, W) > 0.1f) ? (To - W).GetSafeNormal2D() : FVector(1, 0, 0);
+		const FVector Across(-Dir.Y, Dir.X, 0.f);
+		for (int32 i = 0; i < N; ++i)
+		{
+			const float A = (i - (N - 1) * 0.5f) / (N * 0.5f);
+			const float Side = (i % 2 ? 1.f : -1.f) * (0.5f + 0.5f * FMath::Sin(T * 1.5f)) * 0.6f * S;
+			P.Parts[i]->SetWorldLocation(W + Across * (A * Rcm * 0.8f) + Dir * Side + FVector(0, 0, 0.9f * S));
+			P.Parts[i]->SetWorldRotation(Across.Rotation());
+			P.Parts[i]->SetWorldScale3D(FVector(Rcm * 0.06f / 100.f + 0.01f * S, 0.012f * S, 0.006f * S));
+		}
+	}
+	else if (K == TEXT("raise_land"))
+	{
+		// New land pushing up: a mound that grows out of the board over a second and a half.
+		const float G = FMath::Clamp(T / 1.5f, 0.f, 1.f), Hc = 6.f * S * G;
+		P.Parts[0]->SetWorldLocation(W + FVector(0, 0, Hc * 0.5f));
+		P.Parts[0]->SetWorldScale3D(FVector(Rcm * 0.5f / 50.f, Rcm * 0.5f / 50.f, FMath::Max(Hc, 0.01f) / 100.f));
+	}
+	else if (K == TEXT("sink_land"))
+	{
+		// The land giving way: a dark hollow that opens over a second and a half.
+		const float G = FMath::Clamp(T / 1.5f, 0.f, 1.f);
+		P.Parts[0]->SetWorldLocation(W + FVector(0, 0, 0.7f * S));
+		P.Parts[0]->SetWorldScale3D(FVector(Rcm * 0.5f * G / 50.f, Rcm * 0.5f * G / 50.f, 0.004f * S));
 	}
 	else if (N > 0)
 	{
@@ -614,21 +682,26 @@ void AFNEarthPlay::OnStreak(const TSharedPtr<FJsonObject>& Pub)
 		double Lon, Lat;
 		FVector W;
 		if (!LonLat(C, TEXT("at"), Lon, Lat) || !OnBoard(Lat, Lon, W)) continue;
-		const FString Power = Str(C, TEXT("power"));
+		const FString Power = Canon(Str(C, TEXT("power")));
 		const float S = (float)Studio->GetActorScale3D().X;
 		FFlash F;
 		F.At = FPlatformTime::Seconds();
 		F.Where = W;
 		F.Kind = Power;
-		F.Beam = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), KindColor(Power) * 4.f);
-		F.Beam->SetWorldLocation(W + FVector(0, 0, 30.f * S));
-		F.Beam->SetWorldScale3D(FVector(0.02f * S, 0.02f * S, 0.6f * S));
+		F.bMega = Str(C, TEXT("tier")) == TEXT("mega");
+		// A column of light out of the sky onto the point, and a shock ring that runs out over the land.
+		F.Beam = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), KindColor(Power) * 5.f + FLinearColor(0.4f, 0.4f, 0.4f));
+		F.Beam->SetWorldLocation(W + FVector(0, 0, 45.f * S));
+		F.Beam->SetWorldScale3D(FVector((F.bMega ? 0.07f : 0.035f) * S, (F.bMega ? 0.07f : 0.035f) * S, 0.9f * S));
+		F.Ring = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), KindColor(Power) * 3.f + FLinearColor(0.3f, 0.3f, 0.3f));
+		F.Ring->SetWorldLocation(W + FVector(0, 0, 0.6f * S));
+		F.Ring->SetWorldScale3D(FVector(0.01f * S, 0.01f * S, 0.004f * S));
 		F.Light = NewObject<UPointLightComponent>(this);
 		F.Light->SetupAttachment(RootComponent);
 		F.Light->SetUsingAbsoluteLocation(true);
 		F.Light->SetWorldLocation(W + FVector(0, 0, 10.f * S));
-		F.Light->SetIntensity(60.f);
-		F.Light->SetAttenuationRadius(90.f * S);
+		F.Light->SetIntensity(F.bMega ? 220.f : 90.f);
+		F.Light->SetAttenuationRadius(120.f * S);
 		F.Light->SetLightColor(KindColor(Power) * 2.f + FLinearColor(0.3f, 0.3f, 0.3f));
 		F.Light->SetCastShadows(false);
 		F.Light->RegisterComponent();
@@ -648,15 +721,92 @@ void AFNEarthPlay::OnStreak(const TSharedPtr<FJsonObject>& Pub)
 			F.Label->SetUsingAbsoluteLocation(true);
 			F.Label->SetUsingAbsoluteRotation(true);
 			F.Label->SetHorizontalAlignment(EHTA_Center);
-			F.Label->SetWorldSize(4.f * S);
+			F.Label->SetWorldSize((F.bMega ? 6.f : 4.f) * S);
 			F.Label->SetTextRenderColor(FColor(255, 214, 120));
 			F.Label->SetText(FText::FromString(Label));
 			F.Label->SetWorldLocation(W + FVector(0, 0, 34.f * S));
 			F.Label->RegisterComponent();
 		}
 		Flashes.Add(F);
-		UE_LOG(LogTemp, Display, TEXT("FN7 earth: strike %s at %.2f, %.2f%s"), *Power, Lat, Lon, Label.IsEmpty() ? TEXT("") : *(TEXT(" (") + Label + TEXT(")")));
+		UE_LOG(LogTemp, Display, TEXT("FN7 earth: strike %s %s at %.2f, %.2f%s"), *Power, F.bMega ? TEXT("mega") : TEXT("mini"), Lat, Lon, Label.IsEmpty() ? TEXT("") : *(TEXT(" (") + Label + TEXT(")")));
+		// The earth answers at once: a quake heaves the land, raise / sink land jolt it.
+		if (Power == TEXT("earthquake")) StartHeave(Lat, Lon, F.bMega ? 3.2f : 2.2f, F.bMega ? 650.f : 30.f, 2.2f);
+		else if (Power == TEXT("raise_land") || Power == TEXT("sink_land")) StartHeave(Lat, Lon, F.bMega ? 1.6f : 1.1f, F.bMega ? 380.f : 18.f, 1.3f);
 	}
+}
+
+// --- the Populous earth-heave -----------------------------------------------------------------------------------
+
+void AFNEarthPlay::StartHeave(double Lat, double Lon, float AmpCm, float RadiusKm, float Dur)
+{
+	using namespace FN7EarthPlay;
+	AFNStudio* St = FindStudio();
+	int32 Q0, R0;
+	if (!St || !St->BoardCentreHex(Q0, R0)) return;
+	const double Now = FPlatformTime::Seconds();
+	for (const FHeave& H : Heaves) if (Now - H.Start < 1.5 && Km(H.Lat, H.Lon, Lat, Lon) < RadiusKm * 0.3) return;   // the same quake twice
+	const FString Board = St->BoardCellKey(Q0, R0);
+	if (Board != HeaveBoard) { EndHeave(St, false); HeaveBoard = Board; }
+	Heaves.Add({ Lat, Lon, Now, AmpCm, RadiusKm, Dur });
+	int32 Added = 0;
+	for (const FIntPoint& H : RingOrder())
+	{
+		const int32 Q = Q0 + H.X, R = R0 + H.Y;
+		double La, Lo;
+		if (!St->BoardHexLatLon(Q, R, La, Lo) || Km(La, Lo, Lat, Lon) > RadiusKm) continue;
+		const FString Key = St->BoardCellKey(Q, R);
+		if (HeaveHexes.Contains(Key)) continue;
+		float Def; FVector W;
+		if (!St->BoardHexTop(Q, R, false, Def, W)) continue;
+		HeaveHexes.Add(Key, { Key, La, Lo, Def });
+		++Added;
+	}
+	UE_LOG(LogTemp, Display, TEXT("FN7 earth: the land heaves at %.2f, %.2f (%d hexes, %.0f km, %.1f cm)"), Lat, Lon, Added, RadiusKm, AmpCm);
+}
+
+void AFNEarthPlay::TickHeave(double Now, AFNStudio* St)
+{
+	using namespace FN7EarthPlay;
+	if (Heaves.Num() == 0) return;
+	int32 Q0, R0;
+	// Never under a held hand or during a zoom, and only on the board it started on: it settles at once instead.
+	if (St->IsHandHolding() || St->IsZoomAnimating() || !St->BoardCentreHex(Q0, R0) || St->BoardCellKey(Q0, R0) != HeaveBoard) { EndHeave(St, false); return; }
+	Heaves.RemoveAll([Now](const FHeave& H) { return Now - H.Start > H.Dur; });
+	if (Heaves.Num() == 0) { EndHeave(St, true); return; }
+	for (const TPair<FString, FHeaveHex>& It : HeaveHexes)
+	{
+		const FHeaveHex& X = It.Value;
+		float Off = 0.f;
+		for (const FHeave& H : Heaves)
+		{
+			const float D = (float)Km(X.Lat, X.Lon, H.Lat, H.Lon);
+			if (D > H.RadiusKm) continue;
+			const float T = (float)(Now - H.Start) - 0.55f * D / H.RadiusKm;   // the wave runs out over ~half a second
+			if (T <= 0.f) continue;
+			const float Fall = 0.35f + 0.65f * (1.f - D / H.RadiusKm);
+			Off += H.Amp * Fall * FMath::Exp(-2.6f * T) * FMath::Sin(2.f * PI * 2.1f * T);   // up first, then down, settling
+		}
+		const float* C = Committed.Find(X.Key);
+		const float Base = X.Def + ((C && !FMath::IsNaN(*C)) ? *C : 0.f);
+		const uint8* State = CommittedState.Find(X.Key);
+		St->SetHexOverride(X.Key, FMath::Clamp(Base + Off, 0.6f, 24.f), State ? (EFNHexState)*State : EFNHexState::Normal);
+	}
+	St->RebuildBoard();
+}
+
+void AFNEarthPlay::EndHeave(AFNStudio* St, bool bRebuild)
+{
+	// Settle every heaved hex back to what the earth committed (or to the board's own relief).
+	for (const TPair<FString, FHeaveHex>& It : HeaveHexes)
+	{
+		const float* C = Committed.Find(It.Key);
+		const uint8* State = CommittedState.Find(It.Key);
+		const bool bHeight = C && !FMath::IsNaN(*C) && !FMath::IsNearlyZero(*C);
+		St->SetHexOverride(It.Key, bHeight ? FMath::Clamp(It.Value.Def + *C, 0.6f, 24.f) : NAN, State ? (EFNHexState)*State : EFNHexState::Normal);
+	}
+	if (bRebuild && HeaveHexes.Num() > 0) St->RebuildBoard();   // (a held hand's own re-centre picks it up otherwise)
+	HeaveHexes.Reset();
+	Heaves.Reset();
 }
 
 // --- every frame ------------------------------------------------------------------------------------------------
@@ -686,14 +836,21 @@ void AFNEarthPlay::Tick(float Dt)
 	const float U = FMath::Clamp((float)((Now - CapStart) / MoveTime), 0.f, 1.f);
 	if (CapMat) CapMat->SetScalarParameterValue(TEXT("BeatT"), U * U * (3.f - 2.f * U));
 	if (bMovePending && Now - MoveStart > MoveTime + 0.05) CommitMoves();   // (never during a drag: see above)
+	TickHeave(Now, St);
 	for (TPair<int32, FPhen>& P : Phens) PlacePhen(P.Value, Now);
 	for (int32 i = Flashes.Num() - 1; i >= 0; --i)
 	{
 		FFlash& F = Flashes[i];
 		const float T = (float)(Now - F.At);
 		const float S = (float)St->GetActorScale3D().X;
-		if (F.Beam) F.Beam->SetWorldScale3D(FVector(0.02f * S * FMath::Max(0.f, 1.f - T / 0.6f), 0.02f * S * FMath::Max(0.f, 1.f - T / 0.6f), 0.6f * S));
-		if (F.Light) F.Light->SetIntensity(60.f * FMath::Max(0.f, 1.f - T / 0.9f));
+		const float Wd = (F.bMega ? 0.07f : 0.035f) * S * FMath::Max(0.f, 1.f - T / 0.8f);
+		if (F.Beam) F.Beam->SetWorldScale3D(FVector(Wd, Wd, 0.9f * S));
+		if (F.Ring)
+		{
+			const float Ru = FMath::Clamp(T / 0.9f, 0.f, 1.f), Rad = (F.bMega ? 28.f : 14.f) * S * FMath::Sqrt(Ru);
+			F.Ring->SetWorldScale3D(T < 1.1f ? FVector(Rad / 50.f, Rad / 50.f, 0.004f * S * (1.f - Ru) + 0.0005f) : FVector::ZeroVector);
+		}
+		if (F.Light) F.Light->SetIntensity((F.bMega ? 220.f : 90.f) * FMath::Max(0.f, 1.f - T / 1.0f));
 		if (F.Label)
 		{
 			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
@@ -702,6 +859,7 @@ void AFNEarthPlay::Tick(float Dt)
 		if (T > 2.2f)
 		{
 			if (F.Beam) F.Beam->DestroyComponent();
+			if (F.Ring) F.Ring->DestroyComponent();
 			if (F.Light) F.Light->DestroyComponent();
 			if (F.Label) F.Label->DestroyComponent();
 			Flashes.RemoveAt(i);

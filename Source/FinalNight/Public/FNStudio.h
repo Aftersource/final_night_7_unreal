@@ -134,6 +134,7 @@ public:
 	bool IsBoardPanning() const { return bBoardPan; }
 	/** The hand holds the board or the globe: nothing else may move the view (the camera's lean freezes). */
 	bool IsHandHolding() const { return bBoardPan || bGlobeGrab; }
+	bool IsZoomAnimating() const { return ZoomAnimT >= 0.f; }
 	bool BeginBoardPan(const FVector2D& ViewportPixel);
 	void PanBoardTo(const FVector2D& ViewportPixel);
 	void EndBoardPan();
