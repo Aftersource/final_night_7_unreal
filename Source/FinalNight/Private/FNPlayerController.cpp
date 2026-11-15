@@ -130,10 +130,19 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 	{
 		if (WasInputKeyJustPressed(EKeys::RightMouseButton))
 		{
-			// RIGHT-CLICK = one level out, unless the cursor is in a demigod's extended click box (then nothing happens).
-			const FString Near = RightClickBlockedBy();
-			if (!Near.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked by %s"), *Near); }
-			else if (Studio->MapClick(false)) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: out")); }
+			// RIGHT-CLICK = one level out.
+			// FN7 (Mac session, backend go-ahead 2026-11-15): right-click zooms out everywhere, near demigods too (Chris asked for right-click to zoom out
+			// click zooms out you dont lose track the same way"); only real kit UI under the cursor keeps it.
+			const FString Ui = RightClickBlockedBy();
+			if (!Ui.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: right-click left to the UI (%s)"), *Ui); }
+			else if (Studio->MapClick(false))
+			{
+				FVector2D Mouse;
+				double D = 0.0;
+				const FString Fig = GetMousePosition(Mouse.X, Mouse.Y) ? AFNTableGods::FigureAtScreen(GetWorld(), Mouse, nullptr, 1.35, &D) : FString();
+				if (Fig.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: out (right-click)")); }
+				else { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: out (right-click) near %s"), *Fig); }
+			}
 		}
 		if (WasInputKeyJustPressed(EKeys::Home)) Studio->MapHome();
 	}
@@ -150,12 +159,8 @@ FString AFNPlayerController::DemigodUnderCursor() const
 
 FString AFNPlayerController::RightClickBlockedBy() const
 {
-	// Chris's right-click rule: never inside ANY demigod's extended click zone (yours too), the kit's own near-miss zone
-	// (FigureAtScreen with the same 1.35x scale as FN7Kit), plus the kit's UI rules (power hex, pouch, duel box, panel).
+	// Only real kit UI keeps a right-click (power hex, pouch, the open duel box, a HUD panel); demigods don't block it.
 	FVector2D Mouse;
 	if (!GetMousePosition(Mouse.X, Mouse.Y)) return FString();
-	double D = 0.0;
-	const FString Fig = AFNTableGods::FigureAtScreen(GetWorld(), Mouse, nullptr, 1.35, &D);
-	if (!Fig.IsEmpty()) return FString::Printf(TEXT("figure %s (any) at %.0f px"), *Fig, D);
 	return FN7Kit::IsOverKitUI(GetWorld(), Mouse) ? FN7Kit::WhyBlocked(GetWorld(), Mouse) : FString();
 }

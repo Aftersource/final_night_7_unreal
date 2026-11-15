@@ -475,8 +475,8 @@ void AFNStudio::PanBoardTo(const FVector2D& ViewportPixel)
 	if (!bBoardPan || !MapPivot || !TablePointAt(ViewportPixel, Hit)) return;
 	FVector Off = Hit - PanFromHit;
 	Off.Z = 0.f;
-	MapPivot->SetRelativeLocation(Off);   // the land slides with the hand, this frame
-	if (Off.Size2D() > FMath::Max((float)(2.0 * TableS * TableK), 6.f))
+	MapPivot->SetRelativeLocation(Off);   // the land slides with the hand, this frame (re-centred every five hexes)
+	if (Off.Size2D() > FMath::Max((float)(5.0 * TableS * TableK), 6.f))
 	{
 		CommitBoardPan(Off);
 		PanFromHit = Hit;
@@ -562,7 +562,8 @@ void AFNStudio::GlobeGrabTo(const FVector2D& ViewportPixel)
 	const double Now = FPlatformTime::Seconds();
 	GrabHist.Add({ Now, BoardRoot->GetComponentQuat() });
 	while (GrabHist.Num() > 2 && Now - GrabHist[0].Key > 0.5) GrabHist.RemoveAt(0);
-	if (Now - LastGlobeRecentre > 0.35) SettleGlobe(false);   // the board follows the front of the planet, not per frame
+	// The board follows the front of the planet when the hand lets go (SettleGlobe(true)), never mid-drag: a board
+	// rebuild is a frame's stall, and stalls under the hand read as lag (Chris noted it feels very laggy).
 }
 
 void AFNStudio::EndGlobeGrab()
@@ -657,7 +658,6 @@ bool AFNStudio::TickHand(float Dt)
 		const float W = GlobeOmega.Size();
 		BoardRoot->AddWorldRotation(FQuat(GlobeOmega / FMath::Max(W, 1e-6f), W * Dt));
 		GlobeOmega *= FMath::Exp(-Dt / 0.6f);
-		if (FPlatformTime::Seconds() - LastGlobeRecentre > 0.35) SettleGlobe(false);
 		if (GlobeOmega.Size() < 0.05f) { bGlobeCoast = false; SettleGlobe(true); UE_LOG(LogTemp, Display, TEXT("FN7 hand: globe settles")); }
 	}
 	if (bBoardCoast && MapPivot)
@@ -665,7 +665,7 @@ bool AFNStudio::TickHand(float Dt)
 		FVector Off = MapPivot->GetRelativeLocation() + BoardVel * Dt;
 		Off.Z = 0.f;
 		MapPivot->SetRelativeLocation(Off);
-		if (Off.Size2D() > FMath::Max((float)(2.0 * TableS * TableK), 6.f)) CommitBoardPan(Off);
+		if (Off.Size2D() > FMath::Max((float)(5.0 * TableS * TableK), 6.f)) CommitBoardPan(Off);
 		BoardVel *= FMath::Exp(-Dt / 0.5f);
 		if (BoardVel.Size2D() < 3.f)
 		{

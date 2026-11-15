@@ -9,6 +9,11 @@ filigree cuff and a faint gold edge glow, the same stone as the gods' statues. O
 
 ## 1. The cursor
 
+> **Superseded (2026-11-15, Chris): the drawn-hand control looked and felt poor and was too laggy, so it should stop.
+> Use the mouse pointer with proper controls instead.** The drawn hand is removed (it was
+> redrawn at the game's frame rate and trailed the real pointer). The game uses the system mouse pointer; the controls
+> below are unchanged. The table below is kept as the record of what was tried.
+
 | State | When | Sprite |
 |---|---|---|
 | OPEN | Over the globe or empty board, nothing pressed | Open palm, faint glow |
@@ -59,18 +64,20 @@ filigree cuff and a faint gold edge glow, the same stone as the gods' statues. O
 | Press + drag | Grab (above) | Your own demigod: SUMMON drag. A rival: nothing | The UI's own drag |
 | Click | Nothing moves (the old rule) | Select | The UI |
 | Double-click | Zoom IN one level at that point, animated | Centre on the demigod; a rival in your hex = challenge | The UI |
-| Right-click | Zoom OUT one level, animated | NOTHING (her rule) | The UI |
+| Right-click | Zoom out one level, animated | Zoom out one level, animated (Chris asked that right click zoom out without losing track of the view, the same way) | The UI |
 | Wheel | One level per gesture at the cursor (centred on the nearest demigod if within its zone) | Same | The UI scrolls |
 
 - The extended zone is `AFNTableGods::FigureAtScreen(..., ZoneScale)`, the same one WhyBlocked uses: the figure's own
   click zone, ×1.35 for near misses.
+- Right-click is never eaten by a demigod; only real UI under the cursor keeps it. Its log: `FN7 zoom: out (right-click)`
+  or `FN7 zoom: out (right-click) near dg:N`.
 - Every blocked gesture logs its rule: `FN7 zoom: blocked by figure dg:N at D px | duel box up | power hex N | pouch |
   panel <id>`.
 - All zooms animate (the zoom ghost and rise-from-flat). Nothing pops.
 
 ## 5. Proof before push (the rule)
 
-1. Chris's editor log shows a globe grab, a fling, a catch, a board grab and pan, a double-click zoom in, a right-click
-   zoom out, and one blocked right-click near a demigod.
+1. Chris's editor log shows a globe grab, a fling, a catch, a board grab and pan, a double-click zoom in, and a
+   right-click zoom out (one of them near a demigod).
 2. Frames or screenshots of the globe mid-grab (the grabbed spot under the hand) and of the board mid-pan.
 3. Then push mac/hand-of-god. The backend merges, and Benito's PC builds both targets and proves it from his log.
