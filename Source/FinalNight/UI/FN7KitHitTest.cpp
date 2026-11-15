@@ -35,27 +35,47 @@ namespace FN7Kit
 		return true;
 	}
 
-	bool IsOverAnyFigure(UWorld* World, const FVector2D& ViewportPixel, double ReachPx)
+	static constexpr double NearMissScale = 1.35;
+
+	bool IsOverAnyFigure(UWorld* World, const FVector2D& ViewportPixel)
 	{
-		if (!World) return false;
-		return !AFNTableGods::FigureAtScreen(World, ViewportPixel).IsEmpty() || !AFNTableGods::FigureNear(World, ViewportPixel, ReachPx).IsEmpty();
+		return World && !AFNTableGods::FigureAtScreen(World, ViewportPixel, nullptr, NearMissScale).IsEmpty();
+	}
+
+	FString WhyBlocked(UWorld* World, const FVector2D& ViewportPixel)
+	{
+		if (!World) return FString();
+		double D = 0.0;
+		const FString Fig = AFNTableGods::FigureAtScreen(World, ViewportPixel, nullptr, NearMissScale, &D);
+		if (!Fig.IsEmpty()) return FString::Printf(TEXT("figure %s at %.0f px"), *Fig, D);
+		if (const AFNDuelBox* Box = AFNDuelBox::Get(World, false))
+			if (Box->IsShowing()) return TEXT("duel box up");
+		if (AFNStudio* St = StudioOf(World))
+			if (const AFNPowerRing* Ring = AFNPowerRing::Get(St, false))
+				if (Ring->IsShown())
+				{
+					const int32 Hex = Ring->HexAtPixel(ViewportPixel);
+					if (Hex >= 0) return FString::Printf(TEXT("power hex %d"), Hex);
+					if (Ring->PouchAtPixel(ViewportPixel)) return TEXT("pouch");
+				}
+		FVector2D Abs;
+		if (PixelToAbs(ViewportPixel, Abs))
+		{
+			const FString Panel = SFNPanelMover::PanelAt(Abs);
+			if (!Panel.IsEmpty()) return FString::Printf(TEXT("panel %s"), *Panel);
+		}
+		return FString();
 	}
 
 	bool IsOverKitUI(UWorld* World, const FVector2D& ViewportPixel)
 	{
-		if (!World) return false;
-		if (const AFNDuelBox* Box = AFNDuelBox::Get(World, false))
-			if (Box->IsShowing()) return true;
-		if (AFNStudio* St = StudioOf(World))
-			if (const AFNPowerRing* Ring = AFNPowerRing::Get(St, false))
-				if (Ring->IsShown() && (Ring->HexAtPixel(ViewportPixel) >= 0 || Ring->PouchAtPixel(ViewportPixel))) return true;
-		FVector2D Abs;
-		return PixelToAbs(ViewportPixel, Abs) && SFNPanelMover::IsOverAnyPanel(Abs);
+		const FString Why = WhyBlocked(World, ViewportPixel);
+		return !Why.IsEmpty() && !Why.StartsWith(TEXT("figure "));
 	}
 
 	bool BlocksBoardGesture(UWorld* World, const FVector2D& ViewportPixel)
 	{
-		return IsOverAnyFigure(World, ViewportPixel) || IsOverKitUI(World, ViewportPixel);
+		return !WhyBlocked(World, ViewportPixel).IsEmpty();
 	}
 
 	void SetBoardDoubleClick(TFunction<void(const FVector2D&)> Handler)

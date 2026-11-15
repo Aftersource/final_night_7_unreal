@@ -25,6 +25,8 @@ public:
 
 	/** True when an absolute (desktop) point is over any movable panel: power drags skip the board there. */
 	static bool IsOverAnyPanel(const FVector2D& AbsolutePoint);
+	/** The Id of the panel under an absolute point ("" for none). */
+	static FString PanelAt(const FVector2D& AbsolutePoint);
 	/** Every movable panel glides back to its home corner (and forgets its saved offset). */
 	static void ResetAll();
 
