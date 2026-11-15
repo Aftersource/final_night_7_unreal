@@ -73,6 +73,7 @@ private:
 	TMap<FString, float> DefaultTop;    // the board's own relief there, before any override
 	TArray<FString> Tops;               // top material names by index
 	FString BoardKey;                   // the centre key the board was fetched at
+	FString CapsKey;                    // the board (centre key) the caps were laid on: shown only while it is the board on the table
 	int32 BoardBeat = -1;               // the beat it was drawn at
 	int32 LastBeat = -1;
 	double AskedAt = 0.0, CentreChangedAt = 0.0;
