@@ -615,6 +615,59 @@ void AFNDuelBox::PoseFighter(USkeletalMeshComponent* M, int32& ShownClip, const 
 	}
 }
 
+double AFNDuelBox::InstantStepMs(const TSharedPtr<FJsonObject>& Step)
+{
+	double Ms = 0.0;
+	if (Step.IsValid() && Step->TryGetNumberField(TEXT("ms"), Ms) && Ms > 0.0) return FMath::Clamp(Ms, 150.0, 4000.0);
+	FString Path;
+	if (Step.IsValid()) Step->TryGetStringField(TEXT("path"), Path);
+	return Path.Contains(TEXT("circle")) ? 1800.0 : 900.0;
+}
+
+void AFNDuelBox::PlayInstant(const FString& Side, const TSharedPtr<FJsonObject>& Blow)
+{
+	using namespace FN7Box;
+	if (!Blow.IsValid() || (Side != TEXT("a") && Side != TEXT("b"))) return;
+	FInstant& In = Side == TEXT("a") ? InstA : InstB;
+	In.Steps.Reset();
+	if (const TArray<TSharedPtr<FJsonValue>>* Stage = Arr(Blow, TEXT("stage")))
+		for (const TSharedPtr<FJsonValue>& V : *Stage)
+			if (const TSharedPtr<FJsonObject> Sp = V.IsValid() ? V->AsObject() : nullptr)
+				if (In.Steps.Num() < 4) In.Steps.Add(Sp);
+	if (In.Steps.Num() == 0)
+	{
+		// Older servers: the blow's `anim` cue (a clip name, or an object with one).
+		FString Clip = Str(Blow, TEXT("anim"));
+		if (Clip.IsEmpty()) Clip = Str(Obj(Blow, TEXT("anim")), TEXT("clip"));
+		if (Clip.IsEmpty()) return;
+		TSharedPtr<FJsonObject> One = MakeShared<FJsonObject>();
+		One->SetStringField(TEXT("clip"), Clip);
+		In.Steps.Add(One);
+	}
+	In.From = Side == TEXT("a") ? ShownAtA : ShownAtB;
+	In.StartS = FPlatformTime::Seconds();
+	In.BlowN = (int32)Num(Blow, TEXT("n"), (double)In.BlowN + 1.0);
+	// A whiff ("you have no pistol", "no tree here"): the words float over the fighter in grey.
+	FString Whiff;
+	for (const TSharedPtr<FJsonObject>& Sp : In.Steps)
+	{
+		bool bW = false;
+		if (Sp->TryGetStringField(TEXT("whiff"), Whiff) && !Whiff.IsEmpty()) break;
+		if (Sp->TryGetBoolField(TEXT("whiff"), bW) && bW) { Whiff = TEXT("WHIFF"); break; }
+	}
+	if (Whiff.IsEmpty()) Blow->TryGetStringField(TEXT("whiff"), Whiff);
+	if (!Whiff.IsEmpty() && RuleText)
+	{
+		RuleText->SetText(FText::FromString(Whiff));
+		RuleText->SetTextRenderColor(FColor(170, 170, 170));
+		RuleAt = In.From + FVector(0, 0, 29.f);
+		RuleText->SetVisibility(true);
+		RuleLeft = 1.6f;
+	}
+	const FString First = Str(In.Steps[0], TEXT("clip")), FirstPath = Str(In.Steps[0], TEXT("path"));
+	UE_LOG(LogTemp, Display, TEXT("FN7 duel instant: %s blow %d, %d step(s), first %s path '%s' whiff '%s'"), *Side, In.BlowN, In.Steps.Num(), *First, *FirstPath, *Whiff);
+}
+
 void AFNDuelBox::PlayStage(double Now, float Dt)
 {
 	using namespace FN7Box;
@@ -688,7 +741,65 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 		Out.At = From;
 		return Out;
 	};
-	const FPose Pa = Track(TEXT("a"), StartA), Pb = Track(TEXT("b"), StartB);
+	FPose Pa = Track(TEXT("a"), StartA), Pb = Track(TEXT("b"), StartB);
+	// An instant move per Enter (PlayInstant) overrides the panel pose while it plays: its clip from the fighter's
+	// current spot, moved by its path (left/right a hex sideways, in/out toward/away from the foe, circle around the
+	// foe, jump/leap a hop). When it ends the panels take over again.
+	{
+		const double NowS = FPlatformTime::Seconds();
+		const float Hex = (HexLocal(1.0, 0.0) - HexLocal(0.0, 0.0)).Size();
+		auto Instant = [&](FInstant& In, FPose& P, const FVector& FoeAt, int32 SideIdx)
+		{
+			if (In.StartS < 0.0 || In.Steps.Num() == 0) return;
+			double Acc = 0.0;
+			const double El = (NowS - In.StartS) * 1000.0;
+			FVector From = In.From;
+			for (int32 i = 0; i < In.Steps.Num(); ++i)
+			{
+				const TSharedPtr<FJsonObject>& Sp = In.Steps[i];
+				const double Ms = InstantStepMs(Sp);
+				FString Path = Str(Sp, TEXT("path")).ToLower();
+				FVector ToFoe = (FoeAt - From).GetSafeNormal2D();
+				if (ToFoe.IsNearlyZero()) ToFoe = FVector(SideIdx == 0 ? 1.f : -1.f, 0.f, 0.f);
+				const FVector Sideways = FVector::CrossProduct(FVector::UpVector, ToFoe);
+				FVector Dest = From;
+				if (Path.Contains(TEXT("left"))) Dest = From + Sideways * Hex;
+				else if (Path.Contains(TEXT("right"))) Dest = From - Sideways * Hex;
+				else if (Path == TEXT("in") || Path == TEXT("dash") || Path == TEXT("charge") || Path == TEXT("forward") || Path == TEXT("lunge"))
+					Dest = From + ToFoe * FMath::Max(0.f, FMath::Min(Hex, (FoeAt - From).Size2D() - Hex * 0.8f));
+				else if (Path == TEXT("out") || Path == TEXT("back") || Path == TEXT("retreat")) Dest = From - ToFoe * Hex;
+				if (El < Acc + Ms)
+				{
+					const float F = (float)FMath::Clamp((El - Acc) / Ms, 0.0, 1.0);
+					FVector At = FMath::Lerp(From, Dest, FMath::InterpEaseInOut(0.f, 1.f, F, 2.f));
+					if (Path.Contains(TEXT("circle")))
+					{
+						const FVector Rel = From - FoeAt;
+						At = FoeAt + Rel.RotateAngleAxis(F * 360.f, FVector::UpVector);
+					}
+					if (Path.Contains(TEXT("jump")) || Path.Contains(TEXT("leap")) || Path == TEXT("vault") || Path == TEXT("flip"))
+						At.Z += FMath::Sin(F * PI) * 1.2f * FN7Box::S;
+					P.At = At;
+					P.Clip = Str(Sp, TEXT("clip"));
+					if (P.Clip.IsEmpty()) P.Clip = TEXT("idle_guard");
+					P.bLoop = Path.Contains(TEXT("circle")) || P.Clip == TEXT("run") || P.Clip == TEXT("walk");
+					P.ClipT = (float)((El - Acc) / 1000.0);
+					P.Seg = Sp;
+					P.SegIdx = 100000 + In.BlowN * 8 + i;   // unique per instant step: its draw flash plays once
+					P.SegT = El - Acc;
+					return;
+				}
+				From = Dest;
+				Acc += Ms;
+			}
+			In.StartS = -1.0;   // done: the panels take over
+		};
+		const FVector FoeOfA = Pb.At, FoeOfB = Pa.At;
+		Instant(InstA, Pa, FoeOfA, 0);
+		Instant(InstB, Pb, FoeOfB, 1);
+	}
+	ShownAtA = Pa.At;
+	ShownAtB = Pb.At;
 	PoseFighter(FighterA, ClipA, Pa.Clip, Pa.ClipT, Pa.bLoop, Pa.At, Pb.At);
 	PoseFighter(FighterB, ClipB, Pb.Clip, Pb.ClipT, Pb.bLoop, Pb.At, Pa.At);
 	// The portrait cards ride beside the mannequins at head height, on the far side from the foe, turned to the camera
@@ -716,7 +827,7 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 		const double NowS = FPlatformTime::Seconds();
 		auto Arm = [&](FHeld& Hd, USkeletalMeshComponent* M, const FPose& P, const TCHAR* Side)
 		{
-			if (Panel.IsValid()) Hd.Prop = P.Seg.IsValid() ? Obj(P.Seg, TEXT("prop")) : TSharedPtr<FJsonObject>();
+			if (Panel.IsValid() || P.SegIdx >= 100000) Hd.Prop = P.Seg.IsValid() ? Obj(P.Seg, TEXT("prop")) : TSharedPtr<FJsonObject>();
 			if (P.Seg.IsValid() && Str(P.Seg, TEXT("clip")) == TEXT("draw_from_nowhere"))
 			{
 				const FString Key = FString::Printf(TEXT("%d:%s:%d"), Cur, Side, P.SegIdx);
