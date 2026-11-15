@@ -172,6 +172,71 @@ TArray<TArray<FVector2f>> SFNPowerIcon::Strokes(const FString& InSlug)
 		S.Add(Poly({ V(7, 5), V(7.9f, 3.5f), V(7, 2) }));                   // steam
 		S.Add(Poly({ V(17, 5), V(17.9f, 3.5f), V(17, 2) }));
 	}
+	// The engraved HUD (Chris, 2026-11-15 graphics notes): the header, the purse, the items button.
+	else if (K == TEXT("door"))
+	{
+		S.Add(Join({ Poly({ V(6, 22), V(6, 10) }), Arc(12.f, 10.f, 6.f, 180.f, 0.f, 16), Poly({ V(18, 22) }) }));
+		S.Add(Poly({ V(3, 22), V(21, 22) }));
+		S.Add(Circle(15.f, 16.f, 0.9f, 8));
+	}
+	else if (K == TEXT("question"))
+	{
+		S.Add(Join({ Arc(12.f, 8.f, 4.6f, 165.f, -40.f, 16), Poly({ V(12, 12.6f), V(12, 15.5f) }) }));
+		S.Add(Circle(12.f, 19.6f, 1.1f, 8));
+	}
+	else if (K == TEXT("tree"))
+	{
+		S.Add(Poly({ V(12, 22), V(12, 8) }));
+		S.Add(Poly({ V(12, 16), V(6.5f, 11) }));
+		S.Add(Poly({ V(12, 14), V(17.5f, 9) }));
+		S.Add(Poly({ V(12, 11), V(8.5f, 6) }));
+		S.Add(Poly({ V(12, 8), V(14.5f, 3.5f) }));
+		S.Add(Circle(6.5f, 11.f, 1.3f, 8)); S.Add(Circle(17.5f, 9.f, 1.3f, 8)); S.Add(Circle(8.5f, 6.f, 1.3f, 8)); S.Add(Circle(14.5f, 3.5f, 1.3f, 8));
+		S.Add(Poly({ V(8, 22), V(16, 22) }));
+	}
+	else if (K == TEXT("key"))
+	{
+		S.Add(Circle(7.f, 12.f, 3.6f, 14));
+		S.Add(Poly({ V(10.6f, 12), V(21, 12) }));
+		S.Add(Poly({ V(17, 12), V(17, 15.5f) }));
+		S.Add(Poly({ V(20, 12), V(20, 15) }));
+	}
+	else if (K == TEXT("moon"))
+	{
+		S.Add(Join({ Arc(12.f, 12.f, 8.f, 60.f, 300.f, 20), Arc(15.5f, 12.f, 6.5f, 245.f, 115.f, 16) }));
+	}
+	else if (K == TEXT("figure"))
+	{
+		S.Add(Circle(12.f, 5.8f, 2.6f, 12));
+		S.Add(Poly({ V(12, 8.6f), V(12, 15) }));
+		S.Add(Poly({ V(6.5f, 11), V(17.5f, 11) }));
+		S.Add(Poly({ V(8, 21.5f), V(12, 15), V(16, 21.5f) }));
+	}
+	else if (K == TEXT("swirl"))
+	{
+		TArray<FVector2f> Sp;
+		for (int32 i = 0; i <= 44; ++i) { const float A = i * 0.42f, R = 0.6f + i * 0.21f; Sp.Add(V(12.f + R * FMath::Cos(A), 12.f + R * FMath::Sin(A))); }
+		S.Add(Sp);
+	}
+	else if (K == TEXT("chest"))
+	{
+		S.Add(Poly({ V(4, 11), V(20, 11), V(20, 20), V(4, 20), V(4, 11) }));
+		S.Add(Poly({ V(4, 11), V(5.5f, 6.5f), V(18.5f, 6.5f), V(20, 11) }));
+		S.Add(Poly({ V(10.8f, 11), V(13.2f, 11), V(13.2f, 14.2f), V(10.8f, 14.2f), V(10.8f, 11) }));
+		S.Add(Poly({ V(4, 15.5f), V(10.8f, 15.5f) })); S.Add(Poly({ V(13.2f, 15.5f), V(20, 15.5f) }));
+	}
+	else if (K == TEXT("hourglass"))
+	{
+		S.Add(Poly({ V(6, 3), V(18, 3) })); S.Add(Poly({ V(6, 21), V(18, 21) }));
+		S.Add(Poly({ V(7.5f, 3), V(7.5f, 5.5f), V(12, 12), V(7.5f, 18.5f), V(7.5f, 21) }));
+		S.Add(Poly({ V(16.5f, 3), V(16.5f, 5.5f), V(12, 12), V(16.5f, 18.5f), V(16.5f, 21) }));
+		S.Add(Poly({ V(9.5f, 19.5f), V(14.5f, 19.5f), V(12, 16), V(9.5f, 19.5f) }));
+	}
+	else if (K == TEXT("spark"))
+	{
+		S.Add(Poly({ V(12, 3), V(13.6f, 10.4f), V(21, 12), V(13.6f, 13.6f), V(12, 21), V(10.4f, 13.6f), V(3, 12), V(10.4f, 10.4f), V(12, 3) }));
+		S.Add(Poly({ V(17.5f, 6.5f), V(19, 5) })); S.Add(Poly({ V(6.5f, 17.5f), V(5, 19) }));
+	}
 	else if (K == TEXT("armies"))
 	{
 		for (int32 k = 0; k < 3; ++k)

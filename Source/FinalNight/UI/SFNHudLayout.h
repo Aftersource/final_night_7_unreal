@@ -196,6 +196,7 @@ private:
 	TWeakObjectPtr<class AFNTurnBar> TurnBar;   // Benito's top-centre turn bar: the big-moment banner goes below it
 	bool TurnBarShown() const;
 	TSharedRef<SWidget> MakeWillChips();
+	TSharedRef<SWidget> MakeNotes();
 	FString YouSignature, PowersSignature;   // rebuild those sections only when their content changes
 	FString MakeYouSignature() const;
 	bool bNewsCollapsed = false;
