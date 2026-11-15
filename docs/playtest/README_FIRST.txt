@@ -3,18 +3,22 @@
               Playtest welcome  -  Epic AI MegaJam 2026
 =====================================================================
 
-You are a GOD at a table of gods. Two demigods fight for you across
-the REAL EARTH. You don't press buttons to move them: you WRITE THEIR
-WILL, in plain words, and time itself slows while you write. Call down
-volcanoes. Curse a rival's grave. Duel face to face in typed blows.
-When the Final Night falls, exactly one god is left.
+You are a GOD at a table of gods. A globe of the real Earth floats
+over the table, and below it a hex board shows the part of the world
+you're looking at. Two demigods fight for you down there. You don't
+press buttons to move them: you WRITE THEIR WILL, in plain words, and
+time itself slows while you write. Call down volcanoes. Raise armies.
+Duel face to face in typed blows. When the Final Night falls, exactly
+one god is left.
 
-  * Up to 4 gods at the table
-  * AI gods fill every empty seat
-  * Join any time, even mid-match
-  * One always-on game: FINAL7
+  * Two demigods each: your LEFT HAND and your RIGHT HAND
+  * Last god with a demigod standing wins
+  * A match is meant to feel about 7 minutes
+  * The world never waits: it beats on whether you type or not
+  * AI gods fill every empty seat, and you can join mid-match
 
-(There's a prettier version of this file: README_FIRST.html.)
+(There's a prettier version of this file: README_FIRST.html.
+ Testing for us? See PLAYTEST_CHECKLIST.md and KNOWN_ISSUES.md.)
 
 
 ---------------------------------------------------------------------
@@ -22,12 +26,12 @@ When the Final Night falls, exactly one god is left.
 ---------------------------------------------------------------------
 
  1. UNZIP
-    Unzip the build Benito sent you (about 338 MB) anywhere you like,
-    for example your Desktop. Inside you'll find FinalNight.exe, an
+    Unzip the Windows build you were sent anywhere you like, for
+    example your Desktop. Inside you'll find FinalNight.exe, an
     Engine folder and a FinalNight folder.
 
  2. DROP IN YOUR KEY
-    Benito sends you an access key privately. It is NOT in the zip.
+    You'll be sent an access key privately. It is NOT in the zip.
     Make a plain text file with that key on one line, here:
 
         FinalNight\Config\FN7Key.txt
@@ -35,12 +39,11 @@ When the Final Night falls, exactly one god is left.
     That's the FinalNight folder next to FinalNight.exe. If there's no
     Config folder in it, create one. The file holds one line:
 
-        <the key Benito sends you>
+        <the access key you were sent>
 
  3. LAUNCH
     Double-click FinalNight.exe. The server address is already built
-    into the game, so there's nothing to type in. Click the velvet bag
-    on the table and you're in.
+    into the game, so there's nothing to type in.
 
  NOTEPAD TRAP: Windows hides file extensions, so Notepad can quietly
  save "FN7Key.txt.txt". Turn on View > File name extensions in
@@ -49,7 +52,7 @@ When the Final Night falls, exactly one god is left.
  PREFER AN ENVIRONMENT VARIABLE? Instead of the file, run this in a
  Command Prompt, then launch the game:
 
-        setx FN7_KEY "<the key Benito sends you>"
+        setx FN7_KEY "<the access key you were sent>"
 
  The game reads the file first, then the variable.
 
@@ -60,168 +63,255 @@ When the Final Night falls, exactly one god is left.
  II. YOUR FIRST MINUTE
 ---------------------------------------------------------------------
 
- * A dark table under a floating globe. The lobby shows the server's
-   status and the house game FINAL7. Type the name the other gods
-   will see.
+ * WELCOME. Pick the name the other gods will know you by (1 to 24
+   characters), then press PLAY AS GUEST. No email, no password:
+   this computer keeps you signed in. (If SIGN IN WITH GOOGLE is
+   offered, that works too, and "play without an account" skips it.)
 
- * A crimson velvet bag sits on the table. Click it, or press JOIN THE
-   GAME. The bag pours out your powers: carved wooden hexes in an arc
-   along the table's right side.
+ * THE LOBBY. A narrator welcomes you. The lobby shows whether the
+   server is online and THE HOUSE GAME: the always-on game anyone
+   can drop into, with who's at the table and when the next match
+   starts. Your ways in:
 
- * A stone tablet: HOW TO PLAY. It appears once, the first time you
-   join. The "?" button at the top brings it back any time.
+     JOIN THE GAME ...... take a seat in the house game
+     WATCH .............. just watch it
+     PLAY VS BOTS ....... your own match against AI gods
+     HOST A ROOM ........ you get a ROOM code to give your friends;
+                          press START when everyone is in. CANCEL
+                          closes your room and takes you back to the
+                          house game (so does BACK TO THE GAME)
+     JOIN BY CODE ....... type a friend's room code, press JOIN
 
- * Your seat. If a match is already running, you take over one of the
-   AI gods' seats, demigods and all, from that beat on. If a new match
-   is starting, beat 1 is the FINAL WISH: your first orders can be
-   anything, with extra power behind them. Think big.
+   SETTINGS, DEMIGODS and YOUR GOD in the lobby let you set volumes
+   and options, write your two demigods' personalities, and shape the
+   stone statue of your god at the table.
 
- * The world moves without you. Beats roll on whether you type or
-   not. AI gods are already scheming. Better start writing.
+ * HOW TO PLAY. A stone tablet appears the first time you join.
+   GOT IT closes it; the "?" button at the top brings it back.
 
+ * YOUR SEAT. If a match is already running, you take over a
+   demigod from the next beat on. If a new match is starting, beat 1
+   is the FINAL WISH: your first orders get extra power behind them.
+   Think big.
 
----------------------------------------------------------------------
- III. HOW TO PLAY
----------------------------------------------------------------------
-
- You have two demigods, your LEFT HAND and your RIGHT HAND. Each has
- 10 health and its own place on the planet. You're out only when BOTH
- fall. Last god standing wins. A match is up to 60 beats, and it can
- end early: when Entropy hits heat death, the Final Night falls at
- once.
-
- THE LOOP
-   WRITE  Type your will in the WILL scroll at the bottom right. Plain
-          words. Time slows for everyone while you write.
-   CAST   Drag a power hex onto the table board for a MINI (1 spark),
-          or onto the globe for a MEGA (1 bolt).
-   MOVE   Drag one of your demigods anywhere on the board or the globe
-          to summon it there. Risky.
-   FIGHT  Double-click a rival's piece to challenge it to a typed
-          duel. Your words decide the blow.
-
- CONTROLS
-   Type, then Enter ........... send your will
-                                (Shift+Enter starts a new line)
-   Start a line with r: ....... that line goes to your Right Hand
-                                (plain lines, or l:, go to your Left)
-   Drag on the globe .......... turn the world
-   Mouse wheel ................ zoom one level per scroll, centred on
-                                the nearest demigod
-   Double-click empty map ..... zoom in one level
-   Right-click ................ zoom out one level (not when you're
-                                right on a demigod)
-   Double-click a demigod ..... centre the globe and the table on it
-   Double-click a RIVAL ....... challenge it; a confirm box tells you
-                                if your demigod must teleport first
-                                and what that costs
-   Click the bag .............. pour out your power hexes or put them
-                                away; it shows your bolts
-   R or Home or RESET VIEW .... back to you: the board, the camera and
-                                the panels where they were
-   Esc or LOBBY ............... open or close the lobby
-
- BOLTS AND SPARKS
-   Your purse starts at 1 bolt and 5 sparks. A MINI costs a spark and
-   hits a few hexes. A MEGA costs a bolt and hits on map scale, and
-   every other god gets a bolt from it, so each mega arms your rivals.
-   The seven gods are Time, Nature, Consequence, Death, Chance, Memory
-   and ENTROPY. Entropy says yes to everything, and every cast pushes
-   its meter up: freak weather, then broken physics, then riots, then
-   wounds to the gods themselves. At 100 comes HEAT DEATH and the
-   Final Night falls at once. Too many megas end the world.
+ * THE WORLD MOVES WITHOUT YOU. Beats roll on whether you type or
+   not. The AI gods are already scheming. Better start writing.
 
 
 ---------------------------------------------------------------------
- IV. THE FIVE THINGS TO TRY
+ III. THE SCREEN
 ---------------------------------------------------------------------
 
- 1. CHALLENGE A RIVAL TO A TYPED DUEL
-    Double-click a rival's piece. If it's out of reach, your demigod
-    teleports beside it first and loses about 1 to 2 health on the
-    way. Then a carved wooden box rises on the table and opens. Inside,
-    on a hex stage built from the place where you're fighting, two
-    figure-drawing mannequins act out every blow.
+ TOP (the header)
+   LOBBY ......... back to the lobby (Esc does it too)
+   RESET VIEW .... the board, the camera and the panels back where
+                   they were (R or Home)
+   ? ............. how to play
+   TREE .......... the Tree of Consequence (see section VIII)
+   Also up there: the ROOM, the BEAT (e.g. 12/60), how many are
+   ALIVE, and the ENTROPY meter.
 
-    You have 30 SECONDS. Type a move and hit Enter to strike. Every
-    line is a blow, judged at once by the rules and a d20. Lines with
-    an action verb, a body part, an item you hold or the ground you're
-    on hit harder, so
-        "I vault the crate and drive my knee into their ribs"
-    beats "hit". Repeating yourself and spamming both cost you.
+ BOTTOM LEFT: your two demigod cards
+   A portrait card for each demigod (L and R) with its health. Each
+   card has an ITEMS button: click it to see what that demigod
+   carries; click again or press Esc to close. Your purse sits here
+   too: BOLTS, SPARKS and DEBT (what you owe Time for slowing it).
 
-    Both lines show up masked as you type: each letter flashes for an
-    instant, then hides:  *****p  Read fast and you'll know their
-    move. The BLUE box is your duel. A RED box means you're watching
-    someone else's.
+ Bottom right: the Will scroll
+   "YOUR WILL - click to write". This is where you type. While it's
+   open you get four carved icon hot buttons (see section V).
 
- 2. CAST A MEGA ON A FAULT LINE
-    Pick up a power hex and drag it over the globe. While a mega is in
-    your hand, the planet's real tectonic plate boundaries glow into
-    view. A mega's strength follows its distance to the nearest fault:
-    within about 200 km of a plate boundary it hits about two and a
-    half times as hard, and more than 1,000 km from any fault it's a
-    quarter-strength fizzle. Find the lines. Drop it on them.
+ RIGHT SIDE: the power hexes and the pouch
+   Carved wooden hexes in an arc on the table: your powers. The
+   crimson velvet pouch beside them pours them out or puts them away
+   (it opens by itself when you join).
 
- 3. SLOW TIME BY TYPING A WILL
-    Start typing in the WILL scroll and time slows for EVERY player,
-    for up to 30 seconds, and everyone is told who did it. Your Enter
-    closes the window and cuts off anyone who typed slower. Time takes
-    a toll for it. Try:
-        raise an army in Lagos and march on the nearest rival
-        r: arm my demigods with holy spears
-        heal my demigods
+ THE WORLD LOG
+   The WORLD scroll: what's happening, in plain sentences. The + and
+   - on it fold it open or shut.
 
- 4. SUMMON YOUR DEMIGOD ACROSS THE WORLD
-    Grab one of your own demigods and drag it anywhere: onto the board,
-    or onto the other side of the globe. It flashes, whooshes and lands
-    that beat. Summoning often goes wrong (expect to lose 1 to 2
-    health), but it never drops you below 2.5. Teleport next to a
-    rival, then double-click it and challenge at once.
-
- 5. RESURRECT, CURSE AND CHASE QUESTS
-    RESURRECT. Fallen? Plead to Death in your WILL:
-        my demigods come back to life
-    Even a god with both demigods down can plead. Death keeps a price
-    list in sparks and years of life, and when you can't pay, it sets
-    you an errand.
-
-    CURSE.
-        curse <rival>'s Right Hand with withering   (no healing reaches it)
-        no resurrection for <rival>                 (seals a grave)
-    Also: bind, silence, hex. A curse costs sparks, and it's rolled: on
-    a natural 1 it turns on you.
-
-    QUESTS. Every curse comes with a way to break it: a mystic quest
-    along the lines of "the wings of a butterfly that crossed a strait,
-    burned at dawn on the shrine of the one who cursed you". Ask
-        what does my quest need?
-    and go do it.
+ CHAT
+   A small speech-bubble icon, with a badge when there's something
+   new. Click it to open the chat. Enter sends, Esc leaves.
 
 
 ---------------------------------------------------------------------
- V. WHAT WE WANT TO HEAR FROM YOU
+ IV. CONTROLS
 ---------------------------------------------------------------------
 
- Tell Benito everything, in your own words. Blunt is good. "That felt
- bad" helps us more than polite silence.
+ THE VIEW
+   Drag the globe ............... spin the world
+   Click the globe .............. dive to that region
+   Drag the board ............... pan: the land under your pointer
+                                  stays under your pointer
+   Mouse wheel .................. zoom in or out one level (over a
+                                  demigod, it zooms onto it)
+   + and - keys ................. zoom too
+   Double-click empty board ..... zoom in one level
+   Right-click .................. zoom out one level
+   R, Home or RESET VIEW ........ back to the start view
+
+ YOUR DEMIGODS AND RIVALS
+   Click a demigod .............. select it
+   Double-click YOUR demigod .... centre the view on it at the same
+   (piece or card)                zoom, with a gold ring under it
+   Double-click a RIVAL ......... in reach: the CHALLENGE card with
+                                  your odds (see section VI)
+                                  far away: centre the view on it
+   Drag your demigod (piece or .. SUMMON it there. It flashes and
+   card) onto the board or globe  lands that beat, but summoning is
+                                  risky: expect to lose 1 to 2 health
+                                  (it never drops you below 2.5)
+
+ POWERS
+   Drag a power onto the GLOBE .. a MEGA. Costs a BOLT. Hits on map
+                                  scale, and every other god gains a
+                                  bolt, so each mega arms your rivals
+   Drag a power onto the BOARD .. a MINI. Costs a SPARK. Hits a small
+                                  spot
+
+   Dropping a power right on your OWN demigod? The game warns you
+   ("Careful: that's YOUR OWN ...") and keeps the power in your hand.
+   Drop it there again to strike anyway.
+
+ KEYS
+   Enter ........................ open the WILL / send it
+   Shift+Enter .................. new line in the WILL
+   Esc .......................... roll the WILL up (your text stays),
+                                  close a card, the TREE or the chat,
+                                  or open and close the lobby
+
+
+---------------------------------------------------------------------
+ V. THE WILL
+---------------------------------------------------------------------
+
+ Type what your demigods do, in plain words, then press Enter (or
+ SEND). Start a line with r: for your Right Hand, l: for your Left.
+
+ SLOWING TIME. The moment you start typing, time slows for EVERY
+ player, for up to 30 seconds, and everyone is told who did it. Your
+ Enter sends your will and cuts off anyone still typing. Time takes a
+ toll for it: a bolt, plus a little debt.
+
+ Name who, where and with what. Say how big. Try:
+     raise an army of 10,000 fishermen at the harbour of Lagos
+     arm yourself with an obsidian blade and hunt the nearest rival
+     Nature, heal my Right Hand
+     r: march north and topple their shrine
+
+ THE FOUR HOT BUTTONS (icons on the open WILL)
+   Ankh ....... bring back a fallen demigod (only shows when one has
+                fallen)
+   Bow ........ arm and hunt a rival
+   Meal ....... heal your most hurt demigod
+   Armies ..... raise an army
+ Hover one to read its line. A press fills the WILL with that line
+ and sends it after a 5-second countdown ("goes in 5 - type to make it
+ yours"). Edit the line and it won't go by itself: it's your will
+ then. Press another button to swap the line and restart the count.
+
+ POWERS ARE SEPARATE. Typing never casts a power, and a power never
+ carries orders. Bolts and sparks come in a 1 to 5 ratio: you start
+ with 1 bolt and 5 sparks. The seven gods are Time, Nature,
+ Consequence, Death, Chance, Memory and ENTROPY. Every cast pushes the
+ Entropy meter up, and at 100 comes HEAT DEATH: the Final Night falls
+ at once. Too many megas end the world.
+
+ FAULT LINES. While a mega is in your hand, the planet's real
+ tectonic plate boundaries glow. Megas hit far harder on a fault
+ line, and hardest of all where plates meet; far from any fault they
+ fizzle. Find the lines.
+
+
+---------------------------------------------------------------------
+ VI. DUELS
+---------------------------------------------------------------------
+
+ Double-click a rival in reach. The CHALLENGE card shows who fights
+ whom and your chance to win.
+   Enter or DUEL ............. fight
+   Esc or Not now ............ back off
+ If the rival is on your board but not in reach, the button reads
+ TELEPORT + DUEL: your demigod jumps beside it first, which can cost
+ 1 to 2 health.
+
+ The narrator calls "CLASH! Will against will." You have 30 seconds.
+ EACH ENTER IS A BLOW: type your move and press Enter to strike. Every
+ line is judged at once by the rules and a d20. Lines with an action
+ verb, a body part, an item you hold or the ground you're on hit
+ harder, so
+     "I vault the rock and drive my knee into their ribs"
+ beats "hit". Repeats, very short lines and gibberish cost you, and
+ so does spamming Enter.
+
+ ONLY WHAT'S REAL. You can use only what your demigod holds or what's
+ there on the board (a tree, a rock, the mud). Name a pistol you
+ don't have and the blow whiffs: "you have no pistol".
+
+ Your rival's line shows up masked as they type, with only the newest
+ letters showing. Read fast and you'll know their move.
+
+
+---------------------------------------------------------------------
+ VII. FALLING, AND COMING BACK
+---------------------------------------------------------------------
+
+ Each demigod has 10 health. You're out only when BOTH fall.
+
+ Fallen? Plead to Death in your WILL:
+     Death, bring back my demigods
+ or press the ankh hot button, or PLEAD TO DEATH on the card that
+ tells you they fell. Even a god with both demigods down can plead.
+ Death names a price in sparks; when you can't pay, it sets you a
+ quest. You can also WATCH, or RETURN TO LOBBY.
+
+ Curses, seals and mystic quests are in the game too: ask the WILL
+ "what does my quest need?" and go do it.
+
+
+---------------------------------------------------------------------
+ VIII. THE TREE OF CONSEQUENCE
+---------------------------------------------------------------------
+
+ The game remembers everything, by place and time, from the whole
+ planet down to a single 3-metre hex. Press TREE in the header to see
+ it as a star map: bigger nodes remember more, brighter ones are more
+ recent. Click a node to see what it holds and how one fact travels
+ up into what the Dungeon Master knows. CLOSE or Esc to leave.
+
+
+---------------------------------------------------------------------
+ IX. AUDIO
+---------------------------------------------------------------------
+
+ A narrator speaks at the big moments: the welcome, the start of a
+ match, your duel's clash and its end, victory and defeat. Any key
+ skips a line. The crackling in the background sound is fixed.
+ Volumes (Master, Music, Sound effects, Voices) are under SETTINGS
+ in the lobby.
+
+
+---------------------------------------------------------------------
+ X. WHAT WE WANT TO HEAR FROM YOU
+---------------------------------------------------------------------
+
+ Tell us everything, in your own words. Blunt is good. "That felt
+ bad" helps us more than polite silence. PLAYTEST_CHECKLIST.md has a
+ short list of checks and a template for reporting bugs.
 
  * The first five minutes. Did you get in? Did you know what to do?
-   Where did you get stuck?
- * The duel. Did the box, the stage and the mannequins feel like a
-   fight? Too dark, too busy, too slow? What should a hit feel like?
  * Your words. Did the world do what you wrote? When it didn't, did
    the twist make sense or feel unfair?
- * Balance. Megas, minis, summoning risk, curse prices, duel length:
-   what felt wrong?
- * Controls. Zooming, turning the globe, dragging powers. Anything
-   fighting you?
+ * The duel. Did it feel like a fight? What should a hit feel like?
+ * Controls. Spinning, panning, zooming, dragging powers and
+   demigods. Anything fighting you?
+ * Balance. Megas, minis, summoning risk, duel length.
  * The best and worst moment. One of each, please.
- * Bugs. What you did, what happened, and the log file (see below).
 
 
 ---------------------------------------------------------------------
- VI. TROUBLESHOOTING
+ XI. TROUBLESHOOTING
 ---------------------------------------------------------------------
 
  "CAN'T REACH THE GAME"
@@ -234,8 +324,8 @@ When the Final Night falls, exactly one god is left.
      FinalNight folder next to the exe.
    * It isn't secretly FN7Key.txt.txt.
    * It holds just the key, copied exactly (no quotes needed).
-   * Restart the game after fixing it. Still no luck? Ask Benito for
-     the key again.
+   * Restart the game after fixing it. Still no luck? Ask for the
+     key again.
 
  "Check your internet"
    * The game connects out over a normal secure web connection (port
@@ -243,13 +333,16 @@ When the Final Night falls, exactly one god is left.
      FinalNight.
    * A work, school or VPN network might block it. Try another
      network.
-   * The server restarts itself between matches. Give it a minute.
+   * The server restarts itself now and then. Give it a minute.
 
  "Windows protected your PC"
    It's a jam build, so it isn't code-signed. Click "More info", then
    "Run anyway".
 
- Found a bug? Send Benito the log, in the game folder:
+ Slow or choppy? Performance depends on your PC. Close other heavy
+ programs and tell us your graphics card.
+
+ Found a bug? Send us the log, in the game folder:
      FinalNight\Saved\Logs\FinalNight.log
 
 
@@ -262,4 +355,5 @@ When the Final Night falls, exactly one god is left.
  Plate boundaries: Bird, P. (2002), PB2002; GeoJSON by Hugo Ahlenius,
  Nordpil (ODC-BY 1.0).
  3D figures made with Meshy. Images in the game are generated.
+ Voices are designed voices, no real person's voice.
  Built in Unreal Engine.
