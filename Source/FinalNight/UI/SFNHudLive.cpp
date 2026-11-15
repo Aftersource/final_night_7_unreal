@@ -628,6 +628,8 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			TSharedPtr<SFNHudLive> Self = Weak.Pin();
 			// Typing in the chat: Esc only leaves the chat (never the lobby, never the WILL).
 			if (Self.IsValid() && Self->Layout.IsValid() && Self->Layout->ChatHasFocus()) { Self->Layout->ChatLeaveFocus(); return true; }
+			// The chat opened (not typing): Esc folds it back to its icon.
+			if (Self.IsValid() && Self->Layout.IsValid() && Self->Layout->GetChat().IsValid() && Self->Layout->GetChat()->IsOpen()) { Self->Layout->GetChat()->Close(); return true; }
 			if (!Self.IsValid() || !Self->bInRoom) return false;
 			if (Self->bConfirmOpen) { Self->bConfirmOpen = false; return true; }   // Esc cancels a challenge confirm
 			// Writing: Esc rolls the WILL back up (the text stays). Otherwise it opens or closes the lobby.

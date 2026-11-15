@@ -45,6 +45,13 @@ public:
 	void LeaveFocus();
 	const TArray<FFNChatMsg>& Messages() const { return Msgs; }
 	bool IsTicker() const { return bTicker; }
+	/** Collapsed (the default) the chat is one small speech-bubble icon in its look, with an unread count and one pulse
+	 *  per new message; a click opens exactly the chat, Esc or a click outside folds it back (the chat needs
+	 *  to be actually just a small indicator in whatever the selected style is ... a proper icon, and then expand to what
+	 *  it is now"). The floating bubbles stay quiet while it's folded. */
+	bool IsOpen() const { return bOpen; }
+	void Open();
+	void Close();
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
@@ -60,6 +67,12 @@ private:
 	int32 BuiltVariant = -1;
 	float FanT = 0.f;              // the 6-fan opens on hover
 	bool bFanHover = false;
+	bool bOpen = false;            // folded to the icon by default
+	int32 Unread = 0;              // messages since it was folded
+	float Pulse = 0.f;             // 1 -> 0: the icon's one pulse for a new message
+	bool bHadFocus = false;        // opened and typed in: losing focus away from it folds it
+	bool bMouseWasDown = false;
+	TSharedRef<SWidget> Icon();
 
 	void Rebuild();
 	void RefreshArea();
