@@ -54,10 +54,19 @@ public:
 	AFNGodPedestal();
 	virtual void Tick(float DeltaSeconds) override;
 	void SetGod(const FFNTableGod& God);
+	/** The player's own god (FN7GodStatue): its accepted picture standing on the pedestal, then its runtime statue. */
+	void ShowGodPicture(UTexture2D* Tex, const FString& Player);
+	void ShowRuntimeStatue(UStaticMesh* Mesh, const FLinearColor& Stone, const FString& Player);
 
 private:
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Parts;
 	UPROPERTY() TObjectPtr<UMaterialInterface> BaseMat;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> Picture;   // an account god's picture, while its statue loads or when it's too heavy
+	UPROPERTY() TObjectPtr<UTexture2D> PictureTex;
+	UPROPERTY() TObjectPtr<UStaticMesh> RuntimeMesh;
+	bool bAccountStatue = false;
+	void PlaceStatue(UStaticMesh* Mesh, float Yaw);
+	void ShowFigure(bool bFigure);
 	TArray<UStaticMeshComponent*> Robe;        // tinted dark with the aura
 	TArray<UStaticMeshComponent*> Feature;     // the shape's parts
 	TArray<UStaticMeshComponent*> Hands;

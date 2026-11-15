@@ -9,5 +9,7 @@ public class FinalNight : ModuleRules
 			"Core", "CoreUObject", "Engine", "InputCore",
 			"Slate", "SlateCore", "WebSockets", "Json", "JsonUtilities", "HTTP"
 		});
+		// FN7 (Mac session, backend OK 2026-11-15): runtime god statues are built from their GLB with MeshDescription.
+		PrivateDependencyModuleNames.AddRange(new string[] { "MeshDescription", "StaticMeshDescription" });
 	}
 }
