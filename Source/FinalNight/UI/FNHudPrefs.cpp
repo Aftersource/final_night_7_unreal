@@ -89,6 +89,14 @@ void FN7HudPrefs::SetPowerOrder(const TArray<FString>& Order)
 	FN7HudPrefsState::Save();
 }
 
+bool FN7HudPrefs::ReduceFlashing() { return GetInt(TEXT("reduce_flashing"), 0) != 0; }
+
+float FN7HudPrefs::TextScale()
+{
+	static const float S = FMath::Clamp(GetInt(TEXT("text_scale_pct"), 100) / 100.f, 0.75f, 2.f);
+	return S;
+}
+
 int32 FN7HudPrefs::GetInt(const FString& Key, int32 Default)
 {
 	FN7HudPrefsState::Load();

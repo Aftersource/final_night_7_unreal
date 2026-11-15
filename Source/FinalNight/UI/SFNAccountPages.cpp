@@ -3,6 +3,7 @@
 #include "FNAccount.h"
 #include "FNLooks.h"
 #include "FNNetClient.h"
+#include "FNHudPrefs.h"
 #include "FNStyle.h"
 #include "SFNTextBox.h"
 #include "FNMedia.h"
@@ -241,6 +242,17 @@ void SFNWelcomePage::SignInGoogle()
 
 namespace FN7SettingsUi
 {
+	/** The settings the client applies itself, kept in Saved/FN7Hud.json (reduce flashing now, text size next run). */
+	static void KeepLocal(const TSharedPtr<FJsonObject>& S)
+	{
+		const TSharedPtr<FJsonObject>* X = nullptr;
+		if (!S.IsValid() || !S->TryGetObjectField(TEXT("accessibility"), X) || !X || !X->IsValid()) return;
+		bool bRf = false; double Ts = 1.0;
+		(*X)->TryGetBoolField(TEXT("reduce_flashing"), bRf);
+		(*X)->TryGetNumberField(TEXT("text_scale"), Ts);
+		FN7HudPrefs::SetInt(TEXT("reduce_flashing"), bRf ? 1 : 0);
+		FN7HudPrefs::SetInt(TEXT("text_scale_pct"), FMath::RoundToInt(FMath::Clamp(Ts, 0.75, 2.0) * 100.0));
+	}
 	static TSharedPtr<FJsonObject> Copy(const TSharedPtr<FJsonObject>& O)
 	{
 		if (!O.IsValid()) return nullptr;
@@ -331,6 +343,7 @@ void SFNSettingsPage::Open()
 			Self->Server = *S;
 			Self->Doc = FN7SettingsUi::Copy(*S);
 			Self->Status.Reset();
+			FN7SettingsUi::KeepLocal(*S);
 			FString Pr; double Mu = -1.0; bool bRf = false;
 			Self->Doc->TryGetStringField(TEXT("pronouns"), Pr);
 			if (const TSharedPtr<FJsonObject> A = Self->Sec(TEXT("audio"))) A->TryGetNumberField(TEXT("music"), Mu);
@@ -366,6 +379,7 @@ void SFNSettingsPage::Apply()
 		{
 			Self->Server = *S;
 			Self->Doc = FN7SettingsUi::Copy(*S);
+			FN7SettingsUi::KeepLocal(*S);
 			Self->Status = bRenamed ? TEXT("Saved. Your name changed: it is what the other gods see from your next login.") : TEXT("Saved.");
 			UE_LOG(LogTemp, Display, TEXT("FN7 settings: saved%s"), bRenamed ? TEXT(" (renamed)") : TEXT(""));
 			if (bRenamed) FN7Account::FetchMe(Self->Net.Get(), nullptr);
@@ -538,7 +552,7 @@ TSharedRef<SWidget> SFNSettingsPage::TabBody(int32 InTab)
 		Add(Choice(LOCTEXT("XPal", "Aura colours"), TEXT("accessibility"), TEXT("aura_palette"), { TEXT("default"), TEXT("deuteranopia"), TEXT("protanopia"), TEXT("tritanopia"), TEXT("high_contrast") },
 			{ LOCTEXT("X0", "default"), LOCTEXT("X1", "deuteranopia"), LOCTEXT("X2", "protanopia"), LOCTEXT("X3", "tritanopia"), LOCTEXT("X4", "high contrast") }));
 		Add(Toggle(LOCTEXT("XFlash", "Reduce flashing"), TEXT("accessibility"), TEXT("reduce_flashing"), false));
-		Add(Slider(LOCTEXT("XText", "Text size"), TEXT("accessibility"), TEXT("text_scale"), 0.75f, 2.f, 1.f, false));
+		Add(Slider(LOCTEXT("XText", "Text size (next time you open the game)"), TEXT("accessibility"), TEXT("text_scale"), 0.75f, 2.f, 1.f, false));
 		Add(Toggle(LOCTEXT("XSubs", "Subtitles"), TEXT("accessibility"), TEXT("subtitles"), true));
 		break;
 	case 4:

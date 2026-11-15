@@ -1,4 +1,5 @@
 #include "SFNHudLive.h"
+#include "FNHudPrefs.h"
 
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -436,6 +437,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.Visibility(EVisibility::HitTestInvisible)
 			.BorderBackgroundColor_Lambda([this]()
 			{
+				if (FN7HudPrefs::ReduceFlashing()) return FLinearColor(1.f, 1.f, 1.f, 0.f);   // accessibility: no white flashes
 				const double T = FlashStart < 0.0 ? 1.0 : FPlatformTime::Seconds() - FlashStart;
 				if (T < 0.0 || T >= 0.75) return FLinearColor(1.f, 1.f, 1.f, 0.f);
 				const double Local = FMath::Fmod(T, 0.25) / 0.25;

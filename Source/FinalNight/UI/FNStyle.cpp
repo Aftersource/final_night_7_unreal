@@ -1,4 +1,5 @@
 #include "FNStyle.h"
+#include "FNHudPrefs.h"
 
 #include "Brushes/SlateColorBrush.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
@@ -157,7 +158,8 @@ const FSlateBrush* FN7Style::Brush::Segment(const FLinearColor& Fill)
 
 FSlateFontInfo FN7Style::Type::Font(int32 Size, const TCHAR* Weight)
 {
-	return FCoreStyle::GetDefaultFontStyle(Weight, Size);
+	// The account's text size (accessibility.text_scale, 0.75-2), as of this run's start.
+	return FCoreStyle::GetDefaultFontStyle(Weight, FMath::Max(6, FMath::RoundToInt(Size * FN7HudPrefs::TextScale())));
 }
 
 const FTextBlockStyle& FN7Style::Type::Display() { static const FTextBlockStyle S = StyleMakeText(Font(30, TEXT("Bold")), Color::Text(), false); return S; }

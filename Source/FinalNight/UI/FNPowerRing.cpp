@@ -1,4 +1,5 @@
 #include "FNPowerRing.h"
+#include "FNHudPrefs.h"
 #include "FNWood.h"
 #include "FN7KitHitTest.h"
 
@@ -456,7 +457,7 @@ void AFNPowerRing::Tick(float Dt)
 		}
 		if (PouchGlow)
 		{
-			const float Flash = (BurstT >= 0.f && BurstT < 0.7f) ? 60.f * FMath::Exp(-6.f * BurstT) : 0.f;
+			const float Flash = (BurstT >= 0.f && BurstT < 0.7f && !FN7HudPrefs::ReduceFlashing()) ? 60.f * FMath::Exp(-6.f * BurstT) : 0.f;
 			PouchGlow->SetIntensity(((5.f + 2.5f * FMath::Sin(Time * 3.f)) * PouchFull + (bPouchHover ? 3.f : 0.f) + Flash) * (IsEnabled() ? 1.f : 0.4f));
 		}
 		for (int32 i = 0; i < Motes.Num(); ++i)

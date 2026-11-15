@@ -1,4 +1,5 @@
 #include "FNDuelBox.h"
+#include "FNHudPrefs.h"
 
 #include "FNDuelStage.h"
 #include "FNStudio.h"
@@ -1039,7 +1040,8 @@ void AFNDuelBox::Flash(const FVector& At, const FLinearColor& Color, float Size,
 {
 	using namespace FN7Box;
 	FFx F;
-	F.At = At; F.Start = FPlatformTime::Seconds(); F.Dur = Dur; F.Size = Size; F.Lux = Lux;
+	const bool bCalm = FN7HudPrefs::ReduceFlashing();   // accessibility: a smaller burst and no light flash
+	F.At = At; F.Start = FPlatformTime::Seconds(); F.Dur = Dur; F.Size = bCalm ? Size * 0.6f : Size; F.Lux = bCalm ? 0.f : Lux;
 	F.Parts.Add(Part(Lift, Sphere, At, FVector(0.01f), Color * 2.5f + FLinearColor(0.3f, 0.3f, 0.3f)));
 	F.Dirs.Add(FVector::ZeroVector);
 	for (int32 i = 0; i < 7; ++i)
