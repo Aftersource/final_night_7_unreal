@@ -31,7 +31,7 @@ private:
 	// = one level out, a single click never moves the view, and nothing fires within a demigod's extended click box.
 	double LastLeftClickAt = -1.0;
 	FVector2D LastLeftClickPos = FVector2D::ZeroVector;
-	/** The demigod whose extended click box (the kit's ~160 px reach) is under the cursor, else empty. */
+	/** Why a board gesture is blocked under the cursor (the kit's rule: FN7Kit::WhyBlocked), else empty. */
 	FString DemigodUnderCursor() const;
 	FRotator LeanVel = FRotator::ZeroRotator;   // the head turn's velocity (a critically damped follow, see PlayerTick)
 };
