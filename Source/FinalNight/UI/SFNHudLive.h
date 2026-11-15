@@ -111,6 +111,10 @@ private:
 	void TrySendDuelKeys();
 	void RestoreDuels(const TSharedPtr<FJsonObject>& Present);
 	FString NetProblem;
+	bool bHowTo = false, bHowToChecked = false;   // the HOW TO PLAY tablet (once on first join, and from "?")
+	double LastServerCheck = -100.0;
+	FString HowToText() const;
+	void CheckServer();
 	FString BoardInfo;     // the studio's board debug lines, shown under the title bar
 	struct FNewItem { FString Name; double At = 0.0; };
 	TMap<FString, FNewItem> NewItems;   // demigod ref -> its just-gained item (the card's NEW badge)

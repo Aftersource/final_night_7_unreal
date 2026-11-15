@@ -184,6 +184,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnTakeSeat_Lambda([this]() { if (UFNNetClient* N = Net.Get()) { N->bWatchOnly = false; N->bSeatAsked = true; N->TakeSeat(); } })
 			.OnLobby_Lambda([this]() { SetLobbyOpen(true); })
 			.OnResetView_Lambda([this]() { ResetView(); })
+			.OnHowToPlay_Lambda([this]() { bHowTo = true; })
 			.OnCardDoubleClick_Lambda([this](const FString& Ref) { OnDemigodDoubleClick(Ref); })
 			.OnCardDrag_Lambda([this](const FString& Ref, const FVector2D& Screen) -> TSharedPtr<FDragDropOperation>
 			{
@@ -200,7 +201,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			MakeOutCard()
 		]
 		// The board's debug lines, under the title bar, in a typewriter font (Chris).
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(34.f, 60.f, 0.f, 0.f))
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(34.f, 68.f, 0.f, 0.f))
 		[
 			SNew(STextBlock)
 			.Visibility_Lambda([this]() { return BoardInfo.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
@@ -208,6 +209,46 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.ColorAndOpacity(FLinearColor(0.88f, 0.85f, 0.76f, 0.9f))
 			.ShadowOffset(FVector2D(1.f, 1.f)).ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f))
 			.Text_Lambda([this]() { return FText::FromString(BoardInfo); })
+		]
+		// HOW TO PLAY: a stone tablet, shown once on a player's first join and from the "?" button.
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+		[
+			SNew(SBox).WidthOverride(780.f)
+			.Visibility_Lambda([this]() { return bHowTo ? EVisibility::Visible : EVisibility::Collapsed; })
+			[
+				SNew(SBorder).BorderImage(FN7Wood::StoneBrush()).Padding(FMargin(34.f, 24.f))
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+					[
+						SNew(STextBlock).Font(FN7Style::Type::Font(26, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.84f, 0.5f))
+						.Text(LOCTEXT("HowTitle", "HOW TO PLAY"))
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 14.f, 0.f, 0.f)
+					[
+						SNew(STextBlock).Font(FN7Style::Type::Font(15, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.95f, 0.92f, 0.85f))
+						.WrapTextAt(700.f).Text_Lambda([this]() { return FText::FromString(HowToText()); })
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 18.f, 0.f, 0.f)
+					[
+						SNew(SButton)
+						.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
+						.OnClicked_Lambda([this]()
+						{
+							bHowTo = false;
+							FFileHelper::SaveStringToFile(TEXT("seen"), *(FPaths::ProjectSavedDir() / TEXT("FN7SeenHowToPlay.txt")));
+							return FReply::Handled();
+						})
+						[
+							SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("GenericWhiteBox")).BorderBackgroundColor(FLinearColor(1.f, 0.8f, 0.42f)).Padding(FMargin(24.f, 7.f))
+							[
+								SNew(STextBlock).Font(FN7Style::Type::Font(15, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.12f, 0.07f, 0.03f))
+								.Text(LOCTEXT("HowGotIt", "GOT IT"))
+							]
+						]
+					]
+				]
+			]
 		]
 		// Can't reach the game: a centred onyx card over the table with the net client's plain words.
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
@@ -1958,6 +1999,48 @@ void SFNHudLive::HandleLooks(const TSharedPtr<FJsonObject>& Pub)
 	Publish();
 }
 
+FString SFNHudLive::HowToText() const
+{
+	// Benito's game-design session writes the real text (docs/HOW_TO_PLAY.md); until then, this.
+	FString Doc;
+	if (FFileHelper::LoadFileToString(Doc, *(FPaths::ProjectDir() / TEXT("docs/HOW_TO_PLAY.md"))) && !Doc.IsEmpty()) return Doc.Replace(TEXT("#"), TEXT("")).TrimStartAndEnd();
+	return TEXT("You are a god at the table. Two demigods fight for you on the real Earth; the last one standing wins.\n\n")
+		TEXT("YOUR WILL (bottom right): write what your demigods do, in plain words. Time slows while you write.\n\n")
+		TEXT("POWERS: open the pouch and drag a power onto the board (a MINI, 1 spark) or onto the globe (a MEGA, 1 bolt).\n\n")
+		TEXT("SUMMON: drag one of your cards onto the board or the globe to send that demigod there.\n\n")
+		TEXT("CHALLENGE: double-click a rival's piece to duel it. In the box their line is on top, yours below: type your move, Enter strikes. Your words decide the blow.\n\n")
+		TEXT("VIEW: drag to turn the globe, double-click the empty map to zoom in, right-click to zoom out, RESET VIEW (R) to come back.\n\n")
+		TEXT("If both your demigods fall, plead to Death in your WILL.");
+}
+
+void SFNHudLive::CheckServer()
+{
+	LastServerCheck = FPlatformTime::Seconds();
+	UFNNetClient* N = Net.Get();
+	if (!N) return;
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(N->MediaUrl(TEXT("/api/house")));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetTimeout(8.f);
+	TWeakPtr<SFNHudLive> Weak = SharedThis(this);
+	Req->OnProcessRequestComplete().BindLambda([Weak](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		TSharedPtr<SFNHudLive> Self = Weak.Pin();
+		if (!Self.IsValid() || Self->bInRoom) return;
+		const int32 Code = Resp.IsValid() ? Resp->GetResponseCode() : 0;
+		if (bOk && (Code == 200 || Code == 404))
+		{
+			if (Self->NetProblem.StartsWith(TEXT("Can't reach the game server"))) Self->NetProblem.Reset();
+			return;
+		}
+		Self->NetProblem = (Code == 401 || Code == 403)
+			? FString(TEXT("Can't reach the game server: this copy of the game has no access key. Retrying..."))
+			: FString(TEXT("Can't reach the game server. Check your internet. Retrying..."));
+		UE_LOG(LogTemp, Display, TEXT("FN7 server check: HTTP %d -> %s"), Code, *Self->NetProblem);
+	});
+	Req->ProcessRequest();
+}
+
 void SFNHudLive::UpdateBoardInfo()
 {
 	// The board's debug lines (ZOOM n of 4, map size, lat/lon, terrain, people) are the studio's 3D text over the table:
@@ -2954,6 +3037,15 @@ FText SFNHudLive::GetTimer() const
 EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 {
 	UpdateBoardInfo();
+	// The first time this machine joins a match: the HOW TO PLAY tablet, once.
+	if (bInRoom && !bHowToChecked)
+	{
+		bHowToChecked = true;
+		if (!FPaths::FileExists(FPaths::ProjectSavedDir() / TEXT("FN7SeenHowToPlay.txt"))) bHowTo = true;
+	}
+	// Until we're in a room, ask the server every 10 s whether it can be reached (a judge with no key or no internet
+	// sees why at once, not a normal-looking table that never connects).
+	if (!bInRoom && FPlatformTime::Seconds() - LastServerCheck > 10.0) CheckServer();
 	for (auto It = NewItems.CreateIterator(); It; ++It) if (FPlatformTime::Seconds() - It.Value().At > 6.5) { It.RemoveCurrent(); Publish(); break; }
 	TickDuelView();   // a challenge's queued glide (once you stop typing / dragging) and the glide back after it
 	if (bVictory && VictoryFadeAt > 0.0 && FPlatformTime::Seconds() - VictoryFadeAt > 1.25) { bVictory = false; VictoryFadeAt = 0.0; }

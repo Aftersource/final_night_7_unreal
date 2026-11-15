@@ -106,6 +106,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnTakeSeat = InArgs._OnTakeSeat;
 	OnLobby = InArgs._OnLobby;
 	OnResetView = InArgs._OnResetView;
+	OnHowToPlay = InArgs._OnHowToPlay;
 	OnCardDrag = InArgs._OnCardDrag;
 	OnCardDoubleClick = InArgs._OnCardDoubleClick;
 
@@ -357,21 +358,39 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 				SNew(STextBlock).TextStyle(&Type::Body()).Font(Type::Font(13, TEXT("Bold"))).ColorAndOpacity(InkC).Text(Value)
 			];
 	};
-	auto InkButton = [&](const FText& Label, const FText& Tip, TFunction<void()> OnClick) -> TSharedRef<SWidget>
+
+	// Lobby, reset view and "?" as real stone buttons right after the title (Benito noted there is no leave-to-lobby button):
+	// they were small ink links at the far end of the bar, at the screen edge).
+	auto StoneButton = [](const FText& Label, const FText& Tip, TFunction<void()> OnClick) -> TSharedRef<SWidget>
 	{
 		return SNew(SButton)
 			.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
-			.ContentPadding(FMargin(Space::S, 2.f))
-			.ToolTip(Tip.IsEmpty() ? TSharedPtr<SToolTip>() : TSharedPtr<SToolTip>(FN7StoneTip(Tip)))
+			.ContentPadding(FMargin(0.f))
+			.ToolTip(FN7StoneTip(Tip))
 			.OnClicked_Lambda([OnClick]() { OnClick(); return FReply::Handled(); })
 			[
-				SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(12, TEXT("Bold"))).ColorAndOpacity(Red).Text(Label)
+				SNew(SBorder).BorderImage(FN7Wood::StoneBrush()).Padding(FMargin(11.f, 3.f))
+				[
+					SNew(STextBlock).Font(Type::Font(12, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.97f, 0.93f, 0.84f)).Text(Label)
+				]
 			];
 	};
 	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
 		[
 			SNew(STextBlock).TextStyle(&Type::Title()).Font(Type::Font(15, TEXT("Bold"))).ColorAndOpacity(Red).Text(LOCTEXT("Game", "FINAL NIGHT 7"))
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+		[
+			StoneButton(LOCTEXT("LobbyPill", "LOBBY"), LOCTEXT("LobbyTip", "Back to the lobby (Esc)"), [this]() { OnLobby.ExecuteIfBound(); })
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+		[
+			StoneButton(LOCTEXT("ResetPill", "RESET VIEW"), LOCTEXT("ResetTip", "The board, the camera and the panels back where they were (R or Home)"), [this]() { OnResetView.ExecuteIfBound(); })
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
+		[
+			StoneButton(LOCTEXT("HowPill", "?"), LOCTEXT("HowTip", "How to play"), [this]() { OnHowToPlay.ExecuteIfBound(); })
 		];
 	auto Add = [&Row](TSharedRef<SWidget> W)
 	{
@@ -385,11 +404,6 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 	}
 	if (!Model.Entropy.IsEmpty()) Add(InkStat(LOCTEXT("Entropy", "ENTROPY"), Model.Entropy));
 	if (Model.bReplay) Add(InkStat(FText::GetEmpty(), LOCTEXT("Replay", "REPLAY")));
-	Add(InkButton(LOCTEXT("LobbyPill", "LOBBY"), LOCTEXT("LobbyTip", "The lobby (Esc)"), [this]() { OnLobby.ExecuteIfBound(); }));
-	Row->AddSlot().AutoWidth().VAlign(VAlign_Center)
-	[
-		InkButton(LOCTEXT("ResetPill", "RESET VIEW"), LOCTEXT("ResetTip", "Reset the view: the board, the camera and the panels (R or Home)"), [this]() { OnResetView.ExecuteIfBound(); })
-	];
 
 	return Row;
 }
