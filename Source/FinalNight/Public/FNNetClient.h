@@ -79,7 +79,18 @@ public:
 	FString ResolveJoinCode() const;
 	/** Full https URL (with the access key) for a server media path like "/media/<hash>.png". */
 	FString MediaUrl(const FString& Path) const;
-	void CreateRoom();
+	/** room.create (private): the room settings, the per-machine file's on top, then ExtraSettings on top of both. */
+	void CreateRoom(TSharedPtr<FJsonObject> ExtraSettings = nullptr);
+	/** The lobby's choice made before connecting (Benito's start screen): the root runs it at auth.ok instead of joining
+	 *  the house (SFNRootWidget, the auth.ok hook). Mac session, backend go-ahead 2026-11-15. */
+	enum class ELobbyIntent : uint8 { None, VsBots, Host, Code };
+	ELobbyIntent LobbyIntent = ELobbyIntent::None;
+	FString LobbyCode;
+	bool bLobbyHostWaits = false;   // a hosted room: its host starts it (START), never automatically
+	bool HasLobbyIntent() const { return LobbyIntent != ELobbyIntent::None; }
+	bool LobbyIntentJoins() const { return LobbyIntent == ELobbyIntent::Code; }
+	/** Create (vs bots / host: 4 demigods, 60 beats, 12 s flow, 30 s first compose, the AI on) or join by code; clears the intent. */
+	void RunLobbyIntent();
 	void SetReady(bool bReady);
 	void StartMatch();
 	void SubmitAction(int32 Round, const FString& Text, const FString& DropSpotId = FString());

@@ -1106,6 +1106,9 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 			? FString::Printf(TEXT("Connected to the Theatre.\n\nJoining room %s. The match is run by the server."), *Join)
 			: bDevCreate ? FString(TEXT("Connected to the Theatre.\n\nDEV: creating a private room."))
 			: FString(TEXT("Connected to the Theatre.\n\nJoining THE game: one match is always running. If it's under way, you take over a demigod at the next beat.")));
+		// FN7 (Mac session, the lobby's start screen; backend go-ahead 2026-11-15): a choice made in the lobby before
+		// connecting (PLAY VS BOTS, HOST, JOIN BY CODE) runs here instead of joining the house.
+		if (Net.IsValid() && RoomCode.IsEmpty() && Net->HasLobbyIntent()) { bJoinedOther = Net->LobbyIntentJoins(); Net->RunLobbyIntent(); return true; }
 		if (Net.IsValid() && RoomCode.IsEmpty())
 		{
 			if (!Join.IsEmpty()) Net->JoinRoom(Join);
@@ -1149,7 +1152,8 @@ bool SFNRootWidget::HandleFn7(const FString& T, TSharedPtr<FJsonObject> D)
 			for (const TSharedPtr<FJsonValue>& V : *S) Seats += FString::Printf(TEXT("[%d %s] "), (int32)Numb(V->AsObject(), TEXT("seat")), *Str(V->AsObject(), TEXT("display_name")));
 		UE_LOG(LogTemp, Warning, TEXT("FN7 room.snapshot code=%s seats=%s"), *RoomCode, *Seats);
 		Net->SetReady(true);
-		const bool bHostWaits = FPaths::FileExists(FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7HostOnly.txt")));
+		const bool bHostWaits = FPaths::FileExists(FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7HostOnly.txt")))
+			|| (Net.IsValid() && Net->bLobbyHostWaits);   // FN7 (Mac session): a room hosted from the lobby waits for its START
 		if (!bJoinedOther && bHostWaits)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("FN7 room created code=%s (host waits: click again to start)"), *RoomCode);

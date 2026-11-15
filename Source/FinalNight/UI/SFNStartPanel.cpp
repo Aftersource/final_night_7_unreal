@@ -238,6 +238,12 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 						SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true).Text(this, &SFNStartPanel::GetProgressText)
 					]
 
+					// More ways in: against the gods' AI, a room of your own for friends, or a friend's room by its code.
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::L, 0.f, 0.f)
+					[
+						MakeChoices()
+					]
+
 					// Other rooms (over the game, where we are connected).
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::L, 0.f, 0.f)
 					[
@@ -293,6 +299,45 @@ void SFNStartPanel::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		bJoining = false;
 		Progress.Reset();
+		// The lobby's own match: vs bots starts at once (run while connected, nobody else readies it); a hosted room
+		// shows its code and waits for START; a code joins and closes the lobby.
+		FString Code, State;
+		if (D.IsValid()) { D->TryGetStringField(TEXT("code"), Code); D->TryGetStringField(TEXT("state"), State); }
+		if (T == TEXT("room.snapshot") && Choice == (uint8)UFNNetClient::ELobbyIntent::VsBots)
+		{
+			if (bChoiceDirect) if (UFNNetClient* N = Net.Get()) { N->SetReady(true); N->StartMatch(); }
+			Choice = 0;
+			OnBack.ExecuteIfBound();
+		}
+		else if (T == TEXT("room.snapshot") && Choice == (uint8)UFNNetClient::ELobbyIntent::Host && !Code.IsEmpty())
+		{
+			HostedCode = Code;
+			Choice = 0;
+			if (UFNNetClient* N = Net.Get()) N->SetReady(true);
+			UE_LOG(LogTemp, Display, TEXT("FN7 lobby: hosting %s"), *Code);
+		}
+		else if (Choice == (uint8)UFNNetClient::ELobbyIntent::Code)
+		{
+			Choice = 0;
+			OnBack.ExecuteIfBound();
+		}
+	}
+	else if (T == TEXT("room.left") && bAwaitLeave)
+	{
+		bAwaitLeave = false;
+		if (UFNNetClient* N = Net.Get()) N->RunLobbyIntent();
+	}
+	else if (T == TEXT("match.started") && !HostedCode.IsEmpty())
+	{
+		HostedCode.Reset();
+		OnBack.ExecuteIfBound();
+	}
+	else if (T == TEXT("error") && Choice != 0)
+	{
+		FString Msg;
+		if (D.IsValid()) D->TryGetStringField(TEXT("message"), Msg);
+		Progress = FString::Printf(TEXT("The server said no: %s"), *Msg);
+		Choice = 0;
 	}
 	else if (T == TEXT("room.listed"))
 	{
@@ -630,6 +675,143 @@ FReply SFNStartPanel::Enter(bool bTakeSeat)
 		N->JoinHouse(!bTakeSeat);
 	}
 	return FReply::Handled();
+}
+
+TSharedRef<SWidget> SFNStartPanel::MakeChoices()
+{
+	using namespace FN7Style;
+	const FLinearColor StartInk(0.06f, 0.04f, 0.03f);
+	auto Big = [this, StartInk](const FText& Label, const FText& Under, uint8 Intent, bool bAccent)
+	{
+		return SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(SBox).HeightOverride(44.f)
+				[
+					SNew(SButton)
+					.ButtonStyle(bAccent ? &AccentButton() : &PillButton())
+					.HAlign(HAlign_Center).VAlign(VAlign_Center)
+					.IsEnabled_Lambda([this]() { return Choice == 0 && HostedCode.IsEmpty(); })
+					.OnClicked_Lambda([this, Intent]() { Choose(Intent); return FReply::Handled(); })
+					[
+						SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(bAccent ? FSlateColor(StartInk) : FSlateColor(Color::Text())).Text(Label)
+					]
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 3.f, 0.f, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::TextDim()).Text(Under)
+			];
+	};
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("OrLabel", "OR PLAY YOUR OWN MATCH"))
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, Space::S, 0.f)
+			[
+				Big(LOCTEXT("VsBots", "PLAY VS BOTS"), LOCTEXT("VsBotsUnder", "you and three AI demigods, 60 beats"), (uint8)UFNNetClient::ELobbyIntent::VsBots, true)
+			]
+			+ SHorizontalBox::Slot().FillWidth(1.f)
+			[
+				Big(LOCTEXT("Host", "HOST A ROOM"), LOCTEXT("HostUnder", "a code for your friends, START when ready"), (uint8)UFNNetClient::ELobbyIntent::Host, false)
+			]
+		]
+		// Hosting: the code to share and START.
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			.Visibility_Lambda([this]() { return HostedCode.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(Color::Accent())
+					.Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("ROOM %s"), *HostedCode)); })
+				]
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("HostShare", "give this code to your friends; START when everyone is in"))
+				]
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+			[
+				SNew(SBox).HeightOverride(40.f).WidthOverride(130.f)
+				[
+					SNew(SButton).ButtonStyle(&AccentButton()).HAlign(HAlign_Center).VAlign(VAlign_Center)
+					.OnClicked_Lambda([this]()
+					{
+						if (UFNNetClient* N = Net.Get()) { N->SetReady(true); N->StartMatch(); }
+						UE_LOG(LogTemp, Display, TEXT("FN7 lobby: START %s"), *HostedCode);
+						Progress = FString::Printf(TEXT("Starting %s..."), *HostedCode);
+						return FReply::Handled();
+					})
+					[
+						SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(StartInk).Text(LOCTEXT("Start", "START"))
+					]
+				]
+			]
+		]
+		// JOIN BY CODE.
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("ByCode", "JOIN BY CODE"))
+			]
+			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+			[
+				SAssignNew(CodeBox, SFNTextBox)
+				.HintText(LOCTEXT("CodeHint", "a friend's room code"))
+				.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type Commit) { if (Commit == ETextCommit::OnEnter) Choose((uint8)UFNNetClient::ELobbyIntent::Code); })
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
+			[
+				SNew(SButton).ButtonStyle(&PillButton())
+				.IsEnabled_Lambda([this]() { return Choice == 0 && CodeBox.IsValid() && !CodeBox->GetText().IsEmptyOrWhitespace(); })
+				.OnClicked_Lambda([this]() { Choose((uint8)UFNNetClient::ELobbyIntent::Code); return FReply::Handled(); })
+				[
+					SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::Text()).Text(LOCTEXT("JoinCode", "JOIN"))
+				]
+			]
+		];
+}
+
+void SFNStartPanel::Choose(uint8 Intent)
+{
+	UFNNetClient* N = Net.Get();
+	if (!N || Choice != 0) return;
+	const FString Code = CodeBox.IsValid() ? CodeBox->GetText().ToString().TrimStartAndEnd().ToUpper() : FString();
+	if (Intent == (uint8)UFNNetClient::ELobbyIntent::Code && Code.IsEmpty()) return;
+	const FString Name = NameBox.IsValid() ? NameBox->GetText().ToString().TrimStartAndEnd().Left(24) : FString();
+	if (!Name.IsEmpty()) FFileHelper::SaveStringToFile(Name + TEXT("\n"), *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DisplayName.txt")));
+	Choice = Intent;
+	OnChoice.ExecuteIfBound(true);
+	N->bWatchOnly = false;
+	N->bSeatAsked = false;
+	N->LobbyIntent = (UFNNetClient::ELobbyIntent)Intent;
+	N->LobbyCode = Code;
+	const bool bBots = Intent == (uint8)UFNNetClient::ELobbyIntent::VsBots, bHost = Intent == (uint8)UFNNetClient::ELobbyIntent::Host;
+	const FString What = bBots ? FString(TEXT("a match against the AI")) : bHost ? FString(TEXT("your room")) : Code;
+	UE_LOG(LogTemp, Display, TEXT("FN7 lobby: %s (%s)"), bBots ? TEXT("play vs bots") : bHost ? TEXT("host") : TEXT("join by code"), bConnected ? TEXT("connected") : TEXT("connecting"));
+	if (!bConnected)
+	{
+		bChoiceDirect = false;   // the root runs it at auth.ok
+		Progress = FString::Printf(TEXT("Connecting. Opening %s..."), *What);
+		N->Start();
+	}
+	else
+	{
+		bChoiceDirect = true;
+		if (bInGame.Get()) { bAwaitLeave = true; N->LeaveRoom(); }   // leave the room we are in; the choice runs on room.left
+		else N->RunLobbyIntent();
+		Progress = FString::Printf(TEXT("Opening %s..."), *What);
+	}
 }
 
 void SFNStartPanel::JoinOther(const FString& Code)
