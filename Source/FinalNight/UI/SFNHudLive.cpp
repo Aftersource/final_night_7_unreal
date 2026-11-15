@@ -505,7 +505,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.Net(Net.Get())
 			.bInGame_Lambda([this]() { return bInRoom; })
 			.OnBack_Lambda([this]() { SetLobbyOpen(false); })
-			.Visibility_Lambda([this]() { return (!bInRoom || bLobbyOpen) ? EVisibility::Visible : EVisibility::Collapsed; })
+			.Visibility_Lambda([this]() { return (!bInRoom || bLobbyOpen || (StartPanel.IsValid() && StartPanel->IsHosting())) ? EVisibility::Visible : EVisibility::Collapsed; })   // hosting: the code and START stay up
 		]
 		// The power being dragged, floating over everything (never takes input).
 		+ SOverlay::Slot()

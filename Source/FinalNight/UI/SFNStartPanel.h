@@ -41,6 +41,8 @@ public:
 	void Construct(const FArguments& InArgs);
 	virtual ~SFNStartPanel() override;
 
+	/** Hosting a room from the lobby (its code shown, START waiting): the HUD keeps the lobby up until the match starts. */
+	bool IsHosting() const { return !HostedCode.IsEmpty(); }
 	/** Called when the lobby is shown over the game: refresh at once and ask for the room list. */
 	void Opened();
 
@@ -112,6 +114,14 @@ private:
 	FReply OnSecondary();
 	FReply Enter(bool bTakeSeat);
 	void JoinOther(const FString& Code);
+	// Benito's start screen: PLAY VS BOTS, HOST (a code for friends, START when ready), JOIN BY CODE (beside the house game).
+	uint8 Choice = 0;               // the lobby choice in flight (UFNNetClient::ELobbyIntent)
+	bool bChoiceDirect = false;     // run while connected (so this panel, not the root's auth.ok, readies and starts)
+	bool bAwaitLeave = false;       // left the current room first: the choice runs on room.left (the server refuses it before)
+	FString HostedCode;             // the room we host, waiting for START
+	TSharedPtr<SFNTextBox> CodeBox;
+	void Choose(uint8 Intent);
+	TSharedRef<SWidget> MakeChoices();
 
 	bool IsViewer() const;
 	FText GetStatusText() const;

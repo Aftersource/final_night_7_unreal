@@ -336,7 +336,7 @@ FString UFNNetClient::ResolveJoinCode() const
 	return Lines.Num() ? Lines[0].TrimStartAndEnd().ToUpper() : FString();
 }
 
-void UFNNetClient::CreateRoom()
+void UFNNetClient::CreateRoom(TSharedPtr<FJsonObject> ExtraSettings)
 {
 	TSharedRef<FJsonObject> D = Obj(), S = Obj();
 	if (bFn7)
@@ -359,9 +359,28 @@ void UFNNetClient::CreateRoom()
 		S->SetNumberField(TEXT("rounds"), MatchRounds);
 		S->SetNumberField(TEXT("npcs"), MatchNpcs);
 	}
+	if (ExtraSettings.IsValid()) for (const auto& KV : ExtraSettings->Values) S->SetField(KV.Key, KV.Value);   // a lobby choice's settings
 	D->SetStringField(TEXT("visibility"), TEXT("private"));
 	D->SetObjectField(TEXT("settings"), S);
 	Send(TEXT("room.create"), D);
+}
+
+void UFNNetClient::RunLobbyIntent()
+{
+	const ELobbyIntent I = LobbyIntent;
+	LobbyIntent = ELobbyIntent::None;
+	if (I == ELobbyIntent::None) return;
+	bLobbyHostWaits = I == ELobbyIntent::Host;
+	if (I == ELobbyIntent::Code) { JoinRoom(LobbyCode); return; }
+	// PLAY VS BOTS and HOST (Benito's settings): the AI fills the empty seats; everyone starts alive at beat 1.
+	TSharedPtr<FJsonObject> S = MakeShared<FJsonObject>();
+	S->SetNumberField(TEXT("players"), 4);
+	S->SetNumberField(TEXT("beats_total"), 60);
+	S->SetNumberField(TEXT("arena_close_beats"), 60);
+	S->SetNumberField(TEXT("flow_ms"), 12000);
+	S->SetNumberField(TEXT("first_compose_seconds"), 30);
+	S->SetBoolField(TEXT("llm"), true);
+	CreateRoom(S);
 }
 
 void UFNNetClient::SetReady(bool bReady) { TSharedRef<FJsonObject> D = Obj(); D->SetBoolField(TEXT("ready"), bReady); Send(TEXT("room.ready"), D); }
