@@ -1557,9 +1557,9 @@ void AFNTableGods::TickRingPulses(float Dt)
 		// follow the piece while the board glides under it
 		if (const TObjectPtr<AFNDemigodFigure>* F = OnBoard.Find(P.Ref))
 			if (*F) { const FBox B = (*F)->GetComponentsBoundingBox(true); if (B.IsValid) P.At = FVector(B.GetCenter().X, B.GetCenter().Y, B.Min.Z + 1.f); }
-		const float U = FMath::Clamp(P.T / 0.9f, 0.f, 1.f);
+		const float U = FMath::Clamp(P.T / 0.6f, 0.f, 1.f);   // once, ~0.6 s, out along the ground
 		const float Rad = P.R * (0.9f + 1.6f * FMath::Sin(U * PI * 0.5f));
-		const float Bead = P.R * 0.11f * (1.f - U) / 50.f;
+		const float Bead = P.R * 0.16f * (1.f - 0.7f * U) / 50.f;
 		for (int32 i = 0; i < P.Beads.Num(); ++i)
 		{
 			const float A = 2.f * PI * i / P.Beads.Num();

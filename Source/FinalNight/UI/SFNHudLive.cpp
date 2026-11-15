@@ -205,8 +205,8 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 				AFNStudio* St = FindStudio();
 				if (AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr))
 				{
-					if (!SelectedRef.IsEmpty() && SelectedRef != Ref) T->SetFigureHeld(SelectedRef, false);
-					T->SetFigureHeld(Ref, true);
+					if (!SelectedRef.IsEmpty()) T->SetFigureHeld(SelectedRef, false);
+					T->PulseRing(Ref, FLinearColor(1.f, 0.78f, 0.25f));   // selected: one gold ring under it, no light column
 				}
 				SelectedRef = Ref;
 				SelectedUntil = FPlatformTime::Seconds() + 2.0;
@@ -485,17 +485,24 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 10.f)
 						[
 							SNew(STextBlock).TextStyle(&FN7Style::Type::Title()).Font(FN7Style::Type::Font(20, TEXT("Bold")))
-							.ColorAndOpacity(FLinearColor(1.f, 0.42f, 0.25f)).Text_Lambda([this]() { return ConfirmTitle; })
+							.ColorAndOpacity(FLinearColor(1.f, 0.42f, 0.25f)).Justification(ETextJustify::Center).Text_Lambda([this]() { return ConfirmTitle; })
 						]
 						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 18.f)
 						[
 							SNew(STextBlock).TextStyle(&FN7Style::Type::Body()).WrapTextAt(480.f).Justification(ETextJustify::Center)
 							.Text_Lambda([this]() { return ConfirmBody; })
 						]
-						// The odds (game.duel_odds): the headline, then the why lines small.
-						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 4.f)
+						// The odds (game.duel_odds), the design's card: the big win % on its own line, one small line under it,
+						// then the why lines small.
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 0.f)
 						[
-							SNew(STextBlock).Font(FN7Style::Type::Font(15, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.8f, 0.36f)).WrapTextAt(490.f).Justification(ETextJustify::Center)
+							SNew(STextBlock).Font(FN7Style::Type::Font(44, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.8f, 0.36f))
+							.Visibility_Lambda([this]() { return OddsPct.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+							.Text_Lambda([this]() { return FText::FromString(OddsPct); })
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 6.f)
+						[
+							SNew(STextBlock).Font(FN7Style::Type::Font(13, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.86f, 0.6f))
 							.Visibility_Lambda([this]() { return OddsLine.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
 							.Text_Lambda([this]() { return FText::FromString(OddsLine); })
 						]
@@ -510,13 +517,13 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 							SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 14.f, 0.f)
 							[
-								SNew(SBox).WidthOverride(220.f).HeightOverride(46.f)
+								SNew(SBox).MinDesiredWidth(200.f).HeightOverride(46.f)
 								[
-									SNew(SButton).ButtonStyle(&FN7Style::AccentButton()).HAlign(HAlign_Center).VAlign(VAlign_Center)
+									SNew(SButton).ButtonStyle(&FN7Style::AccentButton()).HAlign(HAlign_Center).VAlign(VAlign_Center).ContentPadding(FMargin(18.f, 0.f))
 									.OnClicked_Lambda([this]() { ConfirmChallenge(); return FReply::Handled(); })
 									[
 										SNew(STextBlock).TextStyle(&FN7Style::Type::Label()).Font(FN7Style::Type::Font(14, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.05f, 0.03f, 0.02f))
-										.Text_Lambda([this]() { return bConfirmTeleport ? LOCTEXT("ChalGoTp", "TELEPORT + CHALLENGE") : LOCTEXT("ChalGo", "CHALLENGE"); })
+										.Text_Lambda([this]() { return bConfirmTeleport ? LOCTEXT("ChalGoTp", "TELEPORT + DUEL") : LOCTEXT("ChalGo", "DUEL"); })
 									]
 								]
 							]
@@ -527,7 +534,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 									SNew(SButton).HAlign(HAlign_Center).VAlign(VAlign_Center)
 									.OnClicked_Lambda([this]() { bConfirmOpen = false; return FReply::Handled(); })
 									[
-										SNew(STextBlock).TextStyle(&FN7Style::Type::Label()).Font(FN7Style::Type::Font(13, TEXT("Bold"))).Text(LOCTEXT("ChalNo", "CANCEL"))
+										SNew(STextBlock).TextStyle(&FN7Style::Type::Label()).Font(FN7Style::Type::Font(13, TEXT("Bold"))).Text(LOCTEXT("ChalNo", "Not now"))
 									]
 								]
 							]
@@ -633,6 +640,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			TSharedPtr<SFNHudLive> Self = Weak.Pin();
 			// Typing in the chat: Enter is the chat's (it sends), never the WILL's.
 			if (Self.IsValid() && Self->Layout.IsValid() && Self->Layout->ChatHasFocus()) return false;
+			if (Self.IsValid() && Self->bConfirmOpen) { Self->ConfirmChallenge(); return true; }   // the challenge card: Enter = DUEL
 			// In a duel of yours, Enter goes to your line, not the WILL.
 			if (Self.IsValid() && Self->Duel.IsValid() && !Self->Duel->MySide.IsEmpty() && !Self->Duel->bOver && Self->Tray.IsValid())
 			{
@@ -907,9 +915,8 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 			return D->TryGetStringField(K, S) ? S : FString(TEXT("?"));
 		};
 		const double Win = FN7HudJson::Num(D, TEXT("win_pct"), 0.0), Idle = FN7HudJson::Num(D, TEXT("idle_win_pct"), 0.0);
-		OddsLine = FString::Printf(TEXT("Duel %s: %.0f%%  (you %s \u00B7 they %s)  \u00B7  if you don't type: %.0f%%"), *NameOf(ConfirmTarget), Win, *Hp(TEXT("my_health")), *Hp(TEXT("their_health")), Idle);
-		if (!FN7HudJson::Flag(D, TEXT("reach_ok")) && D->HasField(TEXT("reach_ok")))
-			OddsLine += FString::Printf(TEXT("  \u00B7  out of reach (%.0f km)"), FN7HudJson::Num(D, TEXT("too_far_km"), FN7HudJson::Num(D, TEXT("distance_km"), 0.0)));
+		OddsPct = FString::Printf(TEXT("%.0f%%"), Win);
+		OddsLine = FString::Printf(TEXT("you %s \u00B7 they %s \u00B7 if you don't type: %.0f%%"), *Hp(TEXT("my_health")), *Hp(TEXT("their_health")), Idle);
 		TArray<FString> Why;
 		if (const TArray<TSharedPtr<FJsonValue>>* W = FN7HudJson::Arr(D, TEXT("why"))) for (const TSharedPtr<FJsonValue>& V : *W) if (V.IsValid()) Why.Add(V->AsString());
 		OddsWhy = FString::Join(Why, TEXT("\n"));
@@ -3145,8 +3152,7 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		FN7Kit::NoteUserView();
 		if (T)
 		{
-			if (!SelectedRef.IsEmpty() && SelectedRef != Ref) T->SetFigureHeld(SelectedRef, false);
-			T->SetFigureHeld(Ref, true);
+			if (!SelectedRef.IsEmpty()) T->SetFigureHeld(SelectedRef, false);   // never the summon lift's light column here
 			T->PulseRing(Ref, FLinearColor(1.f, 0.78f, 0.25f));
 		}
 		SelectedRef = Ref;
@@ -3200,7 +3206,7 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		ConfirmLat = La;
 		ConfirmLon = Lo;
 		bConfirmTeleport = !bReach;
-		ConfirmTitle = FText::FromString(FString::Printf(TEXT("CHALLENGE %s?"), *NameOf(Ref).ToUpper()));
+		ConfirmTitle = FText::FromString(FString::Printf(TEXT("CHALLENGE?\n%s vs %s"), *NameOf(Mine), *NameOf(Ref)));
 		ConfirmBody = bReach
 			? FText::FromString(FString::Printf(TEXT("%s is within reach. The duel starts at once: the world holds its breath while you fight."), *NameOf(Mine)))
 			: FText::FromString(FString::Printf(TEXT("%s teleports beside %s first: expect about -1 to -2 health from the summoning (it never drops you below 2.5). Then the duel starts."), *NameOf(Mine), *NameOf(Ref)));
@@ -3209,6 +3215,7 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 		// How it would likely go (CLIENT_API "game.duel_odds"): the answer fills the card's odds line when it comes.
 		OddsLine.Reset();
 		OddsWhy.Reset();
+		OddsPct.Reset();
 		if (UFNNetClient* N = Net.Get())
 		{
 			TSharedPtr<FJsonObject> A = MakeShared<FJsonObject>();
