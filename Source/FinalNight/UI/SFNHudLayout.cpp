@@ -23,6 +23,8 @@
 #include "SFNPanelMover.h"
 #include "FNHudPrefs.h"
 #include "SFNChat.h"
+#include "Features/FNTurnBar.h"
+#include "EngineUtils.h"
 #include "UnrealClient.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -198,7 +200,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 			]
 		]
 		// A big moment (a summon's deed): top centre, over the board, for a few seconds. Never takes a click.
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 76.f, 0.f, 0.f))
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(TAttribute<FMargin>::CreateLambda([this]() { return FMargin(0.f, TurnBarShown() ? 200.f : 76.f, 0.f, 0.f); }))   // below Benito's turn bar while it shows
 		[
 			SNew(SBox)
 			.MaxDesiredWidth(760.f)
@@ -279,6 +281,13 @@ void SFNHudLayout::Tick(const FGeometry& AllottedGeometry, const double InCurren
 		const float WillTop = (float)AllottedGeometry.AbsoluteToLocal(Wg.LocalToAbsolute(FVector2D::ZeroVector)).Y;
 		ChatFree = FMath::Max(0.f, WillTop - NewsBottom - FN7Style::Space::L - FN7Style::Space::S);
 	}
+}
+
+bool SFNHudLayout::TurnBarShown() const
+{
+	if (!TurnBar.IsValid() && GEngine && GEngine->GameViewport && GEngine->GameViewport->GetWorld())
+		if (TActorIterator<AFNTurnBar> It(GEngine->GameViewport->GetWorld()); It) const_cast<SFNHudLayout*>(this)->TurnBar = *It;
+	return TurnBar.IsValid() && TurnBar->IsShown();
 }
 
 bool SFNHudLayout::ChatHasFocus() const { return Chat.IsValid() && Chat->HasChatFocus(); }

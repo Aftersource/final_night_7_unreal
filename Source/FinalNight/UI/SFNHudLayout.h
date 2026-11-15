@@ -178,6 +178,8 @@ private:
 	TSharedPtr<class SVerticalBox> WillStack;   // the powers panel and the WILL: the chat sits above them
 	TFunction<bool(int32, FVector2D&)> ChatAnchor;
 	float ChatFree = 400.f;                     // the chat's room this frame (layout px)
+	TWeakObjectPtr<class AFNTurnBar> TurnBar;   // Benito's top-centre turn bar: the big-moment banner goes below it
+	bool TurnBarShown() const;
 	FString YouSignature, PowersSignature;   // rebuild those sections only when their content changes
 	FString MakeYouSignature() const;
 	bool bNewsCollapsed = false;
