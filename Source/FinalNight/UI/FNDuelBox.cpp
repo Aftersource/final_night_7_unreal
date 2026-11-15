@@ -3,6 +3,7 @@
 #include "FNDuelStage.h"
 #include "FNStudio.h"
 #include "SFNDuelTray.h"
+#include "FNDuelRules.h"
 #include "Animation/AnimSequence.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -301,6 +302,8 @@ void AFNDuelBox::Build()
 	// The burst word (BAM, SHHK...) and a warm light over the stage.
 	Burst = Label(Lift, FVector::ZeroVector, 9.f, FColor(255, 236, 160), FString());
 	Burst->SetVisibility(false);
+	RuleText = Label(Lift, FVector::ZeroVector, 1.9f, FColor(240, 236, 220), FString());
+	RuleText->SetVisibility(false);
 	UPointLightComponent* L = NewObject<UPointLightComponent>(this);
 	L->SetupAttachment(Lift);
 	L->SetRelativeLocation(FVector(-26.f, 52.f, 74.f));   // a warm key from the front left, above the audience
@@ -709,13 +712,39 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 		const double From = bFresh ? -1.0 : LastPanelT;
 		const bool bLive = !bFresh || T < 800.0;   // a reconnect into an old panel doesn't replay its bursts
 		double LastContact = -1.0;
+		// The panel's strikes in order (each blow, then its counter), by side: the k-th contact by a side is its k-th strike.
+		TArray<TPair<FString, TSharedPtr<FJsonObject>>> Strikes;
+		if (const TArray<TSharedPtr<FJsonValue>>* Bn = Arr(Panel, TEXT("blows")))
+			for (const TSharedPtr<FJsonValue>& V : *Bn)
+				if (const TSharedPtr<FJsonObject> Bl = Ses->Blows.FindRef((int32)V->AsNumber()))
+				{
+					Strikes.Add({ Str(Bl, TEXT("by")) == Ses->A ? TEXT("a") : TEXT("b"), Bl });
+					if (const TSharedPtr<FJsonObject> Co = Obj(Bl, TEXT("counter"))) Strikes.Add({ Str(Co, TEXT("by")) == Ses->A ? TEXT("a") : TEXT("b"), Co });
+				}
+		TMap<FString, int32> SeenBySide;
 		if (const TArray<TSharedPtr<FJsonValue>>* Cs = Arr(Panel, TEXT("contacts")))
 			for (const TSharedPtr<FJsonValue>& Cv : *Cs)
 			{
 				const TSharedPtr<FJsonObject> C = Cv.IsValid() ? Cv->AsObject() : nullptr;
 				const double Tm = Num(C, TEXT("t_ms"), -1.0);
 				LastContact = FMath::Max(LastContact, Tm);
+				const FString By = Str(C, TEXT("by"));
+				const int32 K = SeenBySide.FindOrAdd(By)++;
 				if (!bLive || Tm <= From || Tm > T) continue;
+				for (int32 s = 0, Seen = 0; s < Strikes.Num(); ++s)
+					if (Strikes[s].Key == By && Seen++ == K)
+					{
+						// Two lines: what the words and the moment earned, then the die and the verdict.
+						FString Full = FN7DuelRules::Breakdown(Strikes[s].Value), Head, Tail;
+						if (Full.Split(TEXT("  |  d20"), &Head, &Tail, ESearchCase::CaseSensitive, ESearchDir::FromEnd)) Full = Head + TEXT("\nd20") + Tail;
+						else if (Full.Split(TEXT("  |  no roll"), &Head, &Tail, ESearchCase::CaseSensitive, ESearchDir::FromEnd)) Full = Head + TEXT("\nno roll") + Tail;
+						RuleText->SetText(FText::FromString(Full));
+						RuleText->SetTextRenderColor(FN7DuelRules::ToneColor(FN7DuelRules::Tone(Strikes[s].Value)).ToFColor(true));
+						RuleAt = (By == TEXT("a") ? Pa.At : Pb.At) + FVector(0, 0, 29.f);   // over the striker, under the burst word
+						RuleText->SetVisibility(true);
+						RuleLeft = 1.4f;
+						break;
+					}
 				const FString On = Str(C, TEXT("on"));
 				BurstAt = (On == TEXT("a") ? Pa.At : On == TEXT("b") ? Pb.At : (Pa.At + Pb.At) * 0.5f) + FVector(0, 0, 26.f);   // over the miniatures' heads
 				Burst->SetText(FText::FromString(Str(C, TEXT("text"))));
@@ -767,6 +796,12 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 	}
 	SetHpBars(ShownHpA, ShownHpB);
 
+	if (RuleLeft > 0.f)
+	{
+		RuleLeft -= Dt;
+		RuleText->SetRelativeLocation(RuleAt + FVector(0, 0, (1.4f - RuleLeft) * 3.f));
+		if (RuleLeft <= 0.f) RuleText->SetVisibility(false);
+	}
 	if (BurstLeft > 0.f)
 	{
 		BurstLeft -= Dt;
@@ -779,6 +814,15 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 	auto StarStr = [](int32 N) { return FString::ChrN(FMath::Clamp(N, 0, 24), TEXT('*')); };
 	DrawerText->SetText(FText::FromString(FString::Printf(TEXT("%s   |   %s"), *StarStr(Ses->LineA.Len), *StarStr(Ses->LineB.Len))));
 
+	// A panel that fires (projectiles) or pulls a weapon out of nowhere: "wide" frames the stage so the fire is seen.
+	bActionPanel = false;
+	if (Panel.IsValid())
+	{
+		if (const TArray<TSharedPtr<FJsonValue>>* Ps = Arr(Panel, TEXT("projectiles"))) bActionPanel = Ps->Num() > 0;
+		for (const TCHAR* Side : { TEXT("a"), TEXT("b") })
+			if (const TArray<TSharedPtr<FJsonValue>>* Sg = Arr(Obj(Panel, Side), TEXT("segs")))
+				for (const TSharedPtr<FJsonValue>& V : *Sg) if (V.IsValid() && V->AsObject().IsValid() && Str(V->AsObject(), TEXT("clip")) == TEXT("draw_from_nowhere")) bActionPanel = true;
+	}
 	UpdateCamera(Panel.IsValid() ? Str(Panel, TEXT("shot")) : FString(TEXT("wide")), Dt);
 }
 
@@ -791,7 +835,14 @@ void AFNDuelBox::UpdateCamera(const FString& Shot, float Dt)
 	const float Sep = FVector::Dist2D(A, Bp);
 	float Dist = FMath::Max(115.f, Sep * 1.45f + 75.f);
 	FVector Dir(0.f, 1.f, 0.5f);
-	if (Shot.IsEmpty() || Shot == TEXT("wide"))
+	if ((Shot.IsEmpty() || Shot == TEXT("wide")) && bActionPanel)
+	{
+		// Fire or a draw: the stage, both fighters and the flight between them in view (the lid out of frame).
+		Mid = (A + Bp) * 0.5f + FVector(0.f, 0.f, 9.f);
+		Dir = FVector(0.f, 1.f, 0.52f);
+		Dist = FMath::Max(150.f, Sep * 1.5f + 85.f);
+	}
+	else if (Shot.IsEmpty() || Shot == TEXT("wide"))
 	{
 		// The whole box, closer than before: the lid's CLASH and plaques at the top of the frame, the fighters readable.
 		Mid = FVector(0.f, -8.f, 58.f);

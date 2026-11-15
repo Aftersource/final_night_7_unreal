@@ -47,13 +47,21 @@ struct FFNDuelSession
 	FSideLine& Line(const FString& Side) { return Side == TEXT("b") ? LineB : LineA; }
 
 	TArray<FString> Log;     // the latest blows, newest last
+	TArray<FString> LogDetail;   // each log line's rules: "+1 verb +1 body | hale +1 | d20 14 +5 = 19 vs 10 -> HIT 2"
+	TArray<int32> LogTone;       // 0 hit, 1 miss, 2 a natural 20 / crit
+	TMap<int32, TSharedPtr<FJsonObject>> Blows;   // duel.blow by n (the box floats each blow's breakdown over its striker)
+	TArray<FString> WitItems, WitFoe, Said;      // the live wit meter: your fighter's held items, the foe's lore words, your lines
 	bool bOver = false;
 	bool bDeadlineTicked = false;   // the tick at deadline_ms + 30 (closes the duel on the server)
 	bool bSending = false;   // your line waits for a token (the bucket was empty): never dropped
 	FString Result;
 	double OverAt = 0.0;
 
-	void AddLog(const FString& L) { Log.Add(L); while (Log.Num() > 4) Log.RemoveAt(0); }
+	void AddLog(const FString& L, const FString& Detail = FString(), int32 Tone = 0)
+	{
+		Log.Add(L); LogDetail.Add(Detail); LogTone.Add(Tone);
+		while (Log.Num() > 4) { Log.RemoveAt(0); LogDetail.RemoveAt(0); LogTone.RemoveAt(0); }
+	}
 };
 
 DECLARE_DELEGATE_OneParam(FOnFNDuelSend, const FString& /*Line*/);
@@ -108,4 +116,6 @@ private:
 	TAttribute<FSlateColor> TeamLine() const;
 	FString BottomSide() const;
 	bool IsMine() const;
+	TSharedRef<SWidget> WitMeter();
+	TSharedRef<SWidget> LogRow(int32 FromEnd);
 };

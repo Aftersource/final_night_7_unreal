@@ -6,6 +6,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "FNDuelRules.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Notifications/SProgressBar.h"
@@ -197,6 +198,18 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 					SNew(STextBlock).Font(Type::Font(26, TEXT("Bold"))).ColorAndOpacity(Gold)
 					.Text_Lambda([this]() { return SideText(BottomSide()); })
 				]
+				// Your duel, before your first line: what to do, and where you type.
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 2.f, 0.f, 4.f)
+				[
+					SNew(STextBlock).Font(Type::Font(22, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.62f, 0.2f))
+					.Visibility_Lambda([this]() { const TSharedPtr<FFNDuelSession> S = Session.Get(); return (IsMine() && S.IsValid() && S->Said.Num() == 0 && !S->bOver) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+					.Text(LOCTEXT("YourDuelType", "YOUR DUEL: TYPE!  each line is a blow"))
+				]
+				// The live wit meter: what the server will see in your words as you type them.
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 3.f)
+				[
+					WitMeter()
+				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f, 0.f, 0.f)
 				[
 					SAssignNew(Input, SEditableTextBox)
@@ -241,12 +254,9 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 						.Text_Lambda([this]() { return WindowText(); })
 					]
 				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f, 0.f, 0.f)
-				[
-					SNew(STextBlock).Font(Type::Font(12, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.85f, 0.82f, 0.76f))
-					.WrapTextAt(770.f)
-					.Text_Lambda([this]() { return LogText(); })
-				], 820.f, TeamLine())
+				// The last two blows, each with its rules: what the words earned, the modifiers, the die, the verdict.
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f, 0.f, 0.f)[ LogRow(1) ]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 0.f)[ LogRow(0) ], 820.f, TeamLine())
 			]
 		]
 	];
@@ -408,6 +418,78 @@ FText SFNDuelTray::WindowText() const
 		return FText::FromString(FString::Printf(TEXT("%s    %d:%02d"), *Window, Left / 60, Left % 60));
 	}
 	return FText::FromString(Window);
+}
+
+TSharedRef<SWidget> SFNDuelTray::LogRow(int32 FromEnd)
+{
+	using namespace FN7Style;
+	auto Idx = [this, FromEnd]() -> int32 { const TSharedPtr<FFNDuelSession> S = Session.Get(); return S.IsValid() ? S->Log.Num() - 1 - FromEnd : -1; };
+	return SNew(SVerticalBox)
+		.Visibility_Lambda([this, Idx, FromEnd]() { const TSharedPtr<FFNDuelSession> S = Session.Get(); return (S.IsValid() && S->Log.IsValidIndex(Idx())) || FromEnd == 0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(STextBlock).Font(Type::Font(12, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.85f, 0.82f, 0.76f)).WrapTextAt(770.f)
+			.Text_Lambda([this, Idx, FromEnd]()
+			{
+				const TSharedPtr<FFNDuelSession> S = Session.Get();
+				if (S.IsValid() && S->Log.IsValidIndex(Idx())) return FText::FromString(S->Log[Idx()]);
+				return FromEnd == 0 ? LOCTEXT("TrayNoBlows2", "No blows yet: the first words strike first.") : FText::GetEmpty();
+			})
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(STextBlock).Font(Type::Font(12, TEXT("Bold"))).WrapTextAt(770.f)
+			.ColorAndOpacity_Lambda([this, Idx]() { const TSharedPtr<FFNDuelSession> S = Session.Get(); return FSlateColor(S.IsValid() && S->LogTone.IsValidIndex(Idx()) ? FN7DuelRules::ToneColor(S->LogTone[Idx()]) : FLinearColor::Gray); })
+			.Text_Lambda([this, Idx]() { const TSharedPtr<FFNDuelSession> S = Session.Get(); return FText::FromString(S.IsValid() && S->LogDetail.IsValidIndex(Idx()) ? S->LogDetail[Idx()] : FString()); })
+		];
+}
+
+TSharedRef<SWidget> SFNDuelTray::WitMeter()
+{
+	// Each thing that makes a blow land, lit gold when your words have it (the server's own lists, mirrored).
+	using namespace FN7Style;
+	auto Now = [this]() -> FN7DuelRules::FWit
+	{
+		const TSharedPtr<FFNDuelSession> S = Session.Get();
+		TArray<FString> Place;
+		if (S.IsValid() && S->Scene.IsValid())
+		{
+			FString P, Bi;
+			S->Scene->TryGetStringField(TEXT("place"), P);
+			S->Scene->TryGetStringField(TEXT("biome"), Bi);
+			Place = FN7DuelRules::LoreWords({ P, Bi });
+		}
+		static const TArray<FString> None;
+		return FN7DuelRules::Wit(MyText, S.IsValid() ? S->WitItems : None, Place, S.IsValid() ? S->WitFoe : None, S.IsValid() ? S->Said : None);
+	};
+	auto Token = [this, Now](const FText& Label, TFunction<bool(const FN7DuelRules::FWit&)> Has, bool bBad)
+	{
+		return SNew(STextBlock).Font(Type::Font(11, TEXT("Bold")))
+			.Visibility_Lambda([Now, Has, bBad]() { return (!bBad || Has(Now())) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.ColorAndOpacity_Lambda([Now, Has, bBad]() { return FSlateColor(bBad ? FLinearColor(1.f, 0.4f, 0.32f) : Has(Now()) ? FLinearColor(1.f, 0.78f, 0.3f) : FLinearColor(0.5f, 0.48f, 0.45f)); })
+			.Text(Label);
+	};
+	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox).Visibility_Lambda([this]() { return IsMine() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; });
+	Row->AddSlot().AutoWidth().Padding(0.f, 0.f, 10.f, 0.f)[SNew(STextBlock).Font(Type::Font(11, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.75f, 0.7f, 0.62f)).Text(LOCTEXT("WitWhat", "your words:"))];
+	const TPair<FText, TFunction<bool(const FN7DuelRules::FWit&)>> Good[] = {
+		{ LOCTEXT("WVerb", "VERB"), [](const FN7DuelRules::FWit& W) { return W.bVerb; } },
+		{ LOCTEXT("WCombo", "2ND VERB"), [](const FN7DuelRules::FWit& W) { return W.bCombo; } },
+		{ LOCTEXT("WBody", "BODY PART"), [](const FN7DuelRules::FWit& W) { return W.bBody; } },
+		{ LOCTEXT("WItem", "YOUR ITEM"), [](const FN7DuelRules::FWit& W) { return W.bItem; } },
+		{ LOCTEXT("WPlace", "PLACE"), [](const FN7DuelRules::FWit& W) { return W.bPlace; } },
+		{ LOCTEXT("WStory", "THEIR STORY"), [](const FN7DuelRules::FWit& W) { return W.bStory; } } };
+	for (const auto& G : Good) Row->AddSlot().AutoWidth().Padding(0.f, 0.f, 9.f, 0.f)[Token(G.Key, G.Value, false)];
+	const TPair<FText, TFunction<bool(const FN7DuelRules::FWit&)>> Bad[] = {
+		{ LOCTEXT("WShort", "TOO SHORT"), [](const FN7DuelRules::FWit& W) { return W.bShort; } },
+		{ LOCTEXT("WRepeat", "REPEAT"), [](const FN7DuelRules::FWit& W) { return W.bRepeat; } },
+		{ LOCTEXT("WSpam", "GIBBERISH"), [](const FN7DuelRules::FWit& W) { return W.bSpam; } } };
+	for (const auto& B : Bad) Row->AddSlot().AutoWidth().Padding(0.f, 0.f, 9.f, 0.f)[Token(B.Key, B.Value, true)];
+	Row->AddSlot().AutoWidth()
+	[
+		SNew(STextBlock).Font(Type::Font(11, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.95f, 0.92f, 0.85f))
+		.Text_Lambda([this, Now]() { return MyText.IsEmpty() ? FText::GetEmpty() : FText::FromString(FString::Printf(TEXT("= wit %+d"), Now().Score)); })
+	];
+	return Row;
 }
 
 FText SFNDuelTray::LogText() const
