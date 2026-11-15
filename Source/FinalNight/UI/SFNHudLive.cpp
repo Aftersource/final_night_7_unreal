@@ -467,6 +467,19 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 							SNew(STextBlock).TextStyle(&FN7Style::Type::Body()).WrapTextAt(480.f).Justification(ETextJustify::Center)
 							.Text_Lambda([this]() { return ConfirmBody; })
 						]
+						// The odds (game.duel_odds): the headline, then the why lines small.
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 4.f)
+						[
+							SNew(STextBlock).Font(FN7Style::Type::Font(15, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.8f, 0.36f)).WrapTextAt(490.f).Justification(ETextJustify::Center)
+							.Visibility_Lambda([this]() { return OddsLine.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+							.Text_Lambda([this]() { return FText::FromString(OddsLine); })
+						]
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 16.f)
+						[
+							SNew(STextBlock).TextStyle(&FN7Style::Type::Small()).ColorAndOpacity(FN7Style::Color::TextDim()).WrapTextAt(490.f).Justification(ETextJustify::Center)
+							.Visibility_Lambda([this]() { return OddsWhy.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+							.Text_Lambda([this]() { return FText::FromString(OddsWhy); })
+						]
 						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 						[
 							SNew(SHorizontalBox)
@@ -831,6 +844,24 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	// The earth simulator on the table (AFNEarthPlay): each beat's field and phenomena, the board's records, a cast's strike.
 	// Earth time travel: the field at a beat, a join / reconnect / fork at the present, a new match.
+	if (T == TEXT("game.duel_odds") && D.IsValid() && bConfirmOpen && FN7HudJson::Str(D, TEXT("demigod")) == ConfirmMine && FN7HudJson::Str(D, TEXT("target")) == ConfirmTarget)
+	{
+		// "Duel Vex's Right Hand: 35%  (you 7 hp · they hurt)  ·  if you don't type: 0%"
+		auto Hp = [&D](const TCHAR* K) -> FString
+		{
+			double V = 0.0; FString S;
+			if (D->TryGetNumberField(K, V)) return FString::Printf(TEXT("%s hp"), *FString::SanitizeFloat(FMath::RoundToDouble(V * 10.0) / 10.0, 0));
+			return D->TryGetStringField(K, S) ? S : FString(TEXT("?"));
+		};
+		const double Win = FN7HudJson::Num(D, TEXT("win_pct"), 0.0), Idle = FN7HudJson::Num(D, TEXT("idle_win_pct"), 0.0);
+		OddsLine = FString::Printf(TEXT("Duel %s: %.0f%%  (you %s \u00B7 they %s)  \u00B7  if you don't type: %.0f%%"), *NameOf(ConfirmTarget), Win, *Hp(TEXT("my_health")), *Hp(TEXT("their_health")), Idle);
+		if (!FN7HudJson::Flag(D, TEXT("reach_ok")) && D->HasField(TEXT("reach_ok")))
+			OddsLine += FString::Printf(TEXT("  \u00B7  out of reach (%.0f km)"), FN7HudJson::Num(D, TEXT("too_far_km"), FN7HudJson::Num(D, TEXT("distance_km"), 0.0)));
+		TArray<FString> Why;
+		if (const TArray<TSharedPtr<FJsonValue>>* W = FN7HudJson::Arr(D, TEXT("why"))) for (const TSharedPtr<FJsonValue>& V : *W) if (V.IsValid()) Why.Add(V->AsString());
+		OddsWhy = FString::Join(Why, TEXT("\n"));
+		UE_LOG(LogTemp, Display, TEXT("FN7 duel odds: %s"), *OddsLine);
+	}
 	if (T == TEXT("game.earth_at") || T == TEXT("match.snapshot") || T == TEXT("match.started"))
 		if (AFNStudio* St = FindStudio())
 			if (AFNEarthPlay* E = AFNEarthPlay::Get(St->GetWorld(), true))
@@ -2326,8 +2357,11 @@ void SFNHudLive::OpenDuelBox()
 	const bool bWasHidden = !Box->IsShowing();
 	TWeakObjectPtr<UFNNetClient> WN = Net;
 	Box->Open(Duel, St, bTake, [WN]() { UFNNetClient* N = WN.Get(); return N ? N->NowServerMs() : 0.0; });
+	// The portraits (the diorama when a fighter has no portrait yet): the lid plaques and the cards over the fighters.
 	UTexture2D* TexA = MediaTexture(LoadedArt(Duel->A, false));
 	UTexture2D* TexB = MediaTexture(LoadedArt(Duel->B, false));
+	if (!TexA) TexA = MediaTexture(LoadedArt(Duel->A, true));
+	if (!TexB) TexB = MediaTexture(LoadedArt(Duel->B, true));
 	Box->SetPortraits(TexA, TexB);
 	if (bWasHidden && bTake)
 	{
@@ -3049,6 +3083,17 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 			: FText::FromString(FString::Printf(TEXT("%s teleports beside %s first: expect about -1 to -2 health from the summoning (it never drops you below 2.5). Then the duel starts."), *NameOf(Mine), *NameOf(Ref)));
 		bConfirmOpen = true;
 		UE_LOG(LogTemp, Display, TEXT("FN7 challenge confirm: %s -> %s (%s, %s)"), *Mine, *Ref, bReach ? TEXT("in reach") : TEXT("teleport first"), LevelName[Lv]);
+		// How it would likely go (CLIENT_API "game.duel_odds"): the answer fills the card's odds line when it comes.
+		OddsLine.Reset();
+		OddsWhy.Reset();
+		if (UFNNetClient* N = Net.Get())
+		{
+			TSharedPtr<FJsonObject> A = MakeShared<FJsonObject>();
+			A->SetStringField(TEXT("demigod"), Mine);
+			A->SetStringField(TEXT("target"), Ref);
+			A->SetStringField(TEXT("level"), LevelName[Lv]);
+			N->Query(TEXT("game.duel_odds"), A);
+		}
 		return;
 	}
 	if (T && bMine)

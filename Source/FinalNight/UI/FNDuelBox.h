@@ -79,6 +79,11 @@ private:
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Stars;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PortraitA;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PortraitB;
+	// Each fighter's portrait as a big card hovering over its mannequin (Benito's option (a), 2026-11-15), facing the camera.
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> CardA;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> CardB;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> CardFrameA;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> CardFrameB;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> HpFillA;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> HpFillB;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> NameA;

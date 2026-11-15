@@ -161,6 +161,8 @@ private:
 	FString ConfirmMine, ConfirmTarget, ConfirmLevel;
 	double ConfirmLat = 0.0, ConfirmLon = 0.0;
 	FText ConfirmTitle, ConfirmBody;
+	// game.duel_odds for the open challenge card (Benito: the odds in the confirm): the headline and the why lines.
+	FString OddsLine, OddsWhy;
 	void ConfirmChallenge();
 	double PendingChallengeAt = 0.0;
 	FString SelectedRef;                 // your demigod last double-clicked (a brief glow; it also picks who challenges)

@@ -288,6 +288,16 @@ void AFNDuelBox::Build()
 		if (s < 0) { PortraitA = Pic; NameA = Name; HpFillA = Fill; }
 		else { PortraitB = Pic; NameB = Name; HpFillB = Fill; }
 	}
+	// The fighters' cards: a gilt frame and the portrait, placed over each mannequin every frame (hidden until a portrait comes).
+	for (int32 s = 0; s < 2; ++s)
+	{
+		UStaticMeshComponent* Frame = Part(Lift, Cube, FVector::ZeroVector, FVector(11.2f, 0.5f, 15.4f), GiltDark);
+		UStaticMeshComponent* Card = Part(Lift, Cube, FVector::ZeroVector, FVector(10.f, 0.7f, 14.f), WoodLight);
+		Frame->SetVisibility(false);
+		Card->SetVisibility(false);
+		(s == 0 ? CardFrameA : CardFrameB) = Frame;
+		(s == 0 ? CardA : CardB) = Card;
+	}
 
 	// The drawer at the front: the stars of the lines being typed.
 	Drawer = NewObject<USceneComponent>(this);
@@ -535,6 +545,10 @@ void AFNDuelBox::SetPortraits(UTexture2D* A, UTexture2D* B)
 	};
 	Put(PortraitA, A);
 	Put(PortraitB, B);
+	Put(CardA, A);
+	Put(CardB, B);
+	if (CardA) { CardA->SetVisibility(A != nullptr); CardFrameA->SetVisibility(A != nullptr); }
+	if (CardB) { CardB->SetVisibility(B != nullptr); CardFrameB->SetVisibility(B != nullptr); }
 }
 
 void AFNDuelBox::Close()
@@ -677,6 +691,24 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 	const FPose Pa = Track(TEXT("a"), StartA), Pb = Track(TEXT("b"), StartB);
 	PoseFighter(FighterA, ClipA, Pa.Clip, Pa.ClipT, Pa.bLoop, Pa.At, Pb.At);
 	PoseFighter(FighterB, ClipB, Pb.Clip, Pb.ClipT, Pb.bLoop, Pb.At, Pa.At);
+	// The portrait cards ride beside the mannequins at head height, on the far side from the foe, turned to the camera
+	// (over the heads they sat under the HUD's banners, and the space over the heads is the floating rules').
+	{
+		const FVector CamLocal = Camera ? Lift->GetComponentTransform().InverseTransformPosition(Camera->GetActorLocation()) : FVector(0.f, -300.f, 100.f);
+		auto Place = [&CamLocal](UStaticMeshComponent* Card, UStaticMeshComponent* Frame, const FVector& Over, const FVector& Foe)
+		{
+			if (!Card || !Card->IsVisible()) return;
+			FVector Out = (Over - Foe).GetSafeNormal2D();
+			if (Out.IsNearlyZero()) Out = FVector(1.f, 0.f, 0.f);
+			const FVector P = Over + Out * 11.f + FVector(0.f, 0.f, 22.f);
+			const FVector To = CamLocal - P;
+			const FRotator R(0.f, FMath::RadiansToDegrees(FMath::Atan2(To.Y, To.X)) - 90.f, 0.f);
+			Card->SetRelativeLocationAndRotation(P, R);
+			Frame->SetRelativeLocationAndRotation(P - R.RotateVector(FVector(0.f, 0.25f, 0.f)), R);
+		};
+		Place(CardA, CardFrameA, Pa.At, Pb.At);
+		Place(CardB, CardFrameB, Pb.At, Pa.At);
+	}
 
 	// Weapons in hand: each seg of an armed fighter carries its prop (none = empty hands). A hammer-space draw
 	// (a draw_from_nowhere seg) flashes at the hand and the new weapon grows into it.
