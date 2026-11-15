@@ -163,6 +163,11 @@ private:
 	FText ConfirmTitle, ConfirmBody;
 	// game.duel_odds for the open challenge card (Benito: the odds in the confirm): the headline and the why lines.
 	FString OddsLine, OddsWhy;
+	// The tree of consequence overlay (game.memory_tree); asked again when the beat turns while it is open.
+	TSharedPtr<class SFNMemoryTree> MemTree;
+	bool bTreeOpen = false;
+	int32 TreeAskedBeat = -1;
+	void OpenTree();
 	void ConfirmChallenge();
 	double PendingChallengeAt = 0.0;
 	FString SelectedRef;                 // your demigod last double-clicked (a brief glow; it also picks who challenges)
