@@ -753,11 +753,11 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	{
 		// Empty map or globe: the one board double-click handler (FN7Kit::SetBoardDoubleClick: zoom one level in), unless
 		// it's near a demigod or over the kit's UI; nothing else ever moves the view. The view should stop warping around.
+		// Exactly one handler fires: near a demigod or over the kit's UI nothing does (eaten here); else the registered
+		// board handler, or, with none, the double-click falls through to the game (the player controller's zoom).
 		UWorld* World = Studio.IsValid() ? Studio->GetWorld() : nullptr;
-		if (!FN7Kit::BlocksBoardGesture(World, Px) && FN7Kit::RunBoardDoubleClick(Px)) return FReply::Handled();
-		double La, Lo, HexM;
-		FVector W;
-		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM)) return FReply::Handled();
+		if (FN7Kit::BlocksBoardGesture(World, Px)) return FReply::Handled();
+		if (FN7Kit::RunBoardDoubleClick(Px)) return FReply::Handled();
 		return FReply::Unhandled();
 	}
 	PressedRef.Reset();
