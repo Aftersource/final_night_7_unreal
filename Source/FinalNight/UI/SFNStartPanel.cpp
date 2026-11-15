@@ -16,6 +16,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "FNLooks.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -121,6 +122,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 
 	FString Name = ReadLocalLine(TEXT("FN7DisplayName.txt"));
 	if (Name.IsEmpty() && Net.IsValid()) Name = Net->DisplayName;
+	Look = FN7Looks::Get(TEXT("lobby"), 1);
 
 	auto OutOfGame = [this]() { return bInGame.Get() ? EVisibility::Collapsed : EVisibility::Visible; };
 	auto InGame = [this]() { return bInGame.Get() ? EVisibility::Visible : EVisibility::Collapsed; };
@@ -138,10 +140,9 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 			SNew(SBox)
 			.WidthOverride(600.f)
 			[
-				SNew(SBorder)
-				.BorderImage(FN7Wood::MarbleBrush())   // a black onyx marble tablet (Chris asked for a mystical, granite or onyx marbled look)
-				.Padding(FMargin(Space::XL + Space::S, Space::XL))
-				[
+				// The tablet in the chosen look (1 the black onyx marble Chris asked for, then parchment, carved wood, dark glass,
+				// gilded slate, star map), switched by the 1-6 buttons beside LOBBY.
+				FN7Looks::Frame(TAttribute<int32>::CreateLambda([this]() { return Look; }),
 					SNew(SVerticalBox)
 
 					+ SVerticalBox::Slot().AutoHeight()
@@ -149,11 +150,15 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Bottom)
 						[
-							SNew(STextBlock).TextStyle(&Type::Display()).Text(LOCTEXT("Title", "FINAL NIGHT 7"))
+							SNew(STextBlock).TextStyle(&Type::Display()).ColorAndOpacity(this, &SFNStartPanel::LInk).Text(LOCTEXT("Title", "FINAL NIGHT 7"))
 						]
 						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom).Padding(Space::M, 0.f, 0.f, 6.f)
 						[
-							SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("LobbyWord", "LOBBY"))
+							SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(LOCTEXT("LobbyWord", "LOBBY"))
+						]
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom).Padding(Space::S, 0.f, 0.f, 4.f)
+						[
+							FN7Looks::Switch(TAttribute<int32>::CreateLambda([this]() { return Look; }), [this](int32 V) { Look = V; FN7Looks::Set(TEXT("lobby"), V); })
 						]
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
@@ -162,7 +167,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
 					[
-						SNew(STextBlock).TextStyle(&Type::Body()).ColorAndOpacity(Color::TextDim()).AutoWrapText(true).Visibility_Lambda(OutOfGame)
+						SNew(STextBlock).TextStyle(&Type::Body()).ColorAndOpacity(this, &SFNStartPanel::LDim).AutoWrapText(true).Visibility_Lambda(OutOfGame)
 						.Text(LOCTEXT("Tag", "Demigods fight over the real Earth. Write what you do; time slows while you write. Last one standing wins."))
 					]
 
@@ -179,7 +184,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 						]
 						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 						[
-							SNew(STextBlock).TextStyle(&Type::Small()).Text(this, &SFNStartPanel::GetStatusText)
+							SNew(STextBlock).ColorAndOpacity(this, &SFNStartPanel::LInk).TextStyle(&Type::Small()).Text(this, &SFNStartPanel::GetStatusText)
 						]
 					]
 
@@ -192,7 +197,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 					// Name (first time in only).
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::L, 0.f, Space::XS)
 					[
-						SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Visibility_Lambda(OutOfGame).Text(LOCTEXT("NameLabel", "YOUR NAME"))
+						SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Visibility_Lambda(OutOfGame).Text(LOCTEXT("NameLabel", "YOUR NAME"))
 					]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
@@ -235,7 +240,7 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, Space::S, 0.f, 0.f)
 					[
-						SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true).Text(this, &SFNStartPanel::GetProgressText)
+						SNew(STextBlock).ColorAndOpacity(this, &SFNStartPanel::LInk).TextStyle(&Type::Small()).AutoWrapText(true).Text(this, &SFNStartPanel::GetProgressText)
 					]
 
 					// More ways in: against the gods' AI, a room of your own for friends, or a friend's room by its code.
@@ -254,9 +259,8 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, Space::M, 0.f, 0.f)
 					[
-						SNew(STextBlock).TextStyle(&Type::Small()).Visibility_Lambda(InGame).Text(LOCTEXT("EscHint", "Esc opens and closes the lobby."))
-					]
-				]
+						SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNStartPanel::LDim).Visibility_Lambda(InGame).Text(LOCTEXT("EscHint", "Esc opens and closes the lobby."))
+					], FMargin(Space::XL + Space::S, Space::XL))
 			]
 		]
 	];
@@ -481,11 +485,11 @@ TSharedRef<SWidget> SFNStartPanel::MakeHouse()
 {
 	using namespace FN7Style;
 	if (!bHouseKnown)
-		return SNew(STextBlock).TextStyle(&Type::Body()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("HouseChecking", "Looking for the game..."));
+		return SNew(STextBlock).TextStyle(&Type::Body()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(LOCTEXT("HouseChecking", "Looking for the game..."));
 	if (HouseCode.IsEmpty())
-		return SNew(STextBlock).TextStyle(&Type::Body()).AutoWrapText(true).Text(LOCTEXT("NoGame", "The server has no game running right now. This checks again every few seconds."));
+		return SNew(STextBlock).ColorAndOpacity(this, &SFNStartPanel::LInk).TextStyle(&Type::Body()).AutoWrapText(true).Text(LOCTEXT("NoGame", "The server has no game running right now. This checks again every few seconds."));
 	if (HouseSource == TEXT("file"))
-		return SNew(STextBlock).TextStyle(&Type::Body()).Text(FText::Format(LOCTEXT("FileGame", "Room {0} (this machine's join code)"), FText::FromString(HouseCode)));
+		return SNew(STextBlock).ColorAndOpacity(this, &SFNStartPanel::LInk).TextStyle(&Type::Body()).Text(FText::Format(LOCTEXT("FileGame", "Room {0} (this machine's join code)"), FText::FromString(HouseCode)));
 
 	// Live (green), replaying (violet) or between matches (dim).
 	const bool bLive = !bReplaying && HouseState == TEXT("in_match");
@@ -514,7 +518,7 @@ TSharedRef<SWidget> SFNStartPanel::MakeHouse()
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 				[
-					SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("HouseLabel", "THE HOUSE GAME"))
+					SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(LOCTEXT("HouseLabel", "THE HOUSE GAME"))
 				]
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 				[
@@ -527,16 +531,16 @@ TSharedRef<SWidget> SFNStartPanel::MakeHouse()
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
 			[
-				SNew(STextBlock).TextStyle(&Type::Body()).Font(Type::Font(14, TEXT("Bold"))).Text(FText::FromString(FString::Join(Bits, TEXT("  ·  "))))
+				SNew(STextBlock).ColorAndOpacity(this, &SFNStartPanel::LInk).TextStyle(&Type::Body()).Font(Type::Font(14, TEXT("Bold"))).Text(FText::FromString(FString::Join(Bits, TEXT("  ·  "))))
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f, 0.f, 0.f)
 			[
-				SNew(STextBlock).TextStyle(&Type::Small()).Visibility(Next.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible).Text(FText::FromString(Next))
+				SNew(STextBlock).ColorAndOpacity(this, &SFNStartPanel::LInk).TextStyle(&Type::Small()).Visibility(Next.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible).Text(FText::FromString(Next))
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
 			[
 				HouseSeats.Num() > 0 ? StaticCastSharedRef<SWidget>(SeatWrap)
-					: StaticCastSharedRef<SWidget>(SNew(STextBlock).TextStyle(&Type::Small()).Text(LOCTEXT("EmptyTable", "Nobody at the table yet.")))
+					: StaticCastSharedRef<SWidget>(SNew(STextBlock).ColorAndOpacity(this, &SFNStartPanel::LInk).TextStyle(&Type::Small()).Text(LOCTEXT("EmptyTable", "Nobody at the table yet.")))
 			]
 		];
 }
@@ -556,13 +560,13 @@ TSharedRef<SWidget> SFNStartPanel::MakeRooms()
 	TSharedRef<SVerticalBox> List = SNew(SVerticalBox);
 	List->AddSlot().AutoHeight().Padding(0.f, 0.f, 0.f, Space::XS)
 	[
-		SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("OtherRooms", "OTHER ROOMS"))
+		SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(LOCTEXT("OtherRooms", "OTHER ROOMS"))
 	];
 	if (!bRoomsKnown || OtherRooms.Num() == 0)
 	{
 		List->AddSlot().AutoHeight()
 		[
-			SNew(STextBlock).TextStyle(&Type::Small()).Text(bRoomsKnown ? LOCTEXT("NoRooms", "No other public rooms right now.") : LOCTEXT("RoomsLoading", "Asking the server..."))
+			SNew(STextBlock).ColorAndOpacity(this, &SFNStartPanel::LInk).TextStyle(&Type::Small()).Text(bRoomsKnown ? LOCTEXT("NoRooms", "No other public rooms right now.") : LOCTEXT("RoomsLoading", "Asking the server..."))
 		];
 		return List;
 	}
@@ -677,6 +681,10 @@ FReply SFNStartPanel::Enter(bool bTakeSeat)
 	return FReply::Handled();
 }
 
+FSlateColor SFNStartPanel::LInk() const { return FN7Looks::Ink(Look); }
+FSlateColor SFNStartPanel::LDim() const { return FN7Looks::Dim(Look); }
+FSlateColor SFNStartPanel::LAccent() const { return FN7Looks::Accent(Look); }
+
 TSharedRef<SWidget> SFNStartPanel::MakeChoices()
 {
 	using namespace FN7Style;
@@ -700,13 +708,13 @@ TSharedRef<SWidget> SFNStartPanel::MakeChoices()
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 3.f, 0.f, 0.f)
 			[
-				SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::TextDim()).Text(Under)
+				SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(Under)
 			];
 	};
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight()
 		[
-			SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("OrLabel", "OR PLAY YOUR OWN MATCH"))
+			SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(LOCTEXT("OrLabel", "OR PLAY YOUR OWN MATCH"))
 		]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
 		[
@@ -730,12 +738,12 @@ TSharedRef<SWidget> SFNStartPanel::MakeChoices()
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight()
 				[
-					SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(Color::Accent())
+					SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(this, &SFNStartPanel::LAccent)
 					.Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("ROOM %s"), *HostedCode)); })
 				]
 				+ SVerticalBox::Slot().AutoHeight()
 				[
-					SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("HostShare", "give this code to your friends; START when everyone is in"))
+					SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(LOCTEXT("HostShare", "give this code to your friends; START when everyone is in"))
 				]
 			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
@@ -762,7 +770,7 @@ TSharedRef<SWidget> SFNStartPanel::MakeChoices()
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 			[
-				SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(Color::TextDim()).Text(LOCTEXT("ByCode", "JOIN BY CODE"))
+				SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNStartPanel::LDim).Text(LOCTEXT("ByCode", "JOIN BY CODE"))
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 			[

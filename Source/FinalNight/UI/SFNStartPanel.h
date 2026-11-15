@@ -120,6 +120,11 @@ private:
 	bool bAwaitLeave = false;       // left the current room first: the choice runs on room.left (the server refuses it before)
 	FString HostedCode;             // the room we host, waiting for START
 	TSharedPtr<SFNTextBox> CodeBox;
+	// The six looks (Chris: six to pick a favourite from; Saved/FN7Hud.json "lobby_variant").
+	int32 Look = 1;
+	FSlateColor LInk() const;
+	FSlateColor LDim() const;
+	FSlateColor LAccent() const;
 	void Choose(uint8 Intent);
 	TSharedRef<SWidget> MakeChoices();
 
