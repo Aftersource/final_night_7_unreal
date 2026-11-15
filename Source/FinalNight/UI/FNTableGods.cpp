@@ -1,4 +1,5 @@
 #include "FNTableGods.h"
+#include "FNGodStatue.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -218,64 +219,7 @@ void AFNGodPedestal::UpdateStatue(const FString& Player)
 	const FString Path = FString::Printf(TEXT("/Game/Figures/%s/SM_%s.SM_%s"), *Slug, *Slug, *Slug);
 	UStaticMesh* Mesh = Player.IsEmpty() ? nullptr : Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
 	bHasStatue = Mesh != nullptr;
-	if (bHasStatue)
-	{
-		if (!Statue)
-		{
-			Statue = NewObject<UStaticMeshComponent>(this);
-			Statue->SetupAttachment(RootComponent);
-			Statue->SetMobility(EComponentMobility::Movable);
-			Statue->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			Statue->RegisterComponent();
-		}
-		Statue->SetStaticMesh(Mesh);
-		const FBoxSphereBounds B = Mesh->GetBounds();
-		// Heroic height, but no wider than a common footprint (a reclining god on a couch would tower otherwise).
-		const float Scale = FMath::Min(GodStatueHeight / FMath::Max(1.f, (float)B.BoxExtent.Z * 2.f),
-			GodStatueFootprint / FMath::Max(1.f, 2.f * (float)FMath::Max(B.BoxExtent.X, B.BoxExtent.Y)));
-		Statue->SetRelativeScale3D(FVector(Scale));
-		Statue->SetRelativeRotation(FRotator(0.f, GodStatueYaw, 0.f));
-		// Its own stone base sits on the pedestal's cap; centred over the column.
-		const FVector C = FRotator(0.f, GodStatueYaw, 0.f).RotateVector(FVector(B.Origin.X, B.Origin.Y, 0.0)) * Scale;
-		Statue->SetRelativeLocation(FVector(-C.X, -C.Y, GodPedestalTop + ((float)B.BoxExtent.Z - (float)B.Origin.Z) * Scale));
-		Statue->SetVisibility(true);
-		// Lit like a statue in a museum: a warm key from above and in front, the aura as a rim light behind it, and a
-		// low glowing mist at its feet in the player's colour (Chris asked for cheap but nice glowing fog, like Greek statues).
-		if (!StatueKey)
-		{
-			StatueKey = NewObject<USpotLightComponent>(this);
-			StatueKey->SetupAttachment(RootComponent);
-			StatueKey->SetMobility(EComponentMobility::Movable);
-			StatueKey->SetIntensityUnits(ELightUnits::Candelas);
-			StatueKey->SetIntensity(16.f);
-			StatueKey->SetLightColor(FLinearColor(1.f, 0.93f, 0.82f));
-			StatueKey->SetInnerConeAngle(14.f);
-			StatueKey->SetOuterConeAngle(26.f);
-			StatueKey->SetAttenuationRadius(520.f);
-			StatueKey->SetCastShadows(false);   // cheap
-			const FVector From(95.f, 0.f, GodPedestalTop + GodStatueHeight + 90.f), To(0.f, 0.f, GodPedestalTop + GodStatueHeight * 0.55f);
-			StatueKey->SetRelativeLocationAndRotation(From, (To - From).Rotation());
-			StatueKey->RegisterComponent();
-		}
-		if (!StatueFog)
-		{
-			// Local fog volumes start 10 m from the camera by default; the table is closer than that.
-			if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LocalFogVolume.GlobalStartDistance")))
-				if (V->GetFloat() > 20.f) V->Set(10.f, ECVF_SetByCode);
-			StatueFog = NewObject<ULocalFogVolumeComponent>(this);
-			StatueFog->SetupAttachment(RootComponent);
-			StatueFog->SetRelativeLocation(FVector(0.f, 0.f, GodPedestalTop + 18.f));
-			StatueFog->SetRelativeScale3D(FVector(0.2f, 0.2f, 0.2f));   // the volume is a 500 cm sphere at scale 1
-			StatueFog->SetRadialFogExtinction(0.5f);   // a little body; the height mist is dense at the feet, thinning upward
-			StatueFog->SetHeightFogExtinction(2.f);
-			StatueFog->SetHeightFogFalloff(1400.f);
-			StatueFog->SetHeightFogOffset(0.f);
-			StatueFog->RegisterComponent();
-		}
-		StatueKey->SetVisibility(true);
-		StatueFog->SetVisibility(true);
-		if (Glow) Glow->SetRelativeLocation(FVector(-34.f, 0.f, GodPedestalTop + GodStatueHeight * 0.6f));   // rim, from behind
-	}
+	if (bHasStatue) PlaceStatue(Mesh, GodStatueYaw);
 	else if (Statue)
 	{
 		Statue->SetVisibility(false);
@@ -283,10 +227,131 @@ void AFNGodPedestal::UpdateStatue(const FString& Player)
 		if (StatueFog) StatueFog->SetVisibility(false);
 	}
 	// The faceted figure only where there's no statue; the hem ring and the glow stay: the player's colour reads.
-	for (UStaticMeshComponent* R : Robe) R->SetVisibility(!bHasStatue);
-	for (UStaticMeshComponent* F : Feature) F->SetVisibility(!bHasStatue);
-	for (int32 i = 1; i < Hands.Num(); ++i) Hands[i]->SetVisibility(!bHasStatue);
+	ShowFigure(!bHasStatue);
 	UE_LOG(LogTemp, Display, TEXT("FN7 god: %s -> %s"), *Player, bHasStatue ? *Path : TEXT("the faceted figure, in marble"));
+	// The player's own god, made in the god screen (an account god), replaces the house statue when the server has one.
+	bAccountStatue = false;
+	if (Picture) Picture->SetVisibility(false);
+	if (!Player.IsEmpty()) FN7GodStatue::Ask(this, Player);
+}
+
+void AFNGodPedestal::ShowFigure(bool bFigure)
+{
+	// The faceted figure only where there's no statue; the hem ring and the glow stay: the player's colour reads.
+	for (UStaticMeshComponent* R : Robe) R->SetVisibility(bFigure);
+	for (UStaticMeshComponent* F : Feature) F->SetVisibility(bFigure);
+	for (int32 i = 1; i < Hands.Num(); ++i) Hands[i]->SetVisibility(bFigure);
+}
+
+void AFNGodPedestal::PlaceStatue(UStaticMesh* Mesh, float Yaw)
+{
+	using namespace FN7Gods;
+	const float GodStatueYawUsed = Yaw;
+	if (!Statue)
+	{
+		Statue = NewObject<UStaticMeshComponent>(this);
+		Statue->SetupAttachment(RootComponent);
+		Statue->SetMobility(EComponentMobility::Movable);
+		Statue->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Statue->RegisterComponent();
+	}
+	Statue->SetStaticMesh(Mesh);
+	Statue->EmptyOverrideMaterials();   // a packaged statue keeps its own stone; a runtime one gets its colour after this
+	const FBoxSphereBounds B = Mesh->GetBounds();
+	// Heroic height, but no wider than a common footprint (a reclining god on a couch would tower otherwise).
+	const float Scale = FMath::Min(GodStatueHeight / FMath::Max(1.f, (float)B.BoxExtent.Z * 2.f),
+		GodStatueFootprint / FMath::Max(1.f, 2.f * (float)FMath::Max(B.BoxExtent.X, B.BoxExtent.Y)));
+	Statue->SetRelativeScale3D(FVector(Scale));
+	Statue->SetRelativeRotation(FRotator(0.f, GodStatueYawUsed, 0.f));
+	// Its own stone base sits on the pedestal's cap; centred over the column.
+	const FVector C = FRotator(0.f, GodStatueYawUsed, 0.f).RotateVector(FVector(B.Origin.X, B.Origin.Y, 0.0)) * Scale;
+	Statue->SetRelativeLocation(FVector(-C.X, -C.Y, GodPedestalTop + ((float)B.BoxExtent.Z - (float)B.Origin.Z) * Scale));
+	Statue->SetVisibility(true);
+	// Lit like a statue in a museum: a warm key from above and in front, the aura as a rim light behind it, and a
+	// low glowing mist at its feet in the player's colour (a cheap but nice glowing fog, like Greek statues).
+	if (!StatueKey)
+	{
+		StatueKey = NewObject<USpotLightComponent>(this);
+		StatueKey->SetupAttachment(RootComponent);
+		StatueKey->SetMobility(EComponentMobility::Movable);
+		StatueKey->SetIntensityUnits(ELightUnits::Candelas);
+		StatueKey->SetIntensity(16.f);
+		StatueKey->SetLightColor(FLinearColor(1.f, 0.93f, 0.82f));
+		StatueKey->SetInnerConeAngle(14.f);
+		StatueKey->SetOuterConeAngle(26.f);
+		StatueKey->SetAttenuationRadius(520.f);
+		StatueKey->SetCastShadows(false);   // cheap
+		const FVector From(95.f, 0.f, GodPedestalTop + GodStatueHeight + 90.f), To(0.f, 0.f, GodPedestalTop + GodStatueHeight * 0.55f);
+		StatueKey->SetRelativeLocationAndRotation(From, (To - From).Rotation());
+		StatueKey->RegisterComponent();
+	}
+	if (!StatueFog)
+	{
+		// Local fog volumes start 10 m from the camera by default; the table is closer than that.
+		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LocalFogVolume.GlobalStartDistance")))
+			if (V->GetFloat() > 20.f) V->Set(10.f, ECVF_SetByCode);
+		StatueFog = NewObject<ULocalFogVolumeComponent>(this);
+		StatueFog->SetupAttachment(RootComponent);
+		StatueFog->SetRelativeLocation(FVector(0.f, 0.f, GodPedestalTop + 18.f));
+		StatueFog->SetRelativeScale3D(FVector(0.2f, 0.2f, 0.2f));   // the volume is a 500 cm sphere at scale 1
+		StatueFog->SetRadialFogExtinction(0.5f);   // a little body; the height mist is dense at the feet, thinning upward
+		StatueFog->SetHeightFogExtinction(2.f);
+		StatueFog->SetHeightFogFalloff(1400.f);
+		StatueFog->SetHeightFogOffset(0.f);
+		StatueFog->RegisterComponent();
+	}
+	StatueKey->SetVisibility(true);
+	StatueFog->SetVisibility(true);
+	if (Glow) Glow->SetRelativeLocation(FVector(-34.f, 0.f, GodPedestalTop + GodStatueHeight * 0.6f));   // rim, from behind
+}
+
+void AFNGodPedestal::ShowGodPicture(UTexture2D* Tex, const FString& Player)
+{
+	using namespace FN7Gods;
+	if (!Tex || Player != StatueFor || bAccountStatue) return;   // a newer player, or the statue is already up
+	PictureTex = Tex;
+	if (!Picture)
+	{
+		Picture = NewObject<UStaticMeshComponent>(this);
+		Picture->SetupAttachment(RootComponent);
+		Picture->SetMobility(EComponentMobility::Movable);
+		Picture->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Picture->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+		Picture->RegisterComponent();
+	}
+	if (UMaterialInterface* Im = LoadObject<UMaterialInterface>(nullptr, GodImageMatPath))
+	{
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Im, Picture);
+		M->SetTextureParameterValue(TEXT("SlateUI"), Tex);
+		Picture->SetMaterial(0, M);
+	}
+	// Standing on the cap, facing the table (+X), in the picture's own shape, statue height at most.
+	const float Aspect = (float)Tex->GetSizeX() / FMath::Max(1.f, (float)Tex->GetSizeY());
+	const float H = GodStatueHeight * 0.9f, W = FMath::Min(H * Aspect, GodStatueFootprint * 0.9f);
+	Picture->SetRelativeScale3D(FVector(0.02f, W / 100.f, H / 100.f));
+	Picture->SetRelativeLocation(FVector(0.f, 0.f, GodPedestalTop + H * 0.5f + 2.f));
+	Picture->SetVisibility(true);
+	if (Statue) Statue->SetVisibility(false);
+	ShowFigure(false);
+	UE_LOG(LogTemp, Display, TEXT("FN7 god: %s -> their own god's picture on the pedestal"), *Player);
+}
+
+void AFNGodPedestal::ShowRuntimeStatue(UStaticMesh* Mesh, const FLinearColor& Stone, const FString& Player)
+{
+	if (!Mesh || Player != StatueFor) return;
+	RuntimeMesh = Mesh;
+	bAccountStatue = true;
+	bHasStatue = true;
+	PlaceStatue(Mesh, 0.f);   // built facing +X (the table) already
+	if (BaseMat && Statue)
+	{
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(BaseMat, Statue);
+		M->SetVectorParameterValue(TEXT("Color"), Stone);
+		Statue->SetMaterial(0, M);
+	}
+	if (Picture) Picture->SetVisibility(false);
+	ShowFigure(false);
+	UE_LOG(LogTemp, Display, TEXT("FN7 god: %s -> their own god's statue on the pedestal"), *Player);
 }
 
 void AFNGodPedestal::SetGod(const FFNTableGod& God)
