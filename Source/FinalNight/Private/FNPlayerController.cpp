@@ -8,6 +8,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Widgets/SWeakWidget.h"
 #include "InputCoreTypes.h"
+#include "../UI/FNTableGods.h"   // the kit owns the demigods' extended click box (FigureNear)
 
 void AFNPlayerController::BeginPlay()
 {
@@ -110,10 +111,36 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 		// An empty-table click still starts the game on the "Click anywhere on the table to begin" screen (it used to
 		// reach the root through MapClick's fall-through); everywhere else an empty click does nothing.
 		if (!bPiece && (Id != NAME_None || Root->WantsEmptyClick())) Root->OnWorldClick(Id);
+		// DOUBLE-CLICK on the empty map = one level in, anchored at the cursor (MapClick eases it; a single click does nothing).
+		FVector2D Mouse;
+		GetMousePosition(Mouse.X, Mouse.Y);
+		const double Now = FPlatformTime::Seconds();
+		const bool bDouble = LastLeftClickAt > 0.0 && Now - LastLeftClickAt < 0.35 && FVector2D::Distance(Mouse, LastLeftClickPos) < 12.0;
+		LastLeftClickAt = bDouble ? -1.0 : Now;   // a third click starts a new pair
+		LastLeftClickPos = Mouse;
+		if (bDouble && Id == NAME_None && !Root->WantsEmptyClick())
+		{
+			const FString Near = DemigodUnderCursor();
+			if (!Near.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked: over %s"), *Near); }
+			else if (Studio->MapClick(true)) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: in at %.0f, %.0f"), Mouse.X, Mouse.Y); }
+		}
 	}
 	if (!Root->IsTyping())
 	{
-		if (WasInputKeyJustPressed(EKeys::RightMouseButton)) Studio->MapClick(false);
+		if (WasInputKeyJustPressed(EKeys::RightMouseButton))
+		{
+			// RIGHT-CLICK = one level out, unless the cursor is in a demigod's extended click box (then nothing happens).
+			const FString Near = DemigodUnderCursor();
+			if (!Near.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked: over %s"), *Near); }
+			else if (Studio->MapClick(false)) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: out")); }
+		}
 		if (WasInputKeyJustPressed(EKeys::Home)) Studio->MapHome();
 	}
+}
+
+FString AFNPlayerController::DemigodUnderCursor() const
+{
+	FVector2D Mouse;
+	if (!GetMousePosition(Mouse.X, Mouse.Y)) return FString();
+	return AFNTableGods::FigureNear(GetWorld(), Mouse, 160.0);   // the same reach the kit's wheel uses
 }
