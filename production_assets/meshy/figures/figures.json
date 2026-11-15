@@ -20,6 +20,16 @@
    "statue_fbx": "benito_left_hand/benito_left_hand_statue.fbx",
    "statue_glb": "benito_left_hand/benito_left_hand_statue.glb"
   },
+  "benito_right_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1b-6e44-70ee-add8-b52b1841dbaa",
+   "name": "Benito's Right Hand",
+   "preview": "benito_right_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "benito_right_hand/heroic.png",
+   "statue_fbx": "benito_right_hand/benito_right_hand_statue.fbx",
+   "statue_glb": "benito_right_hand/benito_right_hand_statue.glb"
+  },
   "chris_god": {
    "kind": "god",
    "meshy_task": "01a1dc96-faf4-7436-8364-1d127dcd83aa",
@@ -40,6 +50,16 @@
    "statue_fbx": "chris_left_hand/chris_left_hand_statue.fbx",
    "statue_glb": "chris_left_hand/chris_left_hand_statue.glb"
   },
+  "chris_right_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1b-6e48-7703-8dc6-90b949e0dda5",
+   "name": "Chris's Right Hand",
+   "preview": "chris_right_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "chris_right_hand/heroic.png",
+   "statue_fbx": "chris_right_hand/chris_right_hand_statue.fbx",
+   "statue_glb": "chris_right_hand/chris_right_hand_statue.glb"
+  },
   "juno_god": {
    "kind": "god",
    "meshy_task": "01a1dca5-f9bc-74b7-a885-5f5008f738d1",
@@ -49,6 +69,16 @@
    "source_image": "juno_god/heroic.png",
    "statue_fbx": "juno_god/juno_god_statue.fbx",
    "statue_glb": "juno_god/juno_god_statue.glb"
+  },
+  "juno_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1f-5ddc-73c3-83b5-46df8fa8f8bf",
+   "name": "Juno's Left Hand",
+   "preview": "juno_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "juno_left_hand/heroic.png",
+   "statue_fbx": "juno_left_hand/juno_left_hand_statue.fbx",
+   "statue_glb": "juno_left_hand/juno_left_hand_statue.glb"
   },
   "kestrel_god": {
    "kind": "god",
@@ -60,6 +90,16 @@
    "statue_fbx": "kestrel_god/kestrel_god_statue.fbx",
    "statue_glb": "kestrel_god/kestrel_god_statue.glb"
   },
+  "kestrel_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1f-5dfe-720b-9d85-2a91223170b0",
+   "name": "Bot Kestrel's Left Hand",
+   "preview": "kestrel_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "kestrel_left_hand/heroic.png",
+   "statue_fbx": "kestrel_left_hand/kestrel_left_hand_statue.fbx",
+   "statue_glb": "kestrel_left_hand/kestrel_left_hand_statue.glb"
+  },
   "lune_god": {
    "kind": "god",
    "meshy_task": "01a1dcbf-24c3-768d-bc69-04b152ad8cfd",
@@ -69,6 +109,16 @@
    "source_image": "lune_god/heroic.png",
    "statue_fbx": "lune_god/lune_god_statue.fbx",
    "statue_glb": "lune_god/lune_god_statue.glb"
+  },
+  "lune_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1d-9d8f-7560-9660-47c2ebac892f",
+   "name": "Lune's Left Hand",
+   "preview": "lune_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "lune_left_hand/heroic.png",
+   "statue_fbx": "lune_left_hand/lune_left_hand_statue.fbx",
+   "statue_glb": "lune_left_hand/lune_left_hand_statue.glb"
   },
   "mara_god": {
    "kind": "god",
@@ -80,6 +130,16 @@
    "statue_fbx": "mara_god/mara_god_statue.fbx",
    "statue_glb": "mara_god/mara_god_statue.glb"
   },
+  "mara_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1b-6e4e-7705-87a0-b2effae65129",
+   "name": "Mara's Left Hand",
+   "preview": "mara_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "mara_left_hand/heroic.png",
+   "statue_fbx": "mara_left_hand/mara_left_hand_statue.fbx",
+   "statue_glb": "mara_left_hand/mara_left_hand_statue.glb"
+  },
   "oko_god": {
    "kind": "god",
    "meshy_task": "01a1dca2-43f0-7478-867a-6cca8ea117d6",
@@ -89,6 +149,16 @@
    "source_image": "oko_god/heroic.png",
    "statue_fbx": "oko_god/oko_god_statue.fbx",
    "statue_glb": "oko_god/oko_god_statue.glb"
+  },
+  "oko_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1d-9d75-7292-8615-27de3d16a247",
+   "name": "Oko's Left Hand",
+   "preview": "oko_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "oko_left_hand/heroic.png",
+   "statue_fbx": "oko_left_hand/oko_left_hand_statue.fbx",
+   "statue_glb": "oko_left_hand/oko_left_hand_statue.glb"
   },
   "quill_god": {
    "kind": "god",
@@ -100,6 +170,16 @@
    "statue_fbx": "quill_god/quill_god_statue.fbx",
    "statue_glb": "quill_god/quill_god_statue.glb"
   },
+  "quill_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1d-9d5a-77d3-8dea-d84ee808835f",
+   "name": "Quill's Left Hand",
+   "preview": "quill_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "quill_left_hand/heroic.png",
+   "statue_fbx": "quill_left_hand/quill_left_hand_statue.fbx",
+   "statue_glb": "quill_left_hand/quill_left_hand_statue.glb"
+  },
   "rook_god": {
    "kind": "god",
    "meshy_task": "01a1dca4-a1b2-731a-a713-1d1dd17da9ac",
@@ -109,6 +189,16 @@
    "source_image": "rook_god/heroic.png",
    "statue_fbx": "rook_god/rook_god_statue.fbx",
    "statue_glb": "rook_god/rook_god_statue.glb"
+  },
+  "rook_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1f-5de1-76c6-97ed-61124c7e9767",
+   "name": "Rook's Left Hand",
+   "preview": "rook_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "rook_left_hand/heroic.png",
+   "statue_fbx": "rook_left_hand/rook_left_hand_statue.fbx",
+   "statue_glb": "rook_left_hand/rook_left_hand_statue.glb"
   },
   "sable_god": {
    "kind": "god",
@@ -120,6 +210,16 @@
    "statue_fbx": "sable_god/sable_god_statue.fbx",
    "statue_glb": "sable_god/sable_god_statue.glb"
   },
+  "sable_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1d-9d5e-76cb-92c6-9f91790c9fd4",
+   "name": "Sable's Left Hand",
+   "preview": "sable_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "sable_left_hand/heroic.png",
+   "statue_fbx": "sable_left_hand/sable_left_hand_statue.fbx",
+   "statue_glb": "sable_left_hand/sable_left_hand_statue.glb"
+  },
   "vex_god": {
    "kind": "god",
    "meshy_task": "01a1dcbe-13a8-75c0-b1cd-2e36e631147c",
@@ -129,6 +229,16 @@
    "source_image": "vex_god/heroic.png",
    "statue_fbx": "vex_god/vex_god_statue.fbx",
    "statue_glb": "vex_god/vex_god_statue.glb"
+  },
+  "vex_left_hand": {
+   "kind": "demigod",
+   "meshy_task": "01a1dd1b-6e41-72f3-94de-837d0e21779e",
+   "name": "Vex's Left Hand",
+   "preview": "vex_left_hand/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "vex_left_hand/heroic.png",
+   "statue_fbx": "vex_left_hand/vex_left_hand_statue.fbx",
+   "statue_glb": "vex_left_hand/vex_left_hand_statue.glb"
   }
  },
  "version": 1

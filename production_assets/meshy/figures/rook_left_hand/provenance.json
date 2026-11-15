@@ -1,0 +1,85 @@
+{
+ "slug": "rook_left_hand",
+ "kind": "demigod",
+ "name": "Rook's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "4a691f30710aa09626edca3a991c555e9ef44fc2bff4f0b3e3404f176f79c945",
+   "file": {
+    "path": "figures/rook_left_hand/portrait.png",
+    "sha256": "1453677ddd46252a499aa35214b69017a554d9ee645f144dc44afe088c672af3",
+    "bytes": 1276045
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/rook_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a hulking, heavy-set demigod with a wild beard and storm-grey eyes, a high-collared long coat of overlapping armoured scales in silver and cobalt, heavy gauntlets and boots, a coiled serpent emblem on the chest, standing immovable like a gatekeeper with feet wide apart, both fists resting together on the bow of a huge iron key planted upright before him like a greatsword, chin lowered, scowling. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1226,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 202
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7466
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/rook_left_hand/heroic.png",
+    "sha256": "5ff4fc26930cead0792b608e71ef790e1538f3f6b8ebb883202f5acb0351b457",
+    "bytes": 2475383
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/rook_left_hand/heroic.png",
+   "task_id": "01a1dd1f-5de1-76c6-97ed-61124c7e9767",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/rook_left_hand/rook_left_hand_statue.glb",
+     "sha256": "cf746125bd2799c29865e4d405e27c3d88ebf50f8785ba34420e096177165994",
+     "bytes": 55549336
+    },
+    {
+     "path": "figures/rook_left_hand/preview.png",
+     "sha256": "e85f0422aea0897a826ae4e501c60121e81909c14ce57d720dd45b9357c95975",
+     "bytes": 162476
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

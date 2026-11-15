@@ -1,0 +1,85 @@
+{
+ "slug": "vex_left_hand",
+ "kind": "demigod",
+ "name": "Vex's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "934a652d1d3b1d785073f44186e5619df6c80e40832588a08bf2affc11355493",
+   "file": {
+    "path": "figures/vex_left_hand/portrait.png",
+    "sha256": "04d55a5ed157e0b652b2207cc0d78936847b846f96be9af2aaf98d929629d58b",
+    "bytes": 1377087
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/vex_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a round, sturdy demigod with a shaved head, glowing runes on the temples and a laurel crown, a wrestling singlet worn under a full breastplate with pauldrons, armoured bracers and greaves in sky blue and emerald, a crossed key and sword emblem on the chest, fully clothed and armoured with no bare torso, planted in a low wide wrestler's stance, one arm holding a blue-burning lantern high overhead, the other fist clenched forward. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1234,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 210
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7474
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/vex_left_hand/heroic.png",
+    "sha256": "b4950a3527a06d83915f4a37f9dc851599e31a33cfa7da08cb99e6618ef778e2",
+    "bytes": 2393019
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/vex_left_hand/heroic.png",
+   "task_id": "01a1dd1b-6e41-72f3-94de-837d0e21779e",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/vex_left_hand/vex_left_hand_statue.glb",
+     "sha256": "5b53d2acac6715582ab0db018ed923dafa4becd84235b5f7d9419a98397a7ca1",
+     "bytes": 30881200
+    },
+    {
+     "path": "figures/vex_left_hand/preview.png",
+     "sha256": "781d76a2a067bed3d9265818323efaa137787d1bbc69dbb4894ebb871bc14578",
+     "bytes": 166802
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}
