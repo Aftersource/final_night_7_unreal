@@ -151,6 +151,8 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(Input, SEditableTextBox)
 					.IsPassword(true)
+					.ClearKeyboardFocusOnCommit(false)   // Pressing enter should not make the player reselect the type of their move
+					.SelectAllTextWhenFocused(false)
 					.Font(Type::Font(16, TEXT("Regular")))
 					.HintText(LOCTEXT("TrayHint", "Type your move, Enter to strike: your words decide the blow"))
 					.Visibility_Lambda([this]() { return IsMine() ? EVisibility::Visible : EVisibility::Collapsed; })
@@ -201,7 +203,8 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 bool SFNDuelTray::IsMine() const
 {
 	const TSharedPtr<FFNDuelSession> S = Session.Get();
-	return S.IsValid() && !S->MySide.IsEmpty() && !S->bOver;
+	if (!S.IsValid() || S->MySide.IsEmpty() || S->bOver) return false;
+	return !(S->DeadlineMs > 0.0 && ServerNowMs.Get() > S->DeadlineMs);   // past the 30 s the server refuses lines ("duel_over")
 }
 
 void SFNDuelTray::FocusInput()
@@ -323,6 +326,7 @@ FText SFNDuelTray::WindowText() const
 	if (!S.IsValid()) return FText::GetEmpty();
 	if (S->bOver) return FText::FromString(S->Result);
 	const double Now = ServerNowMs.Get();
+	if (S->DeadlineMs > 0.0 && Now > S->DeadlineMs) return LOCTEXT("TrayTime", "TIME: the judges are counting");
 	FString Window = S->Panels.Num() == 0 ? FString(TEXT("TYPE")) : FString(TEXT("LOCKED"));
 	for (const TPair<int32, TSharedPtr<FJsonObject>>& P : S->Panels)
 	{
