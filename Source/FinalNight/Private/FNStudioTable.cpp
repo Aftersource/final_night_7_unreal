@@ -777,6 +777,26 @@ void AFNStudio::UpdateTable(float Dt)
 
 // --- earth-simulator hook --------------------------------------------------------------------------------------------
 
+bool AFNStudio::BoardHexTop(int32 Q, int32 R, bool bWithEarth, float& OutTopCm, FVector& OutWorld) const
+{
+	// FN7 (Mac session, earth playback): the exact top of a board tile, as BuildTable stacks it (GroundH by biome, then
+	// the earth hook when bWithEarth), and its centre in the world, so overlays sit ON the tile, never inside it.
+	using namespace FNPlanet;
+	if (TableFace < 0 || TableK <= 0.0) return false;
+	const FVector2D P = HexToPlane(Q, R, TableS);
+	if (FVector2D::Distance(P, FVector2D(TableCx, TableCy)) > PickRadiusM) return false;
+	const FVector3d V = PlaneToVec(TableFace, P.X, P.Y);
+	double La, Lo;
+	VecToLatLon(V, La, Lo);
+	const double E = ElevationM(V, TableS, La, Lo);
+	const float Def = FNTableScene::GroundH(BiomeOf(E, La), E, TableLo, TableRange);
+	OutTopCm = bWithEarth ? BoardHeightAtHex(Q, R, Def) : Def;
+	FVector Local = FNTableScene::ActionC + FVector((float)((P.X - TableCx) * TableK), (float)(-(P.Y - TableCy) * TableK), OutTopCm);
+	if (MapPivot) Local = MapPivot->GetRelativeTransform().TransformPosition(Local);
+	OutWorld = GetActorTransform().TransformPosition(Local);
+	return true;
+}
+
 FString AFNStudio::BoardCellKey(int32 Q, int32 R) const
 {
 	static const TCHAR* LevelNames[FNTableScene::NumLevels] = { TEXT("people"), TEXT("houses"), TEXT("villages"), TEXT("regions") };
