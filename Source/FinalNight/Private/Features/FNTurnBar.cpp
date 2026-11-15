@@ -1,4 +1,5 @@
 #include "Features/FNTurnBar.h"
+#include "../../UI/FNStyle.h"
 #include "FNNetClient.h"
 #include "Dom/JsonObject.h"
 #include "Engine/Engine.h"
@@ -47,14 +48,16 @@ void AFNTurnBar::BeginPlay()
 	Super::BeginPlay();
 	if (!GEngine || !GEngine->GameViewport) return;
 	TWeakObjectPtr<AFNTurnBar> W(this);
-	auto Font = [](int32 Size, const TCHAR* Style) { return FCoreStyle::GetDefaultFontStyle(Style, Size); };
+	// FN7 (Mac session, the backend's go-ahead to fit it to the HUD; Benito's content unchanged): the kit's font and
+	// panel, and 92 px down, clear of the HUD's header strip (it reaches ~78 px at 1080p and x ~940, where this bar's
+	// left end is at 54 px). The HUD's own top-centre banner moves below this bar while it shows.
+	auto Font = [](int32 Size, const TCHAR* Style) { return FN7Style::Type::Font(Size, Style); };
 	Widget = SNew(SBox)
-		.HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 54.f, 0.f, 0.f))
+		.HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 92.f, 0.f, 0.f))
 		.Visibility_Lambda([W]() { return W.IsValid() && W->IsShown() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 		[
 			SNew(SBorder)
-			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-			.BorderBackgroundColor(FLinearColor(0.02f, 0.02f, 0.05f, 0.72f))
+			.BorderImage(FN7Style::Brush::Panel())
 			.Padding(FMargin(18.f, 8.f))
 			[
 				SNew(SBox).MinDesiredWidth(560.f)

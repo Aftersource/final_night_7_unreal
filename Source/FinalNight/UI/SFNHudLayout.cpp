@@ -22,6 +22,9 @@
 #include "SFNScroll.h"
 #include "SFNPanelMover.h"
 #include "FNHudPrefs.h"
+#include "SFNChat.h"
+#include "Features/FNTurnBar.h"
+#include "EngineUtils.h"
 #include "UnrealClient.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -171,6 +174,14 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 			SNew(SFNPanelMover).Id(TEXT("will"))
 			[
 				SNew(SVerticalBox)
+				// The room chat, docked above the WILL: as tall as the room between the WORLD scroll and the WILL allows.
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(0.f, 0.f, 0.f, Space::S)
+				[
+					SAssignNew(Chat, SFNChat).Width(470.f).FreeHeight_Lambda([this]() { return ChatFree; })
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
+				[
+				SAssignNew(WillStack, SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(0.f, 0.f, 0.f, Space::S)
 				[
 					SNew(SBorder)
@@ -185,10 +196,11 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 				[
 					MakeComposePanel()
 				]
+				]
 			]
 		]
 		// A big moment (a summon's deed): top centre, over the board, for a few seconds. Never takes a click.
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 76.f, 0.f, 0.f))
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(TAttribute<FMargin>::CreateLambda([this]() { return FMargin(0.f, TurnBarShown() ? 200.f : 76.f, 0.f, 0.f); }))   // below Benito's turn bar while it shows
 		[
 			SNew(SBox)
 			.MaxDesiredWidth(760.f)
@@ -246,9 +258,40 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 				]
 			]
 		]
+		// The chat's floating looks (bubbles over the table rim, or beside each speaker's figure): paint only.
+		+ SOverlay::Slot()
+		[
+			SAssignNew(ChatFloat, SFNChatFloat, Chat, [this](int32 Seat, FVector2D& Px) { return ChatAnchor ? ChatAnchor(Seat, Px) : false; })
+			.Visibility(EVisibility::HitTestInvisible)
+		]
 	];
 	RefreshSections();
 }
+
+void SFNHudLayout::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	// The chat's room: from the WORLD scroll's bottom edge (unrolled or not, folded or not) down to the top of the powers
+	// panel and the WILL, as they stand this frame (they may have been moved). Never overlapping either.
+	if (NewsHolder.IsValid() && WillStack.IsValid())
+	{
+		const FGeometry& Ng = NewsHolder->GetTickSpaceGeometry();
+		const FGeometry& Wg = WillStack->GetTickSpaceGeometry();
+		const float NewsBottom = (float)AllottedGeometry.AbsoluteToLocal(Ng.LocalToAbsolute(FVector2D(0.f, Ng.GetLocalSize().Y))).Y;
+		const float WillTop = (float)AllottedGeometry.AbsoluteToLocal(Wg.LocalToAbsolute(FVector2D::ZeroVector)).Y;
+		ChatFree = FMath::Max(0.f, WillTop - NewsBottom - FN7Style::Space::L - FN7Style::Space::S);
+	}
+}
+
+bool SFNHudLayout::TurnBarShown() const
+{
+	if (!TurnBar.IsValid() && GEngine && GEngine->GameViewport && GEngine->GameViewport->GetWorld())
+		if (TActorIterator<AFNTurnBar> It(GEngine->GameViewport->GetWorld()); It) const_cast<SFNHudLayout*>(this)->TurnBar = *It;
+	return TurnBar.IsValid() && TurnBar->IsShown();
+}
+
+bool SFNHudLayout::ChatHasFocus() const { return Chat.IsValid() && Chat->HasChatFocus(); }
+void SFNHudLayout::ChatLeaveFocus() { if (Chat.IsValid()) Chat->LeaveFocus(); }
 
 void SFNHudLayout::SetModel(const FFNHudModel& InModel)
 {

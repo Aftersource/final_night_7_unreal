@@ -126,7 +126,7 @@ void AFNYouMarker::Tick(float DeltaSeconds)
 			if (!It->HasAnyFlags(RF_ClassDefaultObject)) { Net = *It; MsgHandle = It->OnServerMessage.AddUObject(this, &AFNYouMarker::OnMessage); break; }
 
 	AFNStudio* St = nullptr;
-	for (TActorIterator<AFNStudio> It(W); It; ++It) { St = *It; break; }
+	if (TActorIterator<AFNStudio> It(W); It) St = *It;   // (Mac clang -Werror: a loop that breaks at once is an error)
 	while (Marks.Num() < Mine.Num()) Marks.Add(MakeMark(Marks.Num()));
 	AFNTableGods* Gods = AFNTableGods::GetAny(W);
 

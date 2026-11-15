@@ -13,6 +13,7 @@ namespace FN7HudPrefsState
 	bool bLoaded = false;
 	TMap<FString, FVector2D> Offsets;
 	TArray<FString> Order;
+	TMap<FString, int32> Ints;
 
 	FString Path() { return FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("FN7Hud.json")); }
 
@@ -36,6 +37,9 @@ namespace FN7HudPrefsState
 		const TArray<TSharedPtr<FJsonValue>>* Powers = nullptr;
 		if (Root->TryGetArrayField(TEXT("powers"), Powers) && Powers)
 			for (const TSharedPtr<FJsonValue>& V : *Powers) Order.Add(V->AsString());
+		const TSharedPtr<FJsonObject>* IntsObj = nullptr;
+		if (Root->TryGetObjectField(TEXT("ints"), IntsObj) && IntsObj)
+			for (const auto& KV : (*IntsObj)->Values) Ints.Add(FString(KV.Key), (int32)KV.Value->AsNumber());
 	}
 
 	void Save()
@@ -48,6 +52,9 @@ namespace FN7HudPrefsState
 		TArray<TSharedPtr<FJsonValue>> Powers;
 		for (const FString& S : Order) Powers.Add(MakeShared<FJsonValueString>(S));
 		Root->SetArrayField(TEXT("powers"), Powers);
+		TSharedRef<FJsonObject> IntsObj = MakeShared<FJsonObject>();
+		for (const auto& KV : Ints) IntsObj->SetNumberField(KV.Key, KV.Value);
+		Root->SetObjectField(TEXT("ints"), IntsObj);
 		FString Out;
 		TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Out);
 		FJsonSerializer::Serialize(Root, W);
@@ -79,5 +86,19 @@ void FN7HudPrefs::SetPowerOrder(const TArray<FString>& Order)
 {
 	FN7HudPrefsState::Load();
 	FN7HudPrefsState::Order = Order;
+	FN7HudPrefsState::Save();
+}
+
+int32 FN7HudPrefs::GetInt(const FString& Key, int32 Default)
+{
+	FN7HudPrefsState::Load();
+	const int32* V = FN7HudPrefsState::Ints.Find(Key);
+	return V ? *V : Default;
+}
+
+void FN7HudPrefs::SetInt(const FString& Key, int32 Value)
+{
+	FN7HudPrefsState::Load();
+	FN7HudPrefsState::Ints.Add(Key, Value);
 	FN7HudPrefsState::Save();
 }

@@ -13,4 +13,7 @@ namespace FN7HudPrefs
 
 	FINALNIGHT_API const TArray<FString>& GetPowerOrder();
 	FINALNIGHT_API void SetPowerOrder(const TArray<FString>& Order);
+	/** A small named setting (e.g. "chat_variant"). */
+	FINALNIGHT_API int32 GetInt(const FString& Key, int32 Default);
+	FINALNIGHT_API void SetInt(const FString& Key, int32 Value);
 }
