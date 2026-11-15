@@ -3,6 +3,8 @@
 #include "FNNetClient.h"
 #include "Dom/JsonObject.h"
 #include "UObject/UObjectIterator.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Camera/PlayerCameraManager.h"
@@ -178,6 +180,12 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 	SinceDraw = 0.f;
 	AFNStudio* St = nullptr;
 	if (TActorIterator<AFNStudio> It(W); It) St = *It;
+	// dev aid (goes with FN7DevAlarm.txt): drop Config/FN7DevLondon.txt in to jump the board to London's streets once
+	if (St && FPaths::FileExists(FPaths::ProjectConfigDir() / TEXT("FN7DevLondon.txt")))
+	{
+		IFileManager::Get().Delete(*(FPaths::ProjectConfigDir() / TEXT("FN7DevLondon.txt")));
+		St->FocusBoard(51.513, -0.09, 0);
+	}
 	for (TPair<UInstancedStaticMeshComponent*, TArray<FTransform>>& It : Frame) It.Value.Reset();
 	TArray<FFNPeopleSpot> Spots;
 	TArray<FVector> HouseW;
@@ -240,6 +248,19 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 
 	// what is happening here now: the newest alarm that reaches this board (lat/lon -> board through the hexes' own map)
 	Alarms.RemoveAll([&](const FAlarm& A) { return A.Until < Time; });
+	// dev aid: with Config/FN7DevAlarm.txt present, a fire, a riot, then an army near the board centre in turn
+	static float DevNext = 8.f; static int32 DevK = 0;
+	if (Time > DevNext && FPaths::FileExists(FPaths::ProjectConfigDir() / TEXT("FN7DevAlarm.txt")))
+	{
+		double La, Lo;
+		if (St->BoardHexLatLon(Q0 + 6, R0 - 3, La, Lo))
+		{
+			FAlarm A; A.Lat = La; A.Lon = Lo; A.RadiusM = 20000.0; A.Kind = (uint8)(1 + DevK++ % 3); A.Until = Time + 15.f;
+			A.What = A.Kind == 1 ? TEXT("the fire") : A.Kind == 2 ? TEXT("the riot") : TEXT("the army");
+			Alarms.Add(A);
+		}
+		DevNext = Time + 22.f;
+	}
 	const FAlarm* Now = nullptr;
 	FVector2D EvRel = FVector2D::ZeroVector;   // the event, in hexagon widths from the board centre
 	{
