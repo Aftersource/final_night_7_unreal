@@ -169,6 +169,29 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		[
 			MakeOutCard()
 		]
+		// Can't reach the game: a centred onyx card over the table with the net client's plain words.
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+		[
+			SNew(SBox).WidthOverride(640.f)
+			.Visibility_Lambda([this]() { return NetProblem.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+			[
+				SNew(SBorder).BorderImage(FN7Wood::StoneBrush()).Padding(FMargin(30.f, 22.f))
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+					[
+						SNew(STextBlock).Font(FN7Style::Type::Font(22, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.84f, 0.5f))
+						.Text(LOCTEXT("NetCardTitle", "CAN'T REACH THE GAME"))
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 10.f, 0.f, 0.f)
+					[
+						SNew(STextBlock).Font(FN7Style::Type::Font(15, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.93f, 0.9f, 0.84f))
+						.WrapTextAt(580.f).Justification(ETextJustify::Center)
+						.Text_Lambda([this]() { return FText::FromString(NetProblem); })
+					]
+				]
+			]
+		]
 		// The duel tray: bottom centre while a duel runs (yours to type in, or one you watch).
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)
 		[
@@ -589,11 +612,16 @@ SFNHudLive::~SFNHudLive()
 void SFNHudLive::HandleStatus(const FString& Status)
 {
 	Model.Status = FText::FromString(Status);
+	// The net client's plain words when it can't reach the game ("Can't reach the game server: ... Retrying...").
+	const bool bProblem = Status.StartsWith(TEXT("Can't")) || Status.Contains(TEXT("Retrying")) || Status.Contains(TEXT("Disconnected"))
+		|| Status.Contains(TEXT("access key")) || Status.Contains(TEXT("internet")) || Status.Contains(TEXT("reconnecting"));
+	NetProblem = bProblem ? Status : FString();
 	Publish();
 }
 
 void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 {
+	NetProblem.Reset();   // the server answered
 	// JOIN = TAKE A SEAT: joined as a viewer (the house is replaying, or between seats), ask for a seat once. The net's
 	// bWatchOnly (WATCH) and bSeatAsked (the shared once-only guard; the root resets it at match.ended) decide.
 	if (T == TEXT("room.snapshot") || T == TEXT("match.snapshot") || T == TEXT("room.updated"))
