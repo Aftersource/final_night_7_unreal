@@ -119,6 +119,8 @@ public:
 	void HideWillBlock();
 	/** Point the table board at a lat/lon at a zoom level (0 people, 1 houses, 2 villages, 3 regions; -1 = one closer). */
 	void FocusBoard(double Lat, double Lon, int32 Level);
+	/** Same level and within about one hexagon of the current centre: a focus there changes nothing (no rebuild). */
+	bool IsSameBoardSpot(double Lat, double Lon, int32 Level) const;
 	/** The plate (fault) lines on the globe and the board: 0 hidden .. 1 glowing. The kit fades them in only while a mega
 	 *  is in hand (FFNPowerDragDrop::OnMegaArmed). */
 	void SetFaultLinesAlpha(float Alpha);
@@ -272,6 +274,21 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> MapPivot;   // parent of the map's tiles and pieces, scaled for the zoom animation
 	float ZoomAnimT = -1.f, ZoomAnimS0 = 1.f;
 	FVector ZoomAnchor = FVector::ZeroVector;
+	// FN7 zoom ghost (Mac session, UI/FNBoardAoe.cpp, under the view-fix go-ahead; Chris noted the zoom ghosts keep jumping
+	// into view"): at a level switch the old level's instanced tiles and scenery stay on screen and move with the same
+	// zoom around the cursor (expanding and flattening going in, contracting going out) while the new level grows in.
+	void BeginZoomGhost();
+	void TickZoomGhost(float NewScale, float Ease);
+	void EndZoomGhost();
+	void TickGhostTransform(float G, const FVector& Loc, float Flat);
+	static void NoteRebuild(const TCHAR* Why);   // "FN7 board rebuilds: N in the last minute"
+	UPROPERTY() TObjectPtr<USceneComponent> GhostPivot;
+	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> ZoomGhosts;
+	TArray<TArray<FVector>> GhostPos;     // per ghost set: each instance's position (pivot space)
+	TArray<TArray<uint8>> GhostHidden;    // per ghost set: dropped once it leaves the table
+	TArray<TArray<float>> GhostRadius;    // per ghost set: each instance's half-width
+	FTransform GhostBase;
+	bool bZoomGhost = false;
 	double PickLat = 46.5, PickLon = 9.0, PickRadiusM = 300000.0;
 	// the scene now on the table (set by BuildTable): cube face, centre on that face's plane (m), cm per m, hex size, relief range
 	int32 TableFace = -1;
