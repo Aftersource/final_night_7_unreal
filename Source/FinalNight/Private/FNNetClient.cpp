@@ -231,29 +231,13 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 			A->SetStringField(TEXT("resume_token"), ResumeToken);
 			Send(TEXT("auth.resume"), A);
 			bFreshLogin = false;
+			bResumePending = true;
 		}
-		else
-		{
-			// Per-machine name: the first line of Config/FN7DisplayName.txt (not committed) overrides DisplayName.
-			FString Name = DisplayName, Local;
-			if (FFileHelper::LoadFileToString(Local, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DisplayName.txt"))))
-			{
-				TArray<FString> L; Local.ParseIntoArrayLines(L);
-				if (L.Num() && !L[0].TrimStartAndEnd().IsEmpty()) Name = L[0].TrimStartAndEnd();
-			}
-			// Signed in (ACCOUNTS.md §13 step 8): log in under the account's own name, then bind at auth.ok.
-			if (FN7Account::IsSignedIn()) Name = FN7Account::Me().DisplayName;
-			A->SetStringField(TEXT("display_name"), Name.Left(24));
-			bFreshLogin = true;
-			TSharedRef<FJsonObject> C = Obj();
-			C->SetStringField(TEXT("kind"), TEXT("unreal"));
-			C->SetStringField(TEXT("version"), TEXT("0.1"));
-			A->SetObjectField(TEXT("client"), C);
-			Send(TEXT("auth.login"), A);
-		}
+		else SendLogin();
 	}
 	else if (T == TEXT("auth.ok"))
 	{
+		bResumePending = false;
 		D->TryGetStringField(TEXT("resume_token"), ResumeToken);
 		if (UWorld* W = GetTimerWorld())
 			W->GetTimerManager().SetTimer(PingTimer, FTimerDelegate::CreateWeakLambda(this, [this]() { Ping(); }), 20.f, true);
@@ -286,8 +270,38 @@ void UFNNetClient::HandleIncomingFrame(const FString& Frame)
 		D->TryGetStringField(TEXT("message"), Message);
 		UE_LOG(LogFNNet, Warning, TEXT("Server error %s: %s"), *Code, *Message);
 		if (Code == TEXT("unauthorized")) ResumeToken.Reset();
+		// A resume the server refused (e.g. "resume token is invalid or expired" after a redeploy): forget the token
+		// and log in fresh on this same socket, instead of sitting at "log in first" until a relaunch.
+		if (bResumePending)
+		{
+			bResumePending = false;
+			ResumeToken.Reset();
+			UE_LOG(LogFNNet, Warning, TEXT("FN7 resume refused (%s: %s): logging in fresh"), *Code, *Message);
+			SendLogin();
+		}
 	}
 	OnServerMessage.Broadcast(T, D);
+}
+
+void UFNNetClient::SendLogin()
+{
+	TSharedRef<FJsonObject> A = Obj();
+	// Per-machine name: the first line of Config/FN7DisplayName.txt (not committed) overrides DisplayName.
+	FString Name = DisplayName, Local;
+	if (FFileHelper::LoadFileToString(Local, *FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DisplayName.txt"))))
+	{
+		TArray<FString> L; Local.ParseIntoArrayLines(L);
+		if (L.Num() && !L[0].TrimStartAndEnd().IsEmpty()) Name = L[0].TrimStartAndEnd();
+	}
+	// Signed in (ACCOUNTS.md §13 step 8): log in under the account's own name, then bind at auth.ok.
+	if (FN7Account::IsSignedIn()) Name = FN7Account::Me().DisplayName;
+	A->SetStringField(TEXT("display_name"), Name.Left(24));
+	bFreshLogin = true;
+	TSharedRef<FJsonObject> C = Obj();
+	C->SetStringField(TEXT("kind"), TEXT("unreal"));
+	C->SetStringField(TEXT("version"), TEXT("0.1"));
+	A->SetObjectField(TEXT("client"), C);
+	Send(TEXT("auth.login"), A);
 }
 
 void UFNNetClient::Query(const FString& Name, TSharedPtr<FJsonObject> Args)

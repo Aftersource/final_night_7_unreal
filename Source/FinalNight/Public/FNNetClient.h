@@ -153,10 +153,12 @@ private:
 	void Connect();
 	void ScheduleReconnect();
 	void Ping();
+	void SendLogin();   // a fresh auth.login (display name, client kind)
 	UWorld* GetTimerWorld() const;
 
 	TSharedPtr<IWebSocket> Socket;
 	FString ResumeToken;
+	bool bResumePending = false;   // an auth.resume is out and has not been answered yet
 	bool bFreshLogin = false;   // the last auth was an auth.login (bind at its auth.ok), not an auth.resume
 	FString ResolveAccessKey() const;
 	bool bBegun = false;
