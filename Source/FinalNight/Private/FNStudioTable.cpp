@@ -677,6 +677,8 @@ void AFNStudio::UpdateTable(float Dt)
 		Projector->RegisterComponent();
 		// floats over the left of the table, facing the chair (it used to lie on the table, under the HUD's bottom-left box)
 		TableInfo = Text(TEXT("TableInfo"), FVector(-105.f, 60.f, 140.f), FRotator(0.f, 62.f, 0.f), 3.8f, FColor(170, 230, 255), FString());
+		// the zoom / cell readout is a developer aid: hidden unless Config/FN7DevInfo.txt exists (the turn bar sits there now)
+		TableInfo->SetVisibility(FPaths::FileExists(FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DevInfo.txt"))));
 		RebuildIn = 0.f;
 	}
 
