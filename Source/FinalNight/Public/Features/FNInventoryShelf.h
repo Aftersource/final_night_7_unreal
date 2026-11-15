@@ -55,6 +55,8 @@ private:
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Keep;
 	TSet<FString> Downloading;
 	FString Open;                            // the player whose items are up as cards
+	class UTextRenderComponent* Title = nullptr;   // over the open cards: whose items these are, and how to close
+	UStaticMeshComponent* TitleBack = nullptr;    // a dark plate behind it, so it reads over the bright globe
 	bool bMouseWasDown = false;
 	TArray<TPair<FString, FVector>> Anchors; // each statue and each item on show, by player, for the click
 	FString LastLog;

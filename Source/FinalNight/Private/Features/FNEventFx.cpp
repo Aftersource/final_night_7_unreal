@@ -141,7 +141,10 @@ void AFNEventFx::Play(double Lon, double Lat, const FString& Kind, float Magnitu
 		F.Num->SetHorizontalAlignment(EHTA_Center);
 		F.Num->SetVerticalAlignment(EVRTA_TextCenter);
 		F.Num->SetTextRenderColor(FColor(255, 70, 60));
-		F.Num->SetText(FText::FromString(TEXT("-") + FText::AsNumber(Dead).ToString()));
+		// say what the number is (audit 7b: a bare "-487" floating over the board meant nothing): "487 dead / riot"
+		FString What = Kind, Rest;
+		Kind.Split(TEXT(" "), &What, &Rest);
+		F.Num->SetText(FText::FromString(FText::AsNumber(Dead).ToString() + TEXT(" dead\n") + What.Replace(TEXT("_"), TEXT(" "))));
 		F.Num->SetCastShadow(false);
 		F.Num->RegisterComponent();
 		F.Num->SetVisibility(false);
