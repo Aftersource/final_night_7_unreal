@@ -158,7 +158,7 @@ void AFNEventFx::Tick(float DeltaSeconds)
 			if (!It->HasAnyFlags(RF_ClassDefaultObject)) { Net = *It; MsgHandle = It->OnServerMessage.AddUObject(this, &AFNEventFx::OnMessage); break; }
 	if (Live.Num() == 0) return;
 	AFNStudio* St = nullptr;
-	for (TActorIterator<AFNStudio> It(W); It; ++It) { St = *It; break; }
+	if (TActorIterator<AFNStudio> It(W); It) St = *It;   // (Mac clang -Werror: a loop that breaks at once is an error)
 	FVector Cam = FVector::ZeroVector;
 	if (APlayerController* PC = W->GetFirstPlayerController()) if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
 
