@@ -691,7 +691,21 @@ bool SFNPowerRingInput::ToPixel(const FGeometry& G, const FVector2D& Screen, FVe
 
 FReply SFNPowerRingInput::OnMouseButtonDown(const FGeometry& G, const FPointerEvent& E)
 {
+	if (E.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		// Right-click zooms out (the player controller), but never inside a demigod's extended click zone (Chris asked it not to zoom out when
+		// the pointer is over the extended click zone of one of the demigods).
+		FVector2D Rp;
+		if (ToPixel(G, E.GetScreenSpacePosition(), Rp))
+		{
+			double D = 0.0;
+			const FString Fig = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Rp, nullptr, 1.35, &D);
+			if (!Fig.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked right-click by figure %s at %.0f px"), *Fig, D); return FReply::Handled(); }
+		}
+		return FReply::Unhandled();
+	}
 	if (E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
+	if (Studio.IsValid()) Studio->CatchHand();   // a press catches a coasting planet or board
 	AFNPowerRing* R = Ring();
 	FVector2D Px;
 	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
@@ -724,14 +738,18 @@ FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
 		// land slides with the hand; let go without moving and nothing happens.
 		double La, Lo, HexM;
 		FVector W;
-		if (Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM))
+		FVector GDir;
+		const bool bBoard = Studio.IsValid() && Studio->HexAtScreen(Px, La, Lo, W, HexM);
+		const bool bGlobe = !bBoard && Studio.IsValid() && Studio->GlobeDirAt(Px, GDir, false);
+		if (bBoard || bGlobe)
 		{
 			bHandArmed = true;
 			bHandPanning = false;
+			bHandGlobe = bGlobe;
 			HandFrom = Px;
 			return FReply::Handled().CaptureMouse(SharedThis(this));
 		}
-		return FReply::Unhandled();   // not the board: the game gets the click
+		return FReply::Unhandled();   // not the board or the globe: the game gets the click
 	}
 	// Captured either way: a drag summons it (or says why not), a double-click zooms to it, a click does nothing.
 	PressedRef = Ref;
@@ -743,7 +761,7 @@ FReply SFNPowerRingInput::OnMouseButtonUp(const FGeometry&, const FPointerEvent&
 {
 	if (bHandArmed && E.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (bHandPanning && Studio.IsValid()) Studio->EndBoardPan();
+		if (bHandPanning && Studio.IsValid()) { if (bHandGlobe) Studio->EndGlobeGrab(); else Studio->EndBoardPan(); }
 		bHandArmed = bHandPanning = false;
 		return FReply::Handled().ReleaseMouseCapture();
 	}
@@ -823,14 +841,23 @@ FReply SFNPowerRingInput::OnDragDetected(const FGeometry&, const FPointerEvent& 
 
 FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E)
 {
+	LastAbs = E.GetScreenSpacePosition();
+	bPointerOver = true;
 	if (bHandArmed)
 	{
 		FVector2D P;
-		if (!E.IsMouseButtonDown(EKeys::LeftMouseButton)) { if (bHandPanning && Studio.IsValid()) Studio->EndBoardPan(); bHandArmed = bHandPanning = false; return FReply::Handled().ReleaseMouseCapture(); }
+		if (!E.IsMouseButtonDown(EKeys::LeftMouseButton))
+		{
+			if (bHandPanning && Studio.IsValid()) { if (bHandGlobe) Studio->EndGlobeGrab(); else Studio->EndBoardPan(); }
+			bHandArmed = bHandPanning = false;
+			return FReply::Handled().ReleaseMouseCapture();
+		}
 		if (ToPixel(G, E.GetScreenSpacePosition(), P) && Studio.IsValid())
 		{
-			if (!bHandPanning && FVector2D::Distance(P, HandFrom) > 5.0) bHandPanning = Studio->BeginBoardPan(HandFrom);
-			if (bHandPanning) Studio->PanBoardTo(P);
+			// 6 px (at 1080p, scaled with the view) before a grab: a click and a double-click stay a click and a double-click.
+			const double Threshold = 6.0 * FMath::Max(1.0, (double)G.GetLocalSize().Y * G.Scale / 1080.0);
+			if (!bHandPanning && FVector2D::Distance(P, HandFrom) > Threshold) bHandPanning = bHandGlobe ? Studio->BeginGlobeGrab(HandFrom) : Studio->BeginBoardPan(HandFrom);
+			if (bHandPanning) { if (bHandGlobe) Studio->GlobeGrabTo(P); else Studio->PanBoardTo(P); }
 		}
 		return FReply::Handled();
 	}
@@ -843,9 +870,11 @@ FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E
 	HoverHex = (bCan && !bHoverPouch) ? R->HexAtPixel(Px) : -1;
 	bHoverMine = false;
 	bHoverFigure = false;
-	if (bCan && !bHoverPouch && HoverHex < 0)
+	FVector2D Fp;
+	if (!bHoverPouch && HoverHex < 0 && !FFNPowerDragDrop::GetActive().IsValid() && ToPixel(G, E.GetScreenSpacePosition(), Fp))
 	{
-		const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px);
+		// Over a demigod's extended click zone (the same zone the gesture rules use): the POINT hand.
+		const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Fp, nullptr, 1.35);
 		bHoverFigure = !Ref.IsEmpty();
 		bHoverMine = bHoverFigure && IsMine && IsMine(Ref);
 	}
@@ -856,13 +885,24 @@ FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E
 
 void SFNPowerRingInput::OnMouseLeave(const FPointerEvent&)
 {
+	bPointerOver = false;
 	HoverHex = -1;
 	bHoverPouch = false;
 	if (AFNPowerRing* R = Ring()) { R->SetHover(-1); R->SetPouchHover(false); }
 }
 
+int32 SFNPowerRingInput::HandState() const
+{
+	// The hand of god's cursor: 0 OPEN, 1 GRAB, 2 POINT, 3 FLING (docs/design/hand_of_god §1).
+	if (bHandPanning) return 1;
+	if (Studio.IsValid() && Studio->SinceFling() < 0.25) return 3;
+	if (HoverHex >= 0 || bHoverPouch || bHoverFigure) return 2;
+	return 0;
+}
+
 FCursorReply SFNPowerRingInput::OnCursorQuery(const FGeometry&, const FPointerEvent&) const
 {
+	if (FN7HandCursor::bDrawn) return FCursorReply::Cursor(EMouseCursor::None);   // the software hand is drawn instead
 	if (bHandPanning) return FCursorReply::Cursor(EMouseCursor::GrabHandClosed);
 	if (HoverHex >= 0 || bHoverMine) return FCursorReply::Cursor(EMouseCursor::GrabHand);
 	if (bHoverFigure) return FCursorReply::Cursor(EMouseCursor::Hand);

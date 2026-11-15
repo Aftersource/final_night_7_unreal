@@ -432,6 +432,7 @@ bool AFNStudio::BeginBoardPan(const FVector2D& ViewportPixel)
 {
 	FVector Hit;
 	if (!MapPivot || TableK <= 0.0 || !TablePointAt(ViewportPixel, Hit)) return false;
+	CatchHand();
 	// Any zoom or slide in flight ends where it is going: the hand holds the board as it now stands.
 	ZoomAnimT = -1.f;
 	if (FN7View::FAnim* A = FN7View::Anims.Find(this)) A->T = -1.f;
@@ -439,15 +440,18 @@ bool AFNStudio::BeginBoardPan(const FVector2D& ViewportPixel)
 	MapPivot->SetRelativeScale3D(FVector::OneVector);
 	MapPivot->SetRelativeLocation(FVector::ZeroVector);
 	PanFromHit = Hit;
+	PanCommitted = FVector::ZeroVector;
+	PanHist.Reset();
+	PanHist.Add({ FPlatformTime::Seconds(), FVector::ZeroVector });
 	bBoardPan = true;
-	UE_LOG(LogTemp, Display, TEXT("FN7 hand: takes hold of the board at %.0f, %.0f"), ViewportPixel.X, ViewportPixel.Y);
+	UE_LOG(LogTemp, Display, TEXT("FN7 hand: grab board at %.4f, %.4f"), PickLat, PickLon);
 	return true;
 }
 
 void AFNStudio::CommitBoardPan(const FVector& Offset)
 {
 	// The land moved Offset (studio cm) with the hand: centre the board where that puts it, rebuilt on the same planet
-	// grid (PlaneToHex), so every tile lands where the slide left it; the globe turns along.
+	// grid (PlaneToHex), so every tile lands where the slide left it; the globe turns to keep it at its front.
 	using namespace FNPlanet;
 	const double Cx = TableCx - Offset.X / TableK, Cy = TableCy + Offset.Y / TableK;
 	double La, Lo;
@@ -458,9 +462,11 @@ void AFNStudio::CommitBoardPan(const FVector& Offset)
 	bUserPicked = true;
 	if (bHasFocus) FocusDir = PickDir;
 	if (MapPivot) MapPivot->SetRelativeLocation(FVector::ZeroVector);
+	PanCommitted += Offset;
 	NoteRebuild(TEXT("hand"));
 	BuildTable();
 	RebuildIn = -1.f;
+	UE_LOG(LogTemp, Display, TEXT("FN7 hand: pan to %.4f, %.4f"), PickLat, PickLon);
 }
 
 void AFNStudio::PanBoardTo(const FVector2D& ViewportPixel)
@@ -470,22 +476,206 @@ void AFNStudio::PanBoardTo(const FVector2D& ViewportPixel)
 	FVector Off = Hit - PanFromHit;
 	Off.Z = 0.f;
 	MapPivot->SetRelativeLocation(Off);   // the land slides with the hand, this frame
-	// Every two hexes: re-centre (rebuild) so the board stays full to its rim; the hand keeps its hold.
-	const float Step = (float)(2.0 * TableS * TableK);
-	if (Off.Size2D() > FMath::Max(Step, 6.f))
+	if (Off.Size2D() > FMath::Max((float)(2.0 * TableS * TableK), 6.f))
 	{
 		CommitBoardPan(Off);
 		PanFromHit = Hit;
 	}
+	const double Now = FPlatformTime::Seconds();
+	PanHist.Add({ Now, PanCommitted + MapPivot->GetRelativeLocation() });
+	while (PanHist.Num() > 2 && Now - PanHist[0].Key > 0.5) PanHist.RemoveAt(0);
 }
 
 void AFNStudio::EndBoardPan()
 {
 	if (!bBoardPan) return;
 	bBoardPan = false;
+	// Fling: the last 100 ms of the hand's speed carries on, decaying (tau 0.5 s).
+	const double Now = FPlatformTime::Seconds();
+	BoardVel = FVector::ZeroVector;
+	// The oldest sample in the last 150 ms; at a low frame rate (a stall), the newest one up to half a second old.
+	int32 Pick = INDEX_NONE;
+	for (int32 i = 0; i < PanHist.Num(); ++i) if (Now - PanHist[i].Key <= 0.15 && Now - PanHist[i].Key > 0.02) { Pick = i; break; }
+	if (Pick == INDEX_NONE) for (int32 i = PanHist.Num() - 1; i >= 0; --i) if (Now - PanHist[i].Key > 0.02 && Now - PanHist[i].Key <= 0.5) { Pick = i; break; }
+	if (Pick != INDEX_NONE)
+		BoardVel = ((PanCommitted + (MapPivot ? MapPivot->GetRelativeLocation() : FVector::ZeroVector)) - PanHist[Pick].Value) / (float)(Now - PanHist[Pick].Key);
+	BoardVel.Z = 0.f;
+	if (BoardVel.Size2D() > 25.f)
+	{
+		bBoardCoast = true;
+		LastFlingAt = Now;
+		UE_LOG(LogTemp, Display, TEXT("FN7 hand: fling board v=%.0f cm/s"), BoardVel.Size2D());
+		StartHandTicker();
+		return;
+	}
 	const FVector Off = MapPivot ? MapPivot->GetRelativeLocation() : FVector::ZeroVector;
 	if (Off.Size2D() > 0.05f) CommitBoardPan(Off);
 	UE_LOG(LogTemp, Display, TEXT("FN7 hand: lets go of the board at %.4f, %.4f"), PickLat, PickLon);
+}
+
+// --- the planet -------------------------------------------------------------------------------------------------
+
+bool AFNStudio::GlobeDirAt(const FVector2D& ViewportPixel, FVector& OutDirWorld, bool bSilhouette) const
+{
+	// The cursor's ray against the globe sphere; off the edge, the nearest point of its silhouette.
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!PC || !GlobeMesh) return false;
+	FVector O, D;
+	if (!PC->DeprojectScreenPositionToWorld(ViewportPixel.X, ViewportPixel.Y, O, D)) return false;
+	const FVector C = GlobeMesh->GetComponentLocation();
+	const double R = GlobeMesh->Bounds.SphereRadius * 1.02;
+	const FVector Oc = O - C;
+	const double B = FVector::DotProduct(Oc, D), Cc = Oc.SizeSquared() - R * R, Disc = B * B - Cc;
+	if (Disc >= 0.0 && -B - FMath::Sqrt(Disc) > 0.0)
+	{
+		OutDirWorld = (O + D * (-B - FMath::Sqrt(Disc)) - C).GetSafeNormal();
+		return true;
+	}
+	if (!bSilhouette) return false;
+	OutDirWorld = (O + D * FMath::Max(0.0, -B) - C).GetSafeNormal();
+	return !OutDirWorld.IsNearlyZero();
+}
+
+bool AFNStudio::BeginGlobeGrab(const FVector2D& ViewportPixel)
+{
+	FVector A;
+	if (!BoardRoot || !GlobeDirAt(ViewportPixel, A, false)) return false;
+	CatchHand();
+	GrabA = A;
+	GrabStartQuat = BoardRoot->GetComponentQuat();
+	GrabHist.Reset();
+	GrabHist.Add({ FPlatformTime::Seconds(), GrabStartQuat });
+	bGlobeGrab = true;
+	ManualUntil = Time + 1.0e6f;   // the studio's own turning leaves it to the hand
+	const FVector L = GrabStartQuat.UnrotateVector(A);
+	UE_LOG(LogTemp, Display, TEXT("FN7 hand: grab globe at %.3f, %.3f"), FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(L.Z, -1.0, 1.0))), FMath::RadiansToDegrees(FMath::Atan2(-L.Y, L.X)));
+	return true;
+}
+
+void AFNStudio::GlobeGrabTo(const FVector2D& ViewportPixel)
+{
+	FVector B;
+	if (!bGlobeGrab || !BoardRoot || !GlobeDirAt(ViewportPixel, B, true)) return;
+	// Always from the press-start quaternion: the grabbed point is exactly under the hand, no drift.
+	const FQuat Q = FQuat::FindBetweenNormals(GrabA, B) * GrabStartQuat;
+	BoardRoot->SetWorldRotation(Q.GetNormalized());
+	const double Now = FPlatformTime::Seconds();
+	GrabHist.Add({ Now, BoardRoot->GetComponentQuat() });
+	while (GrabHist.Num() > 2 && Now - GrabHist[0].Key > 0.5) GrabHist.RemoveAt(0);
+	if (Now - LastGlobeRecentre > 0.35) SettleGlobe(false);   // the board follows the front of the planet, not per frame
+}
+
+void AFNStudio::EndGlobeGrab()
+{
+	if (!bGlobeGrab || !BoardRoot) return;
+	bGlobeGrab = false;
+	{
+		// The rule, checked: how far the grabbed point of the planet ended from under the hand (FindBetweenNormals: ~0).
+		const FVector Local = GrabStartQuat.UnrotateVector(GrabA);
+		const FVector Now3 = BoardRoot->GetComponentQuat().RotateVector(Local);
+		const FVector Last = GrabHist.Num() ? GrabHist.Last().Value.RotateVector(Local) : Now3;
+		UE_LOG(LogTemp, Display, TEXT("FN7 hand: release; the grabbed point is %.2f deg from where the hand left it"), FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(Now3, Last), -1.0, 1.0))));
+	}
+	const double Now = FPlatformTime::Seconds();
+	GlobeOmega = FVector::ZeroVector;
+	const FQuat QNow = BoardRoot->GetComponentQuat();
+	// The oldest sample in the last 150 ms; at a low frame rate (a stall), the newest one up to half a second old.
+	int32 Pick = INDEX_NONE;
+	for (int32 i = 0; i < GrabHist.Num(); ++i) if (Now - GrabHist[i].Key <= 0.15 && Now - GrabHist[i].Key > 0.02) { Pick = i; break; }
+	if (Pick == INDEX_NONE) for (int32 i = GrabHist.Num() - 1; i >= 0; --i) if (Now - GrabHist[i].Key > 0.02 && Now - GrabHist[i].Key <= 0.5) { Pick = i; break; }
+	if (Pick != INDEX_NONE)
+		{
+			const TPair<double, FQuat>& H = GrabHist[Pick];
+			FQuat Dq = QNow * H.Value.Inverse();
+			Dq.Normalize();
+			if (Dq.W < 0.f) Dq = FQuat(-Dq.X, -Dq.Y, -Dq.Z, -Dq.W);
+			FVector Axis; float Angle;
+			Dq.ToAxisAndAngle(Axis, Angle);
+			GlobeOmega = Axis * (Angle / (float)(Now - H.Key));
+		}
+	if (GlobeOmega.Size() > 0.3f)
+	{
+		bGlobeCoast = true;
+		LastFlingAt = Now;
+		UE_LOG(LogTemp, Display, TEXT("FN7 hand: fling w=%.2f rad/s"), GlobeOmega.Size());
+		StartHandTicker();
+		return;
+	}
+	SettleGlobe(true);
+}
+
+void AFNStudio::SettleGlobe(bool bFinal)
+{
+	// The front of the planet (the point facing the camera) becomes the board's centre, at the zoom you're at.
+	LastGlobeRecentre = FPlatformTime::Seconds();
+	if (!BoardRoot || !GlobeMesh) return;
+	FVector Cam = GlobeMesh->GetComponentLocation() + FVector(0.f, 350.f, 65.f);
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+		if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
+	const FVector L = BoardRoot->GetComponentQuat().UnrotateVector((Cam - GlobeMesh->GetComponentLocation()).GetSafeNormal());
+	const double La = FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(L.Z, -1.0, 1.0))), Lo = FMath::RadiansToDegrees(FMath::Atan2(-L.Y, L.X));
+	if (bHasFocus)
+	{
+		CenterBoardAndGlobe(La, Lo);   // a no-op inside the same hex (IsSameBoardSpot): no rebuild storm
+		FocusDir = L;                  // hold it exactly where the hand left it
+	}
+	if (bFinal) ManualUntil = bHasFocus ? Time : Time + 20.f;   // focused: the slerp holds this spot; else idle a while
+}
+
+bool AFNStudio::CatchHand()
+{
+	const bool bWas = bGlobeCoast || bBoardCoast;
+	if (bGlobeCoast) { bGlobeCoast = false; SettleGlobe(true); }
+	if (bBoardCoast)
+	{
+		bBoardCoast = false;
+		const FVector Off = MapPivot ? MapPivot->GetRelativeLocation() : FVector::ZeroVector;
+		if (Off.Size2D() > 0.05f) CommitBoardPan(Off);
+	}
+	if (bWas) UE_LOG(LogTemp, Display, TEXT("FN7 hand: caught"));
+	return bWas;
+}
+
+void AFNStudio::StartHandTicker()
+{
+	if (HandTicker.IsValid()) return;
+	TWeakObjectPtr<AFNStudio> W(this);
+	HandTicker = FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7Hand"), 0.f, [W](float Dt)
+	{
+		AFNStudio* S = W.Get();
+		if (!S) return false;
+		const bool bMore = S->TickHand(FMath::Min(Dt, 0.1f));
+		if (!bMore) S->HandTicker.Reset();
+		return bMore;
+	});
+}
+
+bool AFNStudio::TickHand(float Dt)
+{
+	if (bGlobeCoast && BoardRoot)
+	{
+		const float W = GlobeOmega.Size();
+		BoardRoot->AddWorldRotation(FQuat(GlobeOmega / FMath::Max(W, 1e-6f), W * Dt));
+		GlobeOmega *= FMath::Exp(-Dt / 0.6f);
+		if (FPlatformTime::Seconds() - LastGlobeRecentre > 0.35) SettleGlobe(false);
+		if (GlobeOmega.Size() < 0.05f) { bGlobeCoast = false; SettleGlobe(true); UE_LOG(LogTemp, Display, TEXT("FN7 hand: globe settles")); }
+	}
+	if (bBoardCoast && MapPivot)
+	{
+		FVector Off = MapPivot->GetRelativeLocation() + BoardVel * Dt;
+		Off.Z = 0.f;
+		MapPivot->SetRelativeLocation(Off);
+		if (Off.Size2D() > FMath::Max((float)(2.0 * TableS * TableK), 6.f)) CommitBoardPan(Off);
+		BoardVel *= FMath::Exp(-Dt / 0.5f);
+		if (BoardVel.Size2D() < 3.f)
+		{
+			bBoardCoast = false;
+			const FVector Rest = MapPivot->GetRelativeLocation();
+			if (Rest.Size2D() > 0.05f) CommitBoardPan(Rest);
+			UE_LOG(LogTemp, Display, TEXT("FN7 hand: board settles at %.4f, %.4f"), PickLat, PickLon);
+		}
+	}
+	return bGlobeCoast || bBoardCoast;
 }
 
 void AFNStudio::NoteRebuild(const TCHAR* Why)

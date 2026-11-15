@@ -147,6 +147,9 @@ public:
 	static FOnSummonAt& OnDropped();
 };
 
+/** The software hand cursor is on screen (the HUD draws it): the OS arrow hides over the 3D view. */
+namespace FN7HandCursor { inline bool bDrawn = false; }
+
 /**
  * A transparent, full-viewport input layer under the HUD panels: a press on a ring hex starts the power drag (the hex
  * lifts), a click arms it, a click on the pouch opens or closes it; anything else falls through to the game. Over a
@@ -164,6 +167,11 @@ public:
 	void SetStudio(AFNStudio* InStudio) { Studio = InStudio; }
 	/** Which demigod refs are yours (only those can be picked up and summoned). */
 	void SetIsMine(TFunction<bool(const FString&)> InIsMine) { IsMine = MoveTemp(InIsMine); }
+	/** The hand of god's cursor state: 0 OPEN, 1 GRAB, 2 POINT, 3 FLING. */
+	int32 HandState() const;
+	/** Where the pointer is (absolute) and whether it is over this layer (the 3D view) or holding a grab. */
+	FVector2D PointerAbs() const { return LastAbs; }
+	bool PointerOver() const { return bPointerOver || bHandArmed; }
 	/** Why a demigod can't be summoned ("" = it can): a press on it then shows the reason instead of dragging. */
 	void SetSummonCheck(TFunction<FString(const FString&)> InWhyNot, TFunction<void(const FString&)> InToast) { WhyNot = MoveTemp(InWhyNot); Toast = MoveTemp(InToast); }
 	/** A double-click on any demigod's box or board piece (yours: zoom to it; a rival's: zoom, later challenge). */
@@ -193,7 +201,9 @@ private:
 	bool bHoverPouch = false;
 	FString PressedRef;          // a demigod pressed (dragging it summons it when it's yours)
 	FString PressedWhy;          // why it can't be summoned ("" = it can)
-	bool bHandArmed = false, bHandPanning = false;   // the god's hand: pressed on the board / dragging it
+	bool bHandArmed = false, bHandPanning = false, bHandGlobe = false;   // the god's hand: pressed / dragging; on the globe
+	FVector2D LastAbs = FVector2D::ZeroVector;
+	bool bPointerOver = false;
 	FVector2D HandFrom = FVector2D::ZeroVector;
 	bool bHoverMine = false;
 	bool bHoverFigure = false;

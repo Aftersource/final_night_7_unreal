@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "GameFramework/Actor.h"
 #include "FNTypes.h"
 #include "FNStudio.generated.h"
@@ -126,6 +127,16 @@ public:
 	bool BeginBoardPan(const FVector2D& ViewportPixel);
 	void PanBoardTo(const FVector2D& ViewportPixel);
 	void EndBoardPan();
+	/** FN7 hand of god, the planet (docs/design/hand_of_god): the point under the hand stays under the hand
+	 *  (FindBetweenNormals from the press-start quaternion), a fling coasts (tau 0.6 s), a press catches it. */
+	bool GlobeDirAt(const FVector2D& ViewportPixel, FVector& OutDirWorld, bool bSilhouette) const;
+	bool BeginGlobeGrab(const FVector2D& ViewportPixel);
+	void GlobeGrabTo(const FVector2D& ViewportPixel);
+	void EndGlobeGrab();
+	/** A press while the planet or the land coasts: stops it where it is. True if something was coasting. */
+	bool CatchHand();
+	/** Seconds since the last fling (the FLING cursor shows for 0.25 s). */
+	double SinceFling() const { return FPlatformTime::Seconds() - LastFlingAt; }
 	/** The plate (fault) lines on the globe and the board: 0 hidden .. 1 glowing. The kit fades them in only while a mega
 	 *  is in hand (FFNPowerDragDrop::OnMegaArmed). */
 	void SetFaultLinesAlpha(float Alpha);
@@ -295,6 +306,19 @@ private:
 	FTransform GhostBase;
 	bool bZoomGhost = false;
 	bool bBoardPan = false;
+	bool bGlobeGrab = false, bGlobeCoast = false, bBoardCoast = false;
+	FVector GrabA = FVector::ZeroVector;
+	FQuat GrabStartQuat = FQuat::Identity;
+	TArray<TPair<double, FQuat>> GrabHist;
+	TArray<TPair<double, FVector>> PanHist;
+	FVector GlobeOmega = FVector::ZeroVector;   // world axis x rad/s
+	FVector BoardVel = FVector::ZeroVector;     // studio cm/s
+	FVector PanCommitted = FVector::ZeroVector;
+	double LastFlingAt = -10.0, LastGlobeRecentre = 0.0;
+	FTSTicker::FDelegateHandle HandTicker;
+	void StartHandTicker();
+	bool TickHand(float Dt);
+	void SettleGlobe(bool bFinal);
 	FVector PanFromHit = FVector::ZeroVector;   // studio-local table point the hand took hold of
 	bool TablePointAt(const FVector2D& ViewportPixel, FVector& OutLocal) const;
 	void CommitBoardPan(const FVector& Offset);
