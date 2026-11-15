@@ -81,3 +81,20 @@ filigree cuff and a faint gold edge glow, the same stone as the gods' statues. O
    right-click zoom out (one of them near a demigod).
 2. Frames or screenshots of the globe mid-grab (the grabbed spot under the hand) and of the board mid-pan.
 3. Then push mac/hand-of-god. The backend merges, and Benito's PC builds both targets and proves it from his log.
+
+## 6. LOCKED: the panning Chris approved (2026-11-15 04:58 UTC)
+
+Chris confirmed that this works and asked for the main session to keep it as it is. This is the build at Unreal
+main 1c71497 (mac/pan-smooth 3905e99). Every future change, Benito's side and the Mac's, is held to these rules:
+
+1. The land slides under the hand for the whole drag (MapPivot translation only). The board re-centres (BuildTable)
+   only on release, or once the land has slid half the board (11 hexes). Never rebuild every few hexes mid-drag.
+2. While panning, the relief keeps its scale (bReliefHold) and the board stays on its cube face (no face swap at a
+   seam). A zoom or a centring releases both.
+3. Nothing else touches the board under a moving hand: earth playback holds its answers until release
+   (AFNStudio::IsBoardPanning), no rebuild storms, no coast or fling on the board.
+4. The system mouse pointer; no drawn cursor.
+
+Any change that adds a rebuild, a re-normalisation or a face switch during a drag breaks it again. Changes that touch
+input, pan, zoom or the board rebuild path get a 60-second live drag-and-zoom test in Chris's editor at her real fps
+before push, with the log lines in the report.
