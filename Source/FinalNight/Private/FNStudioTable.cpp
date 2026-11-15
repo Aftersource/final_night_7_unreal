@@ -147,6 +147,7 @@ void AFNStudio::BuildTable()
 	for (UInstancedStaticMeshComponent* C : StoneSets) C->ClearInstances();
 	for (UInstancedStaticMeshComponent* C : { TrunkSet.Get(), PineSet.Get(), LeafSet.Get(), RockSet.Get(), PeakSet.Get(), SnowSet.Get() }) C->ClearInstances();
 	for (UInstancedStaticMeshComponent* C : { PeopleSet.Get(), TownSet.Get(), HeadSet.Get(), RoofSet.Get(), TowerSet.Get() }) C->ClearInstances();
+	PeopleSpots.Reset(); HouseSpots.Reset();
 
 	// the hex lattice on the cube face under the picked spot
 	const FVector3d C0 = LatLonToVec(PickLat, PickLon);
@@ -312,7 +313,7 @@ void AFNStudio::BuildTable()
 				const int32 Dq = T.Q - Qc, Dr = T.Rr - Rc;
 				if ((FMath::Abs(Dq) + FMath::Abs(Dr) + FMath::Abs(Dq + Dr)) / 2 <= 1)
 				{
-					if (Dq == 0 && Dr == 0) { House(Mid, HexW * 2.6f, Yaw); ++NM; }   // drawn once, from its middle hexagon
+					if (Dq == 0 && Dr == 0) { House(Mid, HexW * 2.6f, Yaw); ++NM; HouseSpots.Add(Mid); }   // drawn once, from its middle hexagon
 					After.bOn = false;   // no trees inside the walls either
 					continue;   // nobody stands inside the walls
 				}
@@ -321,14 +322,18 @@ void AFNStudio::BuildTable()
 			if (FNTableScene::HexDice(T.Q, T.Rr, 9) < Busy)
 			{
 				const float Ht = HexW * 0.9f, Wd = HexW * 0.3f;   // a game token that fills its hexagon
-				PeopleSet->AddInstance(FTransform(FRotator::ZeroRotator, Mid + FVector(0, 0, Ht * 0.41f), FVector(Wd / 100.f, Wd / 100.f, Ht * 0.82f / 100.f)));
-				HeadSet->AddInstance(FTransform(FRotator::ZeroRotator, Mid + FVector(0, 0, Ht * 0.82f + Wd * 0.55f), FVector(Wd * 1.1f / 100.f)));
+				if (bShowStaticPeople)
+				{
+					PeopleSet->AddInstance(FTransform(FRotator::ZeroRotator, Mid + FVector(0, 0, Ht * 0.41f), FVector(Wd / 100.f, Wd / 100.f, Ht * 0.82f / 100.f)));
+					HeadSet->AddInstance(FTransform(FRotator::ZeroRotator, Mid + FVector(0, 0, Ht * 0.82f + Wd * 0.55f), FVector(Wd * 1.1f / 100.f)));
+				}
+				PeopleSpots.Add({ Mid, FIntPoint(T.Q, T.Rr), (uint8)(FNTableScene::IsCity(T.V) ? 2 : FNTableScene::IsVillage(T.V) ? 1 : 0) });   // the living people (Features/FNPeopleLife) start here
 				++NM;
 			}
 		}
 		else if (MapLevel == 1)   // HOUSES: one house per hexagon, or none
 		{
-			if (FNTableScene::HouseAt(Face, T.Q, T.Rr)) { House(Mid, HexW * 0.62f, Yaw); ++NM; }
+			if (FNTableScene::HouseAt(Face, T.Q, T.Rr)) { House(Mid, HexW * 0.62f, Yaw); ++NM; HouseSpots.Add(Mid); }
 		}
 		else if (MapLevel == 2)   // VILLAGES: one village per hexagon; a city is a few neighbouring hexagons of towers
 		{
@@ -797,6 +802,17 @@ bool AFNStudio::BoardHexTop(int32 Q, int32 R, bool bWithEarth, float& OutTopCm, 
 	FVector Local = FNTableScene::ActionC + FVector((float)((P.X - TableCx) * TableK), (float)(-(P.Y - TableCy) * TableK), OutTopCm);
 	if (MapPivot) Local = MapPivot->GetRelativeTransform().TransformPosition(Local);
 	OutWorld = GetActorTransform().TransformPosition(Local);
+	return true;
+}
+
+bool AFNStudio::GetPeopleSpots(TArray<FFNPeopleSpot>& OutPeople, TArray<FVector>& OutHouses) const
+{
+	if (!PeopleSet) return false;
+	const FTransform X = PeopleSet->GetComponentTransform();   // spots are kept in the sets' space: the board may slide/scale after a build
+	OutPeople = PeopleSpots;
+	for (FFNPeopleSpot& P : OutPeople) P.Pos = X.TransformPosition(P.Pos);
+	OutHouses.Reset();
+	for (const FVector& H : HouseSpots) OutHouses.Add(X.TransformPosition(H));
 	return true;
 }
 
