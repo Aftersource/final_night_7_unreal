@@ -13,7 +13,7 @@ public:
 		: _Size(32.f)
 		, _Color(FLinearColor::Black)
 	{}
-		SLATE_ARGUMENT(FString, Slug)
+		SLATE_ATTRIBUTE(FString, Slug)
 		SLATE_ARGUMENT(float, Size)
 		SLATE_ATTRIBUTE(FLinearColor, Color)
 	SLATE_END_ARGS()
@@ -29,7 +29,7 @@ protected:
 	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(Size, Size); }
 
 private:
-	FString Slug;
+	TAttribute<FString> Slug;   // live: a hot button changes icon with the game
 	float Size = 32.f;
 	TAttribute<FLinearColor> Color;
 };

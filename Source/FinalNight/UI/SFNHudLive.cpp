@@ -1737,6 +1737,19 @@ void SFNHudLive::Publish()
 		if (Fallen && Alive > 0) Add(FString::Printf(TEXT("Death, bring back my %s, I offer 2 bolts"), *HandOf(Fallen)));
 		else if (Alive > 0) Add(TEXT("Nature, heal my Right Hand"));
 		Add(FString::Printf(TEXT("r: march to %s and topple their shrine"), *Region));
+		// The four hot buttons (ankh, a notched bow, a delicious meal, and a scene of armies): today's lines.
+		Model.WillHotSlugs.Reset(); Model.WillHotFills.Reset(); Model.WillHotTips.Reset();
+		auto Hot = [this](const TCHAR* Slug, const FString& Fill, const TCHAR* Tip) { Model.WillHotSlugs.Add(Slug); Model.WillHotFills.Add(Fill); Model.WillHotTips.Add(FString::Printf(TEXT("%s: \"%s\""), Tip, *Fill)); };
+		const FFNHudDemigod* Hurt = nullptr;
+		for (const FFNHudDemigod& D : Model.Mine) if (D.bAlive && (!Hurt || D.Health * Hurt->MaxHealth < Hurt->Health * D.MaxHealth)) Hurt = &D;
+		if (Model.Mine.Num() > 0 && Alive == 0) Hot(TEXT("ankh"), TEXT("Death, bring back my demigods"), TEXT("Bring them back"));
+		else if (Fallen) Hot(TEXT("ankh"), FString::Printf(TEXT("Death, bring back my %s, I offer 2 bolts"), *HandOf(Fallen)), TEXT("Bring back your fallen hand"));
+		if (Alive > 0)
+		{
+			Hot(TEXT("bow"), FString::Printf(TEXT("arm yourself with an obsidian blade in %s and hunt %s"), *City, *Rival), TEXT("Arm and hunt"));
+			Hot(TEXT("meal"), FString::Printf(TEXT("Nature, heal my %s"), *HandOf(Hurt)), TEXT("Heal"));
+			Hot(TEXT("armies"), FString::Printf(TEXT("raise an army of 10,000 fishermen at the harbour of %s"), *City), TEXT("Raise an army"));
+		}
 		Model.WillChipHint = Model.Mine.Num() > 0 && Alive == 0
 			? FText::FromString(TEXT("Death charges sparks; can't pay = a quest"))
 			: FText::FromString(TEXT("Name who, where and with what \u00B7 say how big \u00B7 pay a god in bolts \u00B7 r: = Right Hand"));

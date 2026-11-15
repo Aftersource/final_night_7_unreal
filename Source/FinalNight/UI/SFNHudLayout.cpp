@@ -273,6 +273,12 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 
 void SFNHudLayout::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	if (HotSendAt > 0.0)
+	{
+		const FString Now = Compose.IsValid() ? Compose->GetText().ToString() : FString();
+		if (Now != HotText) { HotSendAt = 0.0; UE_LOG(LogTemp, Display, TEXT("FN7 will: hot line edited: no auto-send, it's your will now")); }
+		else if (FPlatformTime::Seconds() >= HotSendAt) { HotSendAt = 0.0; UE_LOG(LogTemp, Display, TEXT("FN7 will: hot button %s sent"), *HotSlug); HandleSend(); }
+	}
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 	// The chat's room: from the WORLD scroll's bottom edge (unrolled or not, folded or not) down to the top of the powers
 	// panel and the WILL, as they stand this frame (they may have been moved). Never overlapping either.
@@ -953,42 +959,59 @@ TSharedRef<SWidget> SFNHudLayout::MakePowers()
 
 TSharedRef<SWidget> SFNHudLayout::MakeWillChips()
 {
+	// The WILL's four hot buttons (Chris, 2026-11-15): icons like the power hexes', no text on them; a press puts its line
+	// in the box (replacing what's there), then the WILL waits 5 s and goes by itself, as Enter would. Those 5 s are the
+	// other speed-typers' window; any edit to the line stops the auto-send (it's your will then).
 	using namespace FN7Style;
 	const FLinearColor InkDim = FN7Wood::Ink() * FLinearColor(1.f, 1.f, 1.f, 0.72f);
-	auto Empty = [this]() { return !Compose.IsValid() || Compose->GetText().IsEmptyOrWhitespace(); };
-	TSharedRef<SWrapBox> Wrap = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(4.f, 4.f));
-	for (int32 i = 0; i < 5; ++i)
+	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
+	for (int32 i = 0; i < 4; ++i)
 	{
-		Wrap->AddSlot()
+		Row->AddSlot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
 		[
 			SNew(SButton)
-			.ButtonStyle(&PillButton())
-			.ContentPadding(FMargin(8.f, 2.f))
-			.Visibility_Lambda([this, i]() { return Model.WillChipLabels.IsValidIndex(i) ? EVisibility::Visible : EVisibility::Collapsed; })
-			.OnPressed_Lambda([i]() { UE_LOG(LogTemp, Display, TEXT("FN7 will: example %d pressed"), i + 1); })
+			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+			.ContentPadding(FMargin(0.f))
+			.Visibility_Lambda([this, i]() { return Model.WillHotSlugs.IsValidIndex(i) ? EVisibility::Visible : EVisibility::Collapsed; })
+			.ToolTipText_Lambda([this, i]() { return Model.WillHotTips.IsValidIndex(i) ? FText::FromString(Model.WillHotTips[i]) : FText::GetEmpty(); })
 			.OnClicked_Lambda([this, i]()
 			{
-				if (!Compose.IsValid() || !Model.WillChipFills.IsValidIndex(i)) return FReply::Handled();
-				Compose->SetText(FText::FromString(Model.WillChipFills[i]));
-				if (TSharedPtr<SWidget> Edit = Compose->GetEditable()) FSlateApplication::Get().SetKeyboardFocus(Edit, EFocusCause::SetDirectly);
-				UE_LOG(LogTemp, Display, TEXT("FN7 will: example %d filled"), i + 1);
+				if (!Compose.IsValid() || !Model.WillHotFills.IsValidIndex(i)) return FReply::Handled();
+				HotText = Model.WillHotFills[i];
+				HotSlug = Model.WillHotSlugs[i];
+				Compose->SetText(FText::FromString(HotText));
+				HotSendAt = FPlatformTime::Seconds() + 5.0;
+				UE_LOG(LogTemp, Display, TEXT("FN7 will: hot button %s: \"%s\", sends in 5 s"), *HotSlug, *HotText);
 				return FReply::Handled();
 			})
 			[
-				SNew(SBox).MaxDesiredWidth(390.f)   // a long line wraps inside its chip, never past the WILL's edge
+				SNew(SBox).WidthOverride(52.f).HeightOverride(52.f)
 				[
-					SNew(STextBlock).Font(Type::Font(10, TEXT("Bold"))).ColorAndOpacity(Color::Text()).AutoWrapText(true)
-					.Text_Lambda([this, i]() { return Model.WillChipLabels.IsValidIndex(i) ? Model.WillChipLabels[i] : FText::GetEmpty(); })
+					SNew(SBorder)
+					.BorderImage(Brush::PillAccent())
+					.BorderBackgroundColor_Lambda([this, i]() { return (HotSendAt > 0.0 && Model.WillHotSlugs.IsValidIndex(i) && HotSlug == Model.WillHotSlugs[i]) ? FLinearColor(1.f, 0.85f, 0.45f) : FLinearColor(0.93f, 0.82f, 0.6f); })
+					.HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(4.f)
+					[
+						SNew(SFNPowerIcon).Slug_Lambda([this, i]() { return Model.WillHotSlugs.IsValidIndex(i) ? Model.WillHotSlugs[i] : FString(); }).Size(36.f).Color(FN7Wood::Ink())
+					]
 				]
 			]
 		];
 	}
 	return SNew(SVerticalBox)
-		.Visibility_Lambda([this, Empty]() { return (bWillOpen && Empty() && Model.WillChipLabels.Num() > 0) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
-		+ SVerticalBox::Slot().AutoHeight()[Wrap]
+		.Visibility_Lambda([this]() { return (bWillOpen && Model.WillHotSlugs.Num() > 0) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
+		+ SVerticalBox::Slot().AutoHeight()[Row]
+		// the countdown while a hot line waits
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 0.f)
+		[
+			SNew(STextBlock).Font(Type::Font(13, TEXT("Bold"))).ColorAndOpacity(FN7Wood::RedInk())
+			.Visibility_Lambda([this]() { return HotSendAt > 0.0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("goes in %d  \u00B7  type to make it yours"), FMath::Max(1, FMath::CeilToInt(HotSendAt - FPlatformTime::Seconds())))); })
+		]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 0.f)
 		[
 			SNew(STextBlock).Font(Type::Font(10, TEXT("Italic"))).ColorAndOpacity(InkDim).AutoWrapText(true)
+			.Visibility_Lambda([this]() { return HotSendAt > 0.0 ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
 			.Text_Lambda([this]() { return Model.WillChipHint; })
 		];
 }
@@ -1237,6 +1260,9 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.Powers.Add(Power(TEXT("swarm"), TEXT("Swarm"), 2, false));
 	M.WillChipLabels = { FText::FromString(TEXT("arm yourself with an obsidian blade in Vienna and hunt Vex's Right Hand")), FText::FromString(TEXT("raise an army of 10,000 fishermen at the harbour of Vienna")), FText::FromString(TEXT("Nature, heal my Right Hand")), FText::FromString(TEXT("r: march to Western Europe and topple their shrine")) };
 	for (const FText& T : M.WillChipLabels) M.WillChipFills.Add(T.ToString());
+	M.WillHotSlugs = { TEXT("ankh"), TEXT("bow"), TEXT("meal"), TEXT("armies") };
+	M.WillHotFills = { TEXT("Death, bring back my Left Hand, I offer 2 bolts"), TEXT("arm yourself with an obsidian blade in Vienna and hunt Vex's Right Hand"), TEXT("Nature, heal my Right Hand"), TEXT("raise an army of 10,000 fishermen at the harbour of Vienna") };
+	for (const FString& F : M.WillHotFills) M.WillHotTips.Add(F);
 	M.WillChipHint = FText::FromString(TEXT("Name who, where and with what \u00B7 say how big \u00B7 pay a god in bolts \u00B7 r: = Right Hand"));
 	return M;
 }
