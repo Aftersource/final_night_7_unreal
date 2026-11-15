@@ -138,11 +138,16 @@ void UFNNetClient::Connect()
 	Socket = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT(""));
 	TWeakObjectPtr<UFNNetClient> Weak(this);
 	Socket->OnConnected().AddLambda([Weak]() { if (Weak.IsValid()) { Weak->bConnected = true; Weak->OnStatus.Broadcast(TEXT("Connected")); } });
-	Socket->OnConnectionError().AddLambda([Weak](const FString& Err)
+	const bool bNoKey = Key.IsEmpty();
+	Socket->OnConnectionError().AddLambda([Weak, bNoKey](const FString& Err)
 	{
 		if (!Weak.IsValid()) return;
 		Weak->bConnected = false;
-		Weak->OnStatus.Broadcast(FString::Printf(TEXT("No connection (%s), retrying"), *Err));
+		// A build without an access key can never get in (the server refuses the handshake): say so in plain words
+		// instead of a raw socket error, so a player knows it's the build, not their network.
+		Weak->OnStatus.Broadcast(bNoKey
+			? FString(TEXT("Can't reach the game server: this copy of the game has no access key. Retrying..."))
+			: FString::Printf(TEXT("Can't reach the game server (%s). Check your internet. Retrying..."), *Err));
 		Weak->ScheduleReconnect();
 	});
 	Socket->OnClosed().AddLambda([Weak](int32, const FString&, bool)

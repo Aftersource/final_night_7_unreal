@@ -119,7 +119,8 @@ void AFNStudio::ShowSeats(const TArray<FFNSeatInfo>& Seats)
 	{
 		if (SlotOf[i] >= 0) continue;
 		for (int32 k = 1; k < FNSeats::NumSeats; ++k) if (!Taken[k]) { Taken[k] = true; SlotOf[i] = k; break; }
-		if (SlotOf[i] < 0) UE_LOG(LogTemp, Warning, TEXT("FNSeats: more than %d seats, %s has no chair"), FNSeats::NumSeats, *Seats[i].Name);
+		static bool bNoChairWarned = false;   // the kit HUD seats every demigod itself: say it once, not 11x per beat
+		if (SlotOf[i] < 0 && !bNoChairWarned) { bNoChairWarned = true; UE_LOG(LogTemp, Log, TEXT("FNSeats: more than %d seats, %s has no chair (logged once)"), FNSeats::NumSeats, *Seats[i].Name); }
 	}
 
 	FString Summary;

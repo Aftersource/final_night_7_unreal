@@ -107,7 +107,9 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 		// marker (ClickDemigod -> CenterMapOn). View changes: the wheel, right-click (out), RESET VIEW / R / Home.
 		const FString IdS = Id.ToString();
 		const bool bPiece = IdS.StartsWith(TEXT("Hero")) || IdS.StartsWith(TEXT("Seat"));
-		if (Id != NAME_None && !bPiece) Root->OnWorldClick(Id);
+		// An empty-table click still starts the game on the "Click anywhere on the table to begin" screen (it used to
+		// reach the root through MapClick's fall-through); everywhere else an empty click does nothing.
+		if (!bPiece && (Id != NAME_None || Root->WantsEmptyClick())) Root->OnWorldClick(Id);
 	}
 	if (!Root->IsTyping())
 	{
