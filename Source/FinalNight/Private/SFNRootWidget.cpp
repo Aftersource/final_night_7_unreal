@@ -1931,7 +1931,7 @@ void SFNRootWidget::ShowDieRoll(const TSharedPtr<FJsonObject>& D)
 	const FString Shown = Verdict.Replace(TEXT("_"), TEXT(" ")).ToUpper();
 	if (St)
 	{
-		if (Sides == 20) St->RollDice(Roll, Mod, Shown);
+		if (Sides == 20) St->RollDice(Roll, Mod, Who.IsEmpty() ? Shown : Shown + TEXT("\n") + Who + (Why.IsEmpty() ? FString() : TEXT(" \u00B7 ") + Why));   // audit 7b: whose roll, and what for
 		else St->RollDuelDice(Roll, Sides, Dc, bOk, Who);
 	}
 	AddBanner(FString::Printf(TEXT("%s rolls a %s: %d%s = %d vs %d  -  %s%s"), *Who, *Die, Roll, Mod ? *FString::Printf(TEXT(" %+d"), Mod) : TEXT(""), Tot, Dc, *Shown, Why.IsEmpty() ? TEXT("") : *(TEXT("  (") + Why + TEXT(")"))), bOk ? UiGold : UiRed);
