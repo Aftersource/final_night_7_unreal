@@ -87,8 +87,10 @@ filigree cuff and a faint gold edge glow, the same stone as the gods' statues. O
 Chris confirmed that this works and asked for the main session to keep it as it is. This is the build at Unreal
 main 1c71497 (mac/pan-smooth 3905e99). Every future change, Benito's side and the Mac's, is held to these rules:
 
-1. The land slides under the hand for the whole drag (MapPivot translation only). The board re-centres (BuildTable)
-   only on release, or once the land has slid half the board (11 hexes). Never rebuild every few hexes mid-drag.
+1. The land slides under the hand for the whole drag (MapPivot translation). The board re-centres seamlessly every
+   1.5 hexes (~1 ms each, measured) so the far edge is always full, and once on release. (The 11-hex rule left half
+   the board empty and made the edge "teleport": Chris asked for the edge to teleport further.)
+   A re-centre must never move the land under the hand.
 2. While panning, the relief keeps its scale (bReliefHold) and the board stays on its cube face (no face swap at a
    seam). A zoom or a centring releases both.
 3. Nothing else touches the board under a moving hand: earth playback holds its answers until release
