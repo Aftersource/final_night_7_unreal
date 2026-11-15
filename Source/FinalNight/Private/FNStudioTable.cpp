@@ -195,7 +195,7 @@ void AFNStudio::BuildTable()
 	};
 	for (const FT& T : Cells)
 	{
-		const float H = FNTableScene::GroundH(T.B, T.Elev, Lo, Range);
+		const float H = BoardHeightAtHex(T.Q, T.Rr, FNTableScene::GroundH(T.B, T.Elev, Lo, Range));   // the earth hook (no override today)
 		const int32 Fog = T.D > 0.72f ? FMath::Clamp(1 + (int32)((T.D - 0.72f) / 0.28f * (FNTableScene::FogLevels - 1)), 1, FNTableScene::FogLevels - 1) : 0;
 		const int32 Shade = ((T.Q - T.Rr) % 3 + 3) % 3 == 0 ? 1 : 0;
 		UInstancedStaticMeshComponent* Set = HexSets[(T.B * 2 + Shade) * FNTableScene::FogLevels + Fog];
@@ -273,7 +273,8 @@ void AFNStudio::BuildTable()
 		};
 		const int32 NM0 = NM;
 		// scenery goes on at the end of this hexagon's turn, only if nothing else was placed on it
-		struct FAfter { TFunction<void()> F; bool bOn = true; ~FAfter() { if (bOn) F(); } } After{ [&]() { if (NM == NM0) Nature(); } };
+		const bool bNatureOk = HexStateAtHex(T.Q, T.Rr) == EFNHexState::Normal;   // burning / flooded / lava / ash / new land: no trees (for now)
+		struct FAfter { TFunction<void()> F; bool bOn = true; ~FAfter() { if (bOn) F(); } } After{ [&]() { if (NM == NM0 && bNatureOk) Nature(); } };
 		// what stands on this hexagon: at most ONE thing (board-game rule). Same hexagon -> same answer, every visit.
 		if (NM >= FNTableScene::MaxMarks || Fog >= 2 || !FNTableScene::Livable(T.B)) continue;
 		const FVector Mid = FNTableScene::ActionC + FVector(T.X, T.Y, H);
@@ -379,7 +380,9 @@ void AFNStudio::BuildTable()
 		if (!ToTable(FNEarthCities[i], FNEarthCities[i + 1], P) || P.SquaredLength() > FNTableScene::ActionR * FNTableScene::ActionR) continue;
 		const float Sz = 0.03f + 0.03f * FMath::Min(1.f, FNEarthCities[i + 2] / 20000.f);   // bigger dot for bigger city
 		const double La = FNEarthCities[i] / 100.0, Lo2 = FNEarthCities[i + 1] / 100.0, E = ElevationM(LatLonToVec(La, Lo2), S, La, Lo2);
-		CitySet->AddInstance(FTransform(FRotator::ZeroRotator, FNTableScene::ActionC + FVector(P.X, P.Y, FNTableScene::GroundH(BiomeOf(E, La), E, Lo, Range) + Sz * 50.f), FVector(Sz, Sz, Sz)));
+		int32 CQ, CR; PlaneToHex(Cx + P.X / K, Cy - P.Y / K, S, CQ, CR);
+		const float CityH = BoardHeightAtHex(CQ, CR, FNTableScene::GroundH(BiomeOf(E, La), E, Lo, Range));
+		CitySet->AddInstance(FTransform(FRotator::ZeroRotator, FNTableScene::ActionC + FVector(P.X, P.Y, CityH + Sz * 50.f), FVector(Sz, Sz, Sz)));
 	}
 
 	// remember the scene: same cell + same hex size = the same scene
@@ -426,7 +429,8 @@ void AFNStudio::PlaceTableHeroes()
 		const float X = (float)((U * RadiusM - TableCx) * TableK), Y = (float)(-(W * RadiusM - TableCy) * TableK);
 		if (X * X + Y * Y > FNTableScene::ActionR * FNTableScene::ActionR) continue;
 		const double E = ElevationM(V, TableS, P.Lat, P.Lon);
-		const float Ground = FNTableScene::GroundH(BiomeOf(E, P.Lat), E, TableLo, TableRange);
+		int32 PQ, PR; PlaneToHex(U * RadiusM, W * RadiusM, TableS, PQ, PR);
+		const float Ground = BoardHeightAtHex(PQ, PR, FNTableScene::GroundH(BiomeOf(E, P.Lat), E, TableLo, TableRange));
 		// true scale: a 1.7 m person; never smaller than a piece you can see (and click) from the chair
 		const float Ht = FMath::Max((float)(1.7 * TableK), 14.f), Wd = FMath::Max(Ht * 0.25f, 4.f);
 		if (!HeroMarks.IsValidIndex(N))
@@ -549,7 +553,7 @@ bool AFNStudio::MapPointUnderCursor(double& Px, double& Py) const
 		const FVector3d V = PlaneToVec(TableFace, C.X, C.Y);
 		double La, Lo; VecToLatLon(V, La, Lo);
 		const double E = ElevationM(V, TableS, La, Lo);
-		Top = FNTableScene::GroundH(BiomeOf(E, La), E, TableLo, TableRange);
+		Top = BoardHeightAtHex(Q, Rr, FNTableScene::GroundH(BiomeOf(E, La), E, TableLo, TableRange));
 	}
 	return Hit.X * Hit.X + Hit.Y * Hit.Y <= FNTableScene::ActionR * FNTableScene::ActionR;
 }
@@ -740,4 +744,39 @@ void AFNStudio::UpdateTable(float Dt)
 		FogPuffs[i]->SetRelativeLocation(FNTableScene::ActionC + FVector(FMath::Cos(A) * Rr, FMath::Sin(A) * Rr, 2.5f + 1.5f * FMath::Sin(Time * 0.5f + i)));
 		FogPuffs[i]->SetRelativeRotation(FRotator(0.f, FMath::RadiansToDegrees(A), 0.f));
 	}
+}
+
+// --- earth-simulator hook --------------------------------------------------------------------------------------------
+
+FString AFNStudio::BoardCellKey(int32 Q, int32 R) const
+{
+	static const TCHAR* LevelNames[FNTableScene::NumLevels] = { TEXT("people"), TEXT("houses"), TEXT("villages"), TEXT("regions") };
+	return FString::Printf(TEXT("%d:%s:%d:%d"), TableFace, LevelNames[FMath::Clamp(MapLevel, 0, FNTableScene::NumLevels - 1)], Q, R);
+}
+
+float AFNStudio::BoardHeightAt(const FString& CellKey, float DefaultRelief) const
+{
+	const FHexOverride* O = HexOverrides.Find(CellKey);
+	return O && O->bHeight ? O->HeightCm : DefaultRelief;
+}
+
+EFNHexState AFNStudio::HexStateAt(const FString& CellKey) const
+{
+	const FHexOverride* O = HexOverrides.Find(CellKey);
+	return O ? O->State : EFNHexState::Normal;
+}
+
+void AFNStudio::SetHexOverride(const FString& CellKey, float HeightCm, EFNHexState State)
+{
+	FHexOverride& O = HexOverrides.FindOrAdd(CellKey);
+	O.bHeight = !FMath::IsNaN(HeightCm);
+	O.HeightCm = O.bHeight ? HeightCm : 0.f;
+	O.State = State;
+}
+
+void AFNStudio::ClearHexOverrides()
+{
+	if (HexOverrides.Num() == 0) return;
+	HexOverrides.Reset();
+	RebuildBoard();
 }
