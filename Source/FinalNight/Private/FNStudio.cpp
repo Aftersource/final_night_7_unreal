@@ -227,6 +227,11 @@ void AFNStudio::BeginPlay()
 	EaselBody = Text(TEXT("EaselBody"), FVector(0, -243, 330), FaceSeat, 7.5f, FNTable::Pale, FString());
 	ShowEaselText(FString(), TEXT("Connect to Network and click the Globe to Begin"));
 	EaselBody->SetTextRenderColor(FNTable::Cyan);
+	// audit (Benito asked for all of this to be fixed): the easel sits behind the globe and only a faint sliver of its text showed at the
+	// top of the screen, behind the title bar, with the old typed controls ("b: throws a lightning bolt"). The kit HUD says
+	// all of it now, so the easel's words are hidden.
+	EaselHeader->SetVisibility(false);
+	EaselBody->SetVisibility(false);
 
 	// The player easel: click it to begin
 	PlayerEaselPivot = NewObject<USceneComponent>(this, TEXT("PlayerEaselPivot"));

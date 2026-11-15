@@ -413,7 +413,8 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 			.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
 			.ContentPadding(FMargin(0.f))
 			.ToolTip(FN7StoneTip(Tip))
-			.OnClicked_Lambda([OnClick]() { OnClick(); return FReply::Handled(); })
+			.OnPressed_Lambda([Label]() { UE_LOG(LogTemp, Display, TEXT("FN7 header press: %s"), *Label.ToString()); })
+			.OnClicked_Lambda([OnClick, Label]() { UE_LOG(LogTemp, Display, TEXT("FN7 header click: %s"), *Label.ToString()); OnClick(); return FReply::Handled(); })
 			[
 				SNew(SBorder).BorderImage(FN7Wood::StoneBrush()).Padding(FMargin(11.f, 3.f))
 				[
@@ -452,10 +453,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 		Add(InkStat(LOCTEXT("Beat", "BEAT"), FText::Format(LOCTEXT("BeatFmt", "{0}/{1}"), Model.Beat, Model.BeatsTotal)));
 		Add(InkStat(LOCTEXT("Alive", "ALIVE"), Model.AliveOf > 0 ? FText::Format(LOCTEXT("AliveOf", "{0}/{1}"), Model.Alive, Model.AliveOf) : FText::AsNumber(Model.Alive)));
 	}
-	// Benito's audit 13: what Entropy means, on hover.
-	if (!Model.Entropy.IsEmpty())
-		Add(SNew(SBox).ToolTipText(FText::Format(LOCTEXT("EntropyTip", "Entropy {0} of 100: at 100 the world ends (heat death: the Final Night comes at once). Every MEGA power raises it by 10, every MINI by 1."), Model.Entropy))
-			[ InkStat(LOCTEXT("Entropy", "ENTROPY"), Model.Entropy) ]);
+	if (!Model.Entropy.IsEmpty()) Add(InkStat(LOCTEXT("Entropy", "ENTROPY"), Model.Entropy));
 	if (Model.bReplay) Add(InkStat(FText::GetEmpty(), LOCTEXT("Replay", "REPLAY")));
 
 	return Row;
@@ -732,14 +730,18 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 	TSharedRef<SHorizontalBox> Purse = SNew(SHorizontalBox);
 	Purse->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
 	[
-		SNew(SBox).ToolTipText(LOCTEXT("BoltTip", "Lightning bolts pay for MEGA powers: drop a power on the GLOBE, 1 bolt each (every other player gets a bolt from it)."))
-		[ Chip(Brush::PillAccent(), Model.Bolts == 1 ? LOCTEXT("OneBolt", "1 BOLT") : FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), HudInk) ]
+		SNew(SBox).ToolTip(FN7StoneTip(LOCTEXT("BoltTip", "Bolts pay for BIG powers: open the jar on the right and drag one onto the globe.")))
+		[
+			Chip(Brush::PillAccent(), Model.Bolts == 1 ? LOCTEXT("OneBolt", "1 BOLT") : FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), HudInk)
+		]
 	];
 	if (Model.Sparks >= 0)
 		Purse->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
 		[
-			SNew(SBox).ToolTipText(LOCTEXT("SparkTip", "Sparks pay for MINI powers: drop a power on the BOARD, 1 spark each. Gods may also charge sparks."))
-			[ Chip(Brush::Pill(EFNSeatRole::AI), Model.Sparks == 1 ? LOCTEXT("OneSpark", "1 SPARK") : FText::Format(LOCTEXT("Sparks", "{0} SPARKS"), Model.Sparks), Color::AIAura()) ]
+			SNew(SBox).ToolTip(FN7StoneTip(LOCTEXT("SparkTip", "Sparks pay for small powers on the board, and Death takes them to raise a fallen hand.")))
+			[
+				Chip(Brush::Pill(EFNSeatRole::AI), Model.Sparks == 1 ? LOCTEXT("OneSpark", "1 SPARK") : FText::Format(LOCTEXT("Sparks", "{0} SPARKS"), Model.Sparks), Color::AIAura())
+			]
 		];
 	if (Model.Debt >= 0.0)
 	{
@@ -747,8 +749,10 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 		One.SetMinimumFractionalDigits(1).SetMaximumFractionalDigits(1);
 		Purse->AddSlot().AutoWidth().VAlign(VAlign_Center)
 		[
-			SNew(SBox).ToolTipText(LOCTEXT("DebtTip", "What you owe Time for the slowed time you've used: Time sends the bill."))
-			[ Chip(Brush::Pill(EFNSeatRole::Fallen), FText::Format(LOCTEXT("Debt", "DEBT {0}"), FText::AsNumber(Model.Debt, &One)), Color::Text()) ]
+			SNew(SBox).ToolTip(FN7StoneTip(LOCTEXT("DebtTip", "What you owe Time for slowing it while you write. Time collects it later.")))
+			[
+				Chip(Brush::Pill(EFNSeatRole::Fallen), FText::Format(LOCTEXT("Debt", "DEBT {0}"), FText::AsNumber(Model.Debt, &One)), Color::Text())
+			]
 		];
 	}
 
@@ -771,11 +775,14 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 			]
 			+ SVerticalBox::Slot().AutoHeight()[Pair]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)[Purse]
-			// Benito's audit 5: what the purse buys, in one line.
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 0.f)
+			// what the chips are, said once in plain words (audit: nothing explained them; hover a chip for more)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f, 0.f, 0.f)
 			[
-				SNew(STextBlock).Font(Type::Font(9)).ColorAndOpacity(Color::TextDim()).AutoWrapText(true)
-				.Text(LOCTEXT("PurseLegend", "BOLT = a MEGA (drop on the globe)  \u00B7  SPARK = a MINI (drop on the board)"))
+				SNew(SBox).WidthOverride(2.f * CardW + Space::M + 6.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true)
+					.Text(LOCTEXT("PurseHow", "Bolts and sparks pay for powers (the jar on the right). Debt is what slowing time costs."))
+				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
 			[
@@ -958,6 +965,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeWillChips()
 			.ButtonStyle(&PillButton())
 			.ContentPadding(FMargin(8.f, 2.f))
 			.Visibility_Lambda([this, i]() { return Model.WillChipLabels.IsValidIndex(i) ? EVisibility::Visible : EVisibility::Collapsed; })
+			.OnPressed_Lambda([i]() { UE_LOG(LogTemp, Display, TEXT("FN7 will: example %d pressed"), i + 1); })
 			.OnClicked_Lambda([this, i]()
 			{
 				if (!Compose.IsValid() || !Model.WillChipFills.IsValidIndex(i)) return FReply::Handled();

@@ -370,7 +370,7 @@ void AFNArmies::Tick(float DeltaSeconds)
 		// farther out the whole group is one piece on 1, 2 or 3 hexagons by its size
 		// fully zoomed in: one person per hexagon; one level out (houses): the group spreads over up to ~100 hexagons with a
 		// few soldiers on each; farther out: one piece on 1, 2 or 3 hexagons by its size
-		const int32 N = Level == 0 ? FMath::Clamp(G.Size, 1, Spiral.Num()) : Level == 1 ? FMath::Clamp(G.Size / 10, 7, 127) : (G.Size >= 10000 ? 3 : G.Size >= 1000 ? 2 : 1);
+		const int32 N = Level == 0 ? FMath::Clamp(G.Size, 1, FMath::Min(19, Spiral.Num())) : Level == 1 ? FMath::Clamp(G.Size / 10, 7, 127) : (G.Size >= 10000 ? 3 : G.Size >= 1000 ? 2 : 1);
 		TArray<FVector, TInlineAllocator<128>> Hexes;
 		for (int32 i = 0, Placed = 0; i < Spiral.Num() && Placed < N; ++i)
 		{
