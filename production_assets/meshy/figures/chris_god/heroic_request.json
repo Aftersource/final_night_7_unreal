@@ -1,0 +1,21 @@
+{
+ "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, seated on a rough stone block in the pose of The Thinker: leaning forward, one elbow on the knee, chin resting on the back of the hand, the other forearm across the thigh, deep in thought. The god has the likeness of the character in the reference image (a wiry, long-limbed figure with long braids and a serene face, in ornate plate armour and a hooded cloak), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+ "model": "gpt-image-1-mini",
+ "endpoint": "POST /v1/images/edits",
+ "size": "1024x1536",
+ "quality": "high",
+ "reference": "chris_god/likeness.png",
+ "usage": {
+  "input_tokens": 1248,
+  "input_tokens_details": {
+   "image_tokens": 1024,
+   "text_tokens": 224
+  },
+  "output_tokens": 6240,
+  "output_tokens_details": {
+   "image_tokens": 6240,
+   "text_tokens": 0
+  },
+  "total_tokens": 7488
+ }
+}

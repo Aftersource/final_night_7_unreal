@@ -1,5 +1,15 @@
 {
  "figures": {
+  "benito_god": {
+   "kind": "god",
+   "meshy_task": "01a1dc98-a288-7401-a60a-54a444e27dc9",
+   "name": "Benito",
+   "preview": "benito_god/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "benito_god/heroic.png",
+   "statue_fbx": "benito_god/benito_god_statue.fbx",
+   "statue_glb": "benito_god/benito_god_statue.glb"
+  },
   "benito_left_hand": {
    "kind": "demigod",
    "meshy_task": "01a1dc5b-3b55-7484-9921-7a1ba88eb055",
@@ -9,6 +19,16 @@
    "source_image": "benito_left_hand/heroic.png",
    "statue_fbx": "benito_left_hand/benito_left_hand_statue.fbx",
    "statue_glb": "benito_left_hand/benito_left_hand_statue.glb"
+  },
+  "chris_god": {
+   "kind": "god",
+   "meshy_task": "01a1dc96-faf4-7436-8364-1d127dcd83aa",
+   "name": "Chris",
+   "preview": "chris_god/preview.png",
+   "result": "SUCCEEDED 30",
+   "source_image": "chris_god/heroic.png",
+   "statue_fbx": "chris_god/chris_god_statue.fbx",
+   "statue_glb": "chris_god/chris_god_statue.glb"
   },
   "chris_left_hand": {
    "kind": "demigod",

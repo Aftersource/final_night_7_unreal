@@ -1,0 +1,77 @@
+{
+ "slug": "chris_god",
+ "kind": "god",
+ "name": "Chris",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "likeness (the player's Left Hand portrait)",
+   "file": {
+    "path": "figures/chris_god/likeness.png",
+    "sha256": "9c8fd0a9fbb0c8d63033c701accb0af7e825f2046497cdd3c48eb72b802d4af9",
+    "bytes": 1435011
+   }
+  },
+  {
+   "step": 2,
+   "asset": "marble statue reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/chris_god/likeness.png"
+   ],
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, seated on a rough stone block in the pose of The Thinker: leaning forward, one elbow on the knee, chin resting on the back of the hand, the other forearm across the thigh, deep in thought. The god has the likeness of the character in the reference image (a wiry, long-limbed figure with long braids and a serene face, in ornate plate armour and a hooded cloak), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "usage": {
+    "input_tokens": 1248,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 224
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7488
+   },
+   "made_at": "2026-11-14",
+   "file": {
+    "path": "figures/chris_god/heroic.png",
+    "sha256": "01a9e121824f4a00af55bb99af4153457754e865d28f6ce6e5cbd5d9296ac74a",
+    "bytes": 2760404
+   }
+  },
+  {
+   "step": 3,
+   "asset": "god statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "task_id": "01a1dc96-faf4-7436-8364-1d127dcd83aa",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/chris_god/chris_god_statue.glb",
+     "sha256": "acb7a6612b8cb41d768b2669df5fb6497beba3eb2fbb647b59c628b51b2f2643",
+     "bytes": 27531944
+    },
+    {
+     "path": "figures/chris_god/preview.png",
+     "sha256": "2f5a466a9120aba7fd550037ec8fc4bcfabf62256460df2fb209f075a5147a97",
+     "bytes": 139127
+    }
+   ]
+  }
+ ]
+}

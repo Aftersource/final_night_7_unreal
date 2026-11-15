@@ -1,0 +1,77 @@
+{
+ "slug": "benito_god",
+ "kind": "god",
+ "name": "Benito",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "likeness (the player's Left Hand portrait)",
+   "file": {
+    "path": "figures/benito_god/likeness.png",
+    "sha256": "ef191df6f3faf24e6f7ec9a9f25f8486a285ea3b203a35b3a13a43be313bbfd2",
+    "bytes": 1518339
+   }
+  },
+  {
+   "step": 2,
+   "asset": "marble statue reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/benito_god/likeness.png"
+   ],
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, standing in the relaxed contrapposto pose of Michelangelos David: weight on one leg, the other knee slightly bent, one arm hanging at the side, the other hand raised to the shoulder, head turned to the side with a stern gaze. The god has the likeness of the character in the reference image (a round, sturdy figure with a hawk nose and heavy brows, in a tailcoat with a torn sleeve and shin guards, a coiled serpent emblem on the chest), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "usage": {
+    "input_tokens": 1261,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 237
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7501
+   },
+   "made_at": "2026-11-14",
+   "file": {
+    "path": "figures/benito_god/heroic.png",
+    "sha256": "45c4202cead3041a9efc7c1be827d659440352857180db38dc7331c6c0fd78a5",
+    "bytes": 2517638
+   }
+  },
+  {
+   "step": 3,
+   "asset": "god statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "task_id": "01a1dc98-a288-7401-a60a-54a444e27dc9",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/benito_god/benito_god_statue.glb",
+     "sha256": "65ee91a7c8f40542bc4b954e80ea8d6b6242bac4ba4602e4e9018485c2325c88",
+     "bytes": 15119568
+    },
+    {
+     "path": "figures/benito_god/preview.png",
+     "sha256": "07cb7a256a2f075002dffe35946c3a9e149e89401f752e8bd7cc984f810458a6",
+     "bytes": 93781
+    }
+   ]
+  }
+ ]
+}
