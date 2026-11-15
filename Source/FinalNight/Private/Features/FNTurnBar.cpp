@@ -28,6 +28,22 @@ namespace FNTurnBarImpl
 		return true;
 	}
 	FString Hand(const FString& Side) { return Side.Equals(TEXT("right"), ESearchCase::IgnoreCase) ? TEXT("Right Hand") : TEXT("Left Hand"); }
+	// the server's game words, said so a first-time player gets them (audit: "mega", "junction tier", "0 km away", "DC")
+	FString Plain(FString S)
+	{
+		static const TCHAR* Swap[][2] = {
+			{ TEXT("Cast a mega on"), TEXT("Hit") }, { TEXT("cast a mega on"), TEXT("hit") },
+			{ TEXT("A mega there"), TEXT("A big power there") }, { TEXT("a mega"), TEXT("a big power") },
+			{ TEXT(" (junction tier)"), TEXT(" (where the Earth's plates meet)") },
+			{ TEXT("triple junction"), TEXT("plate crossing") },
+			{ TEXT("is 0 km away"), TEXT("is right on top of you") }, { TEXT(" 0 km away"), TEXT(" right where you are") },
+			{ TEXT("\n0 km away: "), TEXT("\nRight where you are: ") },
+			{ TEXT("against a low DC"), TEXT("and only needs a low roll") }, { TEXT(" DC "), TEXT(" target ") },
+		};
+		for (const auto& P : Swap) S = S.Replace(P[0], P[1]);
+		if (S.StartsWith(TEXT("0 km away: "))) S = TEXT("Right where you are: ") + S.Mid(11);
+		return S;
+	}
 	static constexpr double NearKm = 300.0;   // "a rival is close" (a duel is a real threat)
 }
 
@@ -89,7 +105,7 @@ void AFNTurnBar::BeginPlay()
 				]
 			]
 		];
-	GEngine->GameViewport->AddViewportWidgetContent(Widget.ToSharedRef(), 60);
+	GEngine->GameViewport->AddViewportWidgetContent(Widget.ToSharedRef(), 40);   // under the HUD (50): its full-screen panels (TREE, victory) cover this bar
 }
 
 void AFNTurnBar::EndPlay(const EEndPlayReason::Type Reason)
@@ -148,11 +164,16 @@ void AFNTurnBar::ReadMine(const TSharedPtr<FJsonObject>& View)
 		ServerHint = Why.IsEmpty() ? Tx : Tx + (bStop ? TEXT("\n") : TEXT(".\n")) + Why;
 		// the powers live in the jar on the right; nothing said so (audit: "drag a power" from where?)
 		ServerHint = ServerHint.Replace(TEXT("drag a power"), TEXT("click the jar on the right, drag a power"));
+		ServerHint = FNTurnBarImpl::Plain(ServerHint);
+		// the same move several beats running read as a frozen hint: say it's still the move
+		if (Tx != HintKey) { HintKey = Tx; HintSince = Beat; }
+		else if (Beat - HintSince >= 3) ServerHint = TEXT("Still your best move: ") + ServerHint;
 	}
 	const TSharedPtr<FJsonObject>* GoalO = nullptr;
 	FString GoalStr;
 	if (View->TryGetStringField(TEXT("goal"), GoalStr)) ServerGoal = GoalStr;
 	else if (View->TryGetObjectField(TEXT("goal"), GoalO) && GoalO) ServerGoal = (*GoalO)->GetStringField(TEXT("text"));
+	ServerGoal = FNTurnBarImpl::Plain(ServerGoal);
 	const TArray<TSharedPtr<FJsonValue>>* Hands = nullptr;
 	if (!View->TryGetArrayField(TEXT("demigods"), Hands) || !Hands) return;
 	for (TPair<FString, FDg>& It : Dgs) It.Value.bMine = false;

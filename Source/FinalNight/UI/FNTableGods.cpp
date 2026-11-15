@@ -156,7 +156,7 @@ void AFNGodPedestal::BuildBody()
 	Parts.Add(Glow);
 	Plate = NewObject<UTextRenderComponent>(this);
 	Plate->SetupAttachment(RootComponent);
-	Plate->SetRelativeLocation(FVector(34.f, 0.f, 72.f));   // the column's top, under the cap, toward the table (58 hid behind the table edge)
+	Plate->SetRelativeLocation(FVector(75.f, 0.f, 92.f));   // above the demigod figures that stand in front (audit: "Mara" was hidden behind one; 58 hid behind the table edge)
 	Plate->SetHorizontalAlignment(EHTA_Center);
 	Plate->SetVerticalAlignment(EVRTA_TextCenter);
 	Plate->SetWorldSize(13.f);

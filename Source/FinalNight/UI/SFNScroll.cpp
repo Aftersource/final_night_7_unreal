@@ -64,12 +64,12 @@ void SFNScroll::Construct(const FArguments& InArgs)
 				// Shadow under the top rod.
 				+ SOverlay::Slot().VAlign(VAlign_Top)
 				[
-					SNew(SBox).HeightOverride(16.f)[SNew(SImage).Image(FN7Wood::ShadeBrush(false))]
+					SNew(SBox).HeightOverride(16.f).Visibility(EVisibility::HitTestInvisible)[SNew(SImage).Image(FN7Wood::ShadeBrush(false))]   // never eats a click (audit: it covered the header's TREE button)
 				]
 				// The curl: the rolled cloth throws a shadow up onto the open part, strongest while it moves.
 				+ SOverlay::Slot().VAlign(VAlign_Bottom)
 				[
-					SNew(SBox).HeightOverride(26.f)
+					SNew(SBox).HeightOverride(26.f).Visibility(EVisibility::HitTestInvisible)   // shadows never eat clicks (audit: the WILL examples, TREE)
 					[
 						SNew(SImage)
 						.Image(FN7Wood::ShadeBrush(true))

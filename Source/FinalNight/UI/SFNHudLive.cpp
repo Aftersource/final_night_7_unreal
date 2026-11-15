@@ -630,6 +630,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			if (Self.IsValid() && Self->Layout.IsValid() && Self->Layout->ChatHasFocus()) { Self->Layout->ChatLeaveFocus(); return true; }
 			if (!Self.IsValid() || !Self->bInRoom) return false;
 			if (Self->bConfirmOpen) { Self->bConfirmOpen = false; return true; }   // Esc cancels a challenge confirm
+			if (Self->bTreeOpen) { Self->bTreeOpen = false; UE_LOG(LogTemp, Display, TEXT("FN7 tree: closed (Esc)")); return true; }
 			// Writing: Esc rolls the WILL back up (the text stays). Otherwise it opens or closes the lobby.
 			if (!Self->bLobbyOpen && Self->Layout.IsValid() && Self->Layout->IsWillOpen()) { Self->Layout->RollUpWill(); return true; }
 			Self->SetLobbyOpen(!Self->bLobbyOpen);
@@ -766,7 +767,7 @@ TSharedRef<SWidget> SFNHudLive::MakeOutCard()
 	const FLinearColor OutInk(0.1f, 0.06f, 0.02f);
 	return SNew(SBox)
 		.WidthOverride(520.f)
-		.Visibility_Lambda([this]() { return ((bOut || bWiped) && !bOutDismissed && !bLobbyOpen && bInRoom) ? EVisibility::Visible : EVisibility::Collapsed; })
+		.Visibility_Lambda([this]() { return ((bOut || bWiped) && !bOutDismissed && !bLobbyOpen && bInRoom && !bVictory) ? EVisibility::Visible : EVisibility::Collapsed; })   // not under the champion card (audit: they overlapped)
 		[
 			SNew(SBorder)
 			.BorderImage(Brush::Card())
@@ -1053,7 +1054,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		ReadEntropy(FN7HudJson::Obj(Pub, TEXT("entropy")));
 		if (const TArray<TSharedPtr<FJsonValue>>* P = FN7HudJson::Arr(Pub, TEXT("powers"))) ReadPowers(*P);
 		if (const TSharedPtr<FJsonObject> Arena = FN7HudJson::Obj(Pub, TEXT("arena")))
-			Model.ArenaLine = FText::Format(LOCTEXT("Arena", "Time's circle: {0} km around {1}. Stay inside."),
+			Model.ArenaLine = FText::Format(LOCTEXT("Arena", "Safe zone (Time's circle): {0} km around {1}. Outside it your hands get hurt."),
 				FText::AsNumber((int32)FN7HudJson::Num(Arena, TEXT("radius_km"))), FText::FromString(FN7HudJson::Str(Arena, TEXT("city"))));
 		ReadSeatView(FN7HudJson::Obj(D, TEXT("private")));
 		if (Seats.Num() == 0) FetchGlobe();   // the PublicView only comes at the first commit: ask the globe query now
@@ -2371,6 +2372,9 @@ void SFNHudLive::UpdateBoardInfo()
 {
 	// The board's debug lines (ZOOM n of 4, map size, lat/lon, terrain, people) are the studio's 3D text over the table:
 	// Chris wants them as debug text in a typewriter font under the title bar. Hide the 3D text, show its lines here.
+	// Developer aid only (audit: it drew over the turn bar): shown with Config/FN7DevInfo.txt, like the 3D text.
+	static const bool bDevInfo = FPaths::FileExists(FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("FN7DevInfo.txt")));
+	if (!bDevInfo) { BoardInfo.Reset(); return; }
 	UTextRenderComponent* T = BoardInfoComp.Get();
 	if (!T)
 		if (AFNStudio* St = FindStudio())
@@ -3414,8 +3418,47 @@ void SFNHudLive::OnPowerDragEnded(const FString& Power)
 	}
 }
 
+FString SFNHudLive::WhoNear(double Lat, double Lon, bool& bMine) const
+{
+	bMine = false;
+	double Best = 300.0;   // km
+	const FSeatInfo* Hit = nullptr;
+	for (const FSeatInfo& S : Seats)
+	{
+		if (!S.bAlive || !S.bHasPos) continue;
+		const double A = FMath::DegreesToRadians(Lat), B = FMath::DegreesToRadians(S.Lat);
+		const double C = FMath::Sin(A) * FMath::Sin(B) + FMath::Cos(A) * FMath::Cos(B) * FMath::Cos(FMath::DegreesToRadians(S.Lon - Lon));
+		const double Km = 6371.0 * FMath::Acos(FMath::Clamp(C, -1.0, 1.0));
+		if (Km < Best) { Best = Km; Hit = &S; }
+	}
+	if (!Hit) return FString();
+	bMine = MineRefs.Contains(Hit->Ref);
+	return bMine ? TEXT("YOUR OWN ") + Hit->Name : Hit->Name;
+}
+
 void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPosition)
 {
+	// your own demigod under the drop and no warning yet: warn, keep the power, cast on a second drop there
+	{
+		double La = 0.0, Lo = 0.0, HexM = 0.0;
+		FVector World;
+		FVector2D Pixel;
+		AFNStudio* WSt = FindStudio();
+		const TSharedPtr<FFNPowerDragDrop> WOp = FFNPowerDragDrop::GetActive();
+		const bool bAt = WSt && ((WOp.IsValid() && WOp->bFromRing) ? RingTarget(ScreenPosition, La, Lo, World, Pixel) > 0
+			: (FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) && WSt->HexAtScreen(Pixel, La, Lo, World, HexM)));
+		bool bMine = false;
+		const FString Who = bAt ? WhoNear(La, Lo, bMine) : FString();
+		const double Now = FPlatformTime::Seconds();
+		const bool bAgain = Now - OwnHitWarnAt < 8.0 && FMath::Abs(La - OwnHitLat) < 3.0 && FMath::Abs(Lo - OwnHitLon) < 3.0;
+		if (bMine && !bAgain)
+		{
+			OwnHitWarnAt = Now; OwnHitLat = La; OwnHitLon = Lo;
+			Toast(FString::Printf(TEXT("Careful: that's %s! Drop it there again to strike anyway."), *Who));
+			UE_LOG(LogTemp, Display, TEXT("FN7 cast: held, %s under the drop at %.2f,%.2f"), *Who, La, Lo);
+			return;   // the power stays in hand
+		}
+	}
 	if (SFNPanelMover::IsOverAnyPanel(ScreenPosition)) return;   // let go over a panel: nothing happens
 	{
 		const TSharedPtr<FFNPowerDragDrop> RingOp = FFNPowerDragDrop::GetActive();   // still set while OnDroppedOnWorld runs

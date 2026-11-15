@@ -45,6 +45,7 @@ private:
 	TSharedPtr<SWidget> Widget;
 	FString LastHint;
 	FString ServerHint, ServerGoal;   // schema 18 SeatView hint (text + why) and goal
+	FString HintKey; int32 HintSince = 0;   // the same hint beat after beat: say it's still the move
 	void OnMessage(const FString& Type, TSharedPtr<class FJsonObject> D);
 	void ReadPublic(const TSharedPtr<class FJsonObject>& P);
 	void ReadMine(const TSharedPtr<class FJsonObject>& View);

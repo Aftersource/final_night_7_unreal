@@ -245,6 +245,10 @@ private:
 	/** The sample table for previews: four gods, two diorama boxes each. */
 	void PreviewTable();
 	TArray<FSeatInfo> Seats;
+	// a power dropped on your OWN demigod waits for a second drop (audit: a bolt hit his own city with no warning)
+	double OwnHitWarnAt = -100.0, OwnHitLat = 0.0, OwnHitLon = 0.0;
+	/** "Vex's Right Hand", "YOUR Left Hand" or "" for the demigod nearest a spot (within 300 km); bMine says whose. */
+	FString WhoNear(double Lat, double Lon, bool& bMine) const;
 	int32 MySeat = -1;
 	int32 Round = 0;
 	int32 WindowSeat = -1;
