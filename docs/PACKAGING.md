@@ -7,6 +7,12 @@ This is the runbook for the jam deliverable: a packaged Win64 build of this proj
 Dry run done on 2026-11-14 on Benito's PC (UE 5.8, VS 18 toolchain 14.52): **BUILD SUCCESSFUL**.
 It took 8 min 20 s: compile 402 s, cook 83 s, pak 7 s. The output was **575 MB** (`FinalNight.exe` plus one pak).
 
+Second dry run, 2026-11-14 19:03 EST: **Development**, with the duel assets cooked (`/Game/Duel`, see §1). It took 77 s
+because the code was already built (cook 53 s). On disk it is **956 MB**, of which **362 MB is `.pdb` debug symbols**;
+without them it is **622 MB**. The cooked assets live in IoStore (`FinalNight-Windows.utoc/.ucas`). To list them:
+`UnrealPak.exe "<...>\Paks\FinalNight-Windows.utoc" -List`. That run showed 65 `Content/Duel` assets: the mannequin,
+the 35 clips and the 5 skins.
+
 ## 1. Build it
 
 Close the editors first if you can. If you can't, keep `-nocompileeditor`: BuildCookRun also rebuilds the editor
@@ -53,8 +59,14 @@ check: the player key is the one expected exception.
 
 - Zip the **contents** of `FN7Package\Windows\` as **`TeamName_GameName.zip`** (e.g. `<Team>_FinalNight7.zip`).
   The team name is still to be confirmed with Chris and Benito.
-- It must be **under 1 GB** (the dry run was 575 MB unzipped). For a bigger build, use butler or the Blendo Itch
-  Uploader.
+- **Leave out every `*.pdb`** (debug symbols, 362 MB in the Development build; players don't need them). Keep the
+  `.pdb` files archived locally with the commit hash, for reading crash reports.
+- It must be **under 1 GB**. Budget rule: **if the zip passes 850 MB, stop and tell Chris** before uploading.
+  Without the `.pdb` files the 2026-11-14 build was 622 MB before zipping. The heroic statues (`/Game/Figures`,
+  imported at 1K textures with reduced triangles) will add to that, so re-measure after they land. For a bigger build,
+  use butler or the Blendo Itch Uploader.
+- `/Game/Duel` and `/Game/Figures` are cooked by `DirectoriesToAlwaysCook` in `Config/DefaultGame.ini` (they're
+  loaded by path, so nothing references them). If a new folder is loaded by path, add it there too.
 - Upload it to the team's own itch.io account (a project page for the game), then submit that project to the jam:
   https://itch.io/jam/2026-epic-ai-megajam
 - Test the zip on a clean folder: unzip it, run `FinalNight.exe`, join the house, see a beat, quit.
