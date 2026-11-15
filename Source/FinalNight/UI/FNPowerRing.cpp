@@ -779,7 +779,10 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
 	UWorld* const DWorld = Studio.IsValid() ? Studio->GetWorld() : nullptr;
 	FString Ref = AFNTableGods::FigureAtScreen(DWorld, Px, [this](const FString& R) { return !(IsMine && IsMine(R)); });   // overlapping: the enemy first (the challenge)
-	if (Ref.IsEmpty()) Ref = AFNTableGods::FigureNear(DWorld, Px, 44.0, [this](const FString& R) { return !(IsMine && IsMine(R)); });   // a near miss on a small piece still counts
+	// no dead ring: the zoom guard (FN7Kit::WhyBlocked) blocks inside the figure zone x1.35, so the lookup tries that very
+	// zone next; whatever the guard would block on opens that demigod instead; then a 44 px near miss on a tiny piece
+	if (Ref.IsEmpty()) Ref = AFNTableGods::FigureAtScreen(DWorld, Px, [this](const FString& R) { return !(IsMine && IsMine(R)); }, 1.35);
+	if (Ref.IsEmpty()) Ref = AFNTableGods::FigureNear(DWorld, Px, 44.0, [this](const FString& R) { return !(IsMine && IsMine(R)); });
 	const bool bRival = !Ref.IsEmpty() && FN7Kit::IsRival(Ref);
 	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s%s"), Ref.IsEmpty() ? TEXT("none") : *Ref, Ref.IsEmpty() ? TEXT("") : (bRival ? TEXT(" (rival)") : TEXT(" (yours: centre on it)")));
 	// Chris's demigod-controls design (2026-11-15): a piece = its portrait card, the same gestures. Yours: centre on it at

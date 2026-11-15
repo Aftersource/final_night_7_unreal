@@ -348,6 +348,7 @@ void AFNEarthPlay::RebuildCaps(float StartT)
 	Caps->ClearInstances();
 	int32 Q0, R0;
 	if (!St->BoardCentreHex(Q0, R0)) return;
+	CapsKey = St->BoardCellKey(Q0, R0);
 	const float S = (float)St->GetActorScale3D().X;
 	// The hex size on the table: the distance between two neighbouring hex centres / sqrt(3).
 	double La0, Lo0, La1, Lo1;
@@ -1054,6 +1055,16 @@ void AFNEarthPlay::Tick(float Dt)
 	const double Now = FPlatformTime::Seconds();
 	AFNStudio* St = FindStudio();
 	if (!St) return;
+	// The caps (heat, fire, lava, ash tops) are laid in the world on one board: hidden the moment the board under them is
+	// not that board (a pan slides the land under them and re-centres every 1.5 hexes; a zoom swaps the level), back when
+	// the earth for the board on the table is laid. When the tabletop is scrolled manually, the hexes need to track the table.
+	// backgrounds or something is getting offset incorrectly").
+	if (Caps)
+	{
+		int32 CQ, CR;
+		const bool bFit = !St->IsBoardPanning() && !St->IsZoomAnimating() && St->BoardCentreHex(CQ, CR) && St->BoardCellKey(CQ, CR) == CapsKey;
+		if (Caps->IsVisible() != bFit) Caps->SetVisibility(bFit);
+	}
 	// Nothing under a moving hand: answers wait, and the board is asked for only once it rests.
 	if (St->IsBoardPanning()) { CentreChangedAt = Now; return; }
 	if (PendingBoard.IsValid()) { const TSharedPtr<FJsonObject> D = PendingBoard; PendingBoard.Reset(); OnReply(D); }

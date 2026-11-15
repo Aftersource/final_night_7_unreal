@@ -941,7 +941,16 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 				{
 					const TSharedPtr<FJsonObject>* Earth = nullptr;
 					if (T == TEXT("round.outcome") && (*Pub)->TryGetObjectField(TEXT("earth"), Earth)) E->OnOutcome(*Earth);
-					if (T == TEXT("phase.event") && FN7HudJson::Str(*Pub, TEXT("event")) == TEXT("streak")) E->OnStreak(*Pub);
+					if (T == TEXT("phase.event") && FN7HudJson::Str(*Pub, TEXT("event")) == TEXT("streak"))
+					{
+						E->OnStreak(*Pub);
+						// the server's own sentence for each cast (schema 22: "Benito casts lightning bolt ... in Moscow")
+						bool bAny = false;
+						if (const TArray<TSharedPtr<FJsonValue>>* Cs = FN7HudJson::Arr(*Pub, TEXT("casts")))
+							for (const TSharedPtr<FJsonValue>& Cv : *Cs)
+								if (Cv.IsValid() && Cv->AsObject().IsValid() && !FN7HudJson::Str(Cv->AsObject(), TEXT("text")).IsEmpty()) { AddNews(LOCTEXT("CastW", "CAST"), FN7HudJson::Str(Cv->AsObject(), TEXT("text"))); bAny = true; }
+						if (!bAny && !FN7HudJson::Str(*Pub, TEXT("text")).IsEmpty()) AddNews(LOCTEXT("CastW", "CAST"), FN7HudJson::Str(*Pub, TEXT("text")));
+					}
 				}
 			}
 	// JOIN = TAKE A SEAT: joined as a viewer (the house is replaying, or between seats), ask for a seat once. The net's
@@ -2128,7 +2137,7 @@ void SFNHudLive::OnSummonDropped(const FString& Ref, const FVector2D& ScreenPosi
 	FString Name = Ref;
 	for (const FSeatInfo& S : Seats) if (S.Ref == Ref && !S.Name.IsEmpty()) Name = S.Name;
 	for (const FFNHudDemigod& D : Model.Mine) if (Name == Ref && !D.Name.IsEmpty() && ((Ref.EndsWith(TEXT("0")) && D.Side != TEXT("right")) || (Ref.EndsWith(TEXT("1")) && D.Side == TEXT("right")))) Name = D.Name.ToString();
-	AddNews(LOCTEXT("Summon", "SUMMON"), FString::Printf(TEXT("%s summoned to %.2f%s %.2f%s (sent)"), *Name, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
+	AddNews(LOCTEXT("Summon", "SUMMON"), FString::Printf(TEXT("%s summoned (sent)"), *Name));
 	Publish();
 }
 
@@ -3419,8 +3428,7 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 				RSt->FlashAt(Lo, La);
 				// No view hop (it should be used on the cell on the table, not hop the table view around ... it is a drop).
 				SetArmed(FString());
-				AddNews(bMega ? LOCTEXT("Mega", "MEGA") : LOCTEXT("Mini", "MINI"),
-					FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
+				AddNews(bMega ? LOCTEXT("Mega", "MEGA") : LOCTEXT("Mini", "MINI"), FString::Printf(TEXT("%s sent"), *Power));
 				Publish();
 			}
 			return;
@@ -3439,7 +3447,7 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 		if (!N->CastAt(Round, Power, Lo, La, Tier)) { Toast(TEXT("The gods need a breath: try again in a moment.")); return; }   // still in hand
 		St->FlashAt(Lo, La);
 		SetArmed(FString());
-		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s at %.2f%s %.2f%s"), *Power, FMath::Abs(La), La >= 0 ? TEXT("N") : TEXT("S"), FMath::Abs(Lo), Lo >= 0 ? TEXT("E") : TEXT("W")));
+		AddNews(LOCTEXT("Cast", "CAST"), FString::Printf(TEXT("%s sent"), *Power));
 		Publish();
 		return;
 	}

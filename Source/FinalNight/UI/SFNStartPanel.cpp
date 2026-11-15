@@ -383,6 +383,16 @@ void SFNStartPanel::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 			OnBack.ExecuteIfBound();
 		}
 	}
+	else if (T == TEXT("room.left") && bBackToHouse)
+	{
+		// hosting cancelled: straight back into the house game (Chris noted she could not click to ignore the hosting she was about
+		// to do and jump back in")
+		bBackToHouse = false;
+		bJoining = false;
+		if (UFNNetClient* N = Net.Get()) { N->JoinHouse(false); UE_LOG(LogTemp, Display, TEXT("FN7 lobby: back to the house game")); }
+		Progress.Reset();
+		OnBack.ExecuteIfBound();
+	}
 	else if (T == TEXT("room.left") && bAwaitLeave)
 	{
 		bAwaitLeave = false;
@@ -676,8 +686,21 @@ bool SFNStartPanel::IsViewer() const
 	return N && N->bViewer;
 }
 
+void SFNStartPanel::CancelHosting()
+{
+	UFNNetClient* N = Net.Get();
+	if (!N || HostedCode.IsEmpty()) return;
+	UE_LOG(LogTemp, Display, TEXT("FN7 lobby: cancel hosting %s, back to the house game"), *HostedCode);
+	HostedCode.Reset();
+	bBackToHouse = true;
+	bJoining = false;
+	Progress = TEXT("Leaving your room, back to the house game...");
+	N->LeaveRoom();
+}
+
 FReply SFNStartPanel::OnPrimary()
 {
+	if (!HostedCode.IsEmpty()) { CancelHosting(); return FReply::Handled(); }   // BACK TO THE GAME while hosting = cancel it
 	if (bInGame.Get())
 	{
 		OnBack.ExecuteIfBound();   // Back to the game
@@ -944,6 +967,18 @@ TSharedRef<SWidget> SFNStartPanel::MakeChoices()
 					})
 					[
 						SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(StartInk).Text(LOCTEXT("Start", "START"))
+					]
+				]
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
+			[
+				SNew(SBox).HeightOverride(40.f).WidthOverride(110.f)
+				[
+					SNew(SButton).HAlign(HAlign_Center).VAlign(VAlign_Center)
+					.ToolTipText(LOCTEXT("CancelHostTip", "Close your room and go back to the house game"))
+					.OnClicked_Lambda([this]() { CancelHosting(); return FReply::Handled(); })
+					[
+						SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(this, &SFNStartPanel::LInk).Text(LOCTEXT("CancelHost", "CANCEL"))
 					]
 				]
 			]

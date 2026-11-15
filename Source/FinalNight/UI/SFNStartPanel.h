@@ -119,6 +119,8 @@ private:
 	bool bChoiceDirect = false;     // run while connected (so this panel, not the root's auth.ok, readies and starts)
 	bool bAwaitLeave = false;       // left the current room first: the choice runs on room.left (the server refuses it before)
 	FString HostedCode;             // the room we host, waiting for START
+	bool bBackToHouse = false;      // CANCEL hosting: leave our room, then rejoin the house game on room.left
+	void CancelHosting();
 	TSharedPtr<SFNTextBox> CodeBox;
 	// The six looks (Chris: six to pick a favourite from; Saved/FN7Hud.json "lobby_variant").
 	int32 Look = 1;
