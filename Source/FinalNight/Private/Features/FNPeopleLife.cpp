@@ -77,7 +77,7 @@ void AFNPeopleLife::EndPlay(const EEndPlayReason::Type Reason)
 void AFNPeopleLife::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 {
 	using namespace FNPeopleLifeImpl;
-	if (Type == TEXT("game.people") && D.IsValid()) { ReadPeople(D); return; }
+	if ((Type == TEXT("game.people") || Type == TEXT("game.sprites")) && D.IsValid()) { ReadPeople(D); return; }
 	if (Type != TEXT("round.outcome") || !D.IsValid()) return;
 	const TSharedPtr<FJsonObject>* Pub = nullptr;
 	const TArray<TSharedPtr<FJsonValue>>* Ev = nullptr;
@@ -107,11 +107,12 @@ void AFNPeopleLife::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 
 void AFNPeopleLife::ReadPeople(const TSharedPtr<FJsonObject>& D)
 {
+	// game.people: people[]; game.sprites (the location-free library): items[] with role (people) or building
 	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-	if (!D->TryGetArrayField(TEXT("people"), Arr))
+	if (!D->TryGetArrayField(TEXT("people"), Arr) && !D->TryGetArrayField(TEXT("items"), Arr))
 	{
 		const TSharedPtr<FJsonObject>* R = nullptr;
-		if (!D->TryGetObjectField(TEXT("result"), R) || !R || !(*R)->TryGetArrayField(TEXT("people"), Arr)) return;
+		if (!D->TryGetObjectField(TEXT("result"), R) || !R || (!(*R)->TryGetArrayField(TEXT("people"), Arr) && !(*R)->TryGetArrayField(TEXT("items"), Arr))) return;
 	}
 	if (!Arr) return;
 	// the server's roles onto ours (the library has 16; the board draws 12)
@@ -293,10 +294,16 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 		return;
 	}
 	const float D = FMath::Max(FVector::Dist2D(C0, C1), 0.5f);
-	// the people pictures for the place under the board (asked again when the board moves, at most every 8 s)
+	// the people pictures: the whole library once (game.sprites, location-free), and what lives under the board
 	SinceAsk += Dt;
 	if (UFNNetClient* Nq = Net.Get())
 	{
+		if (RoleSprites.Num() < 6 && SinceAsk > 8.f && AskedCell != TEXT("library"))
+		{
+			TSharedPtr<FJsonObject> Ls = MakeShared<FJsonObject>();
+			Ls->SetStringField(TEXT("kind"), TEXT("people"));
+			Nq->Query(TEXT("game.sprites"), Ls);
+		}
 		const FString Cell = St->BoardCellKey(Q0, R0);
 		if (SinceAsk > 8.f && (Cell != AskedCell || RoleSprites.Num() < 6))
 		{

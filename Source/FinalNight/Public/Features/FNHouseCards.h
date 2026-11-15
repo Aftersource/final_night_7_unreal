@@ -29,6 +29,10 @@ public:
 private:
 	struct FBuilding { int32 Q = 0, R = 0; FString Level, Kind, Settlement, Hash, Url; bool bWrecked = false; };
 	TMap<FString, FBuilding> Buildings;   // cell -> building
+	/** The location-free library (game.sprites {kind: "buildings"}): kind -> picture hashes; dresses the board's own houses. */
+	TMap<FString, TArray<FString>> Library;
+	TMap<FString, FString> LibUrl;
+	float SinceLib = 100.f;
 	TWeakObjectPtr<UFNNetClient> Net;
 	FDelegateHandle MsgHandle;
 	void OnMessage(const FString& Type, TSharedPtr<class FJsonObject> D);

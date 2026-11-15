@@ -56,6 +56,34 @@ void AFNHouseCards::EndPlay(const EEndPlayReason::Type Reason)
 void AFNHouseCards::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 {
 	using namespace FNHouseCardsImpl;
+	if (Type == TEXT("game.sprites") && D.IsValid())
+	{
+		const TArray<TSharedPtr<FJsonValue>>* Items = nullptr;
+		if (!D->TryGetArrayField(TEXT("items"), Items))
+		{
+			const TSharedPtr<FJsonObject>* Res = nullptr;
+			if (!D->TryGetObjectField(TEXT("result"), Res) || !Res || !(*Res)->TryGetArrayField(TEXT("items"), Items)) return;
+		}
+		if (!Items) return;
+		int32 Added = 0;
+		for (const TSharedPtr<FJsonValue>& V : *Items)
+		{
+			const TSharedPtr<FJsonObject> It = V.IsValid() ? V->AsObject() : nullptr;
+			FString Kind;
+			if (!It.IsValid() || !It->TryGetStringField(TEXT("building"), Kind) || Kind.IsEmpty()) continue;
+			const TSharedPtr<FJsonObject>* Sp = nullptr;
+			if (!It->TryGetObjectField(TEXT("sprite"), Sp) || !Sp) continue;
+			FString Hash, Url, Status;
+			(*Sp)->TryGetStringField(TEXT("hash"), Hash);
+			(*Sp)->TryGetStringField(TEXT("url"), Url);
+			(*Sp)->TryGetStringField(TEXT("status"), Status);
+			if (Hash.IsEmpty() || Url.IsEmpty() || (!Status.IsEmpty() && Status != TEXT("ready") && Status != TEXT("done"))) continue;
+			TArray<FString>& L = Library.FindOrAdd(Kind.ToLower());
+			if (!L.Contains(Hash)) { L.Add(Hash); LibUrl.Add(Hash, Url); FetchPicture(Hash, Url); ++Added; }
+		}
+		UE_LOG(LogTemp, Display, TEXT("FNHouses: game.sprites library: %d new building pictures (%d kinds)"), Added, Library.Num());
+		return;
+	}
 	if (Type != TEXT("game.buildings") || !D.IsValid()) return;
 	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
 	if (!D->TryGetArrayField(TEXT("buildings"), Arr))
@@ -212,6 +240,55 @@ void AFNHouseCards::Tick(float DeltaSeconds)
 			Card->SetWorldRotation(FRotator(0.f, (Cam - Mid).GetSafeNormal2D().Rotation().Yaw + 90.f, 0.f));
 			Card->SetWorldScale3D(FVector(Sz, Sz * 0.02f, Sz) / 100.f);
 			Card->SetVisibility(true);
+		}
+	}
+	// No server buildings here: dress the board's own houses from the library (the same picture per house, always).
+	if (bOn)
+	{
+		SinceLib += 1.f / 30.f;
+		if (Library.Num() == 0 && SinceLib > 10.f)
+			if (UFNNetClient* N = Net.Get())
+			{
+				SinceLib = 0.f;
+				TSharedPtr<FJsonObject> A = MakeShared<FJsonObject>();
+				A->SetStringField(TEXT("kind"), TEXT("buildings"));
+				N->Query(TEXT("game.sprites"), A);
+			}
+		TArray<FFNPeopleSpot> Spots;
+		TArray<FVector> HouseW;
+		bool bServerHere = false;
+		for (const TPair<FString, FBuilding>& KV : Buildings) if (!KV.Value.Hash.IsEmpty()) { bServerHere = true; }
+		if (!bServerHere && Library.Num() > 0 && St->GetPeopleSpots(Spots, HouseW) && HouseW.Num() > 0)
+		{
+			const float D = FMath::Max(FVector::Dist2D(C0, C1), 0.5f);
+			TArray<FString> Kinds;
+			Library.GetKeys(Kinds);
+			Kinds.Sort();
+			FVector Cam = FVector::ZeroVector;
+			if (APlayerController* PC = W->GetFirstPlayerController()) if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
+			static UMaterialInterface* UnlitL = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
+			for (const FVector& H : HouseW)
+			{
+				// a stable pick per house from its board position; the most homely kinds first
+				const uint32 Seed = GetTypeHash(FIntVector(FMath::RoundToInt(H.X / FMath::Max(D, 1.f) * 4.f), FMath::RoundToInt(H.Y / FMath::Max(D, 1.f) * 4.f), 7));
+				FString Kind = Kinds[Seed % Kinds.Num()];
+				for (const TCHAR* Homely : { TEXT("cottage"), TEXT("hut"), TEXT("longhouse") })
+					if ((Seed >> 8) % 3 != 0 && Library.Contains(Homely) && (Seed >> 4) % 3 == (uint32)(Homely[0] % 3)) Kind = Homely;
+				const TArray<FString>& Looks = Library[Kind];
+				const FString& Hash = Looks[(Seed >> 12) % Looks.Num()];
+				const TObjectPtr<UTexture2D>* Tx = Tex.Find(Hash);
+				if (!Tx || !Tx->Get() || !UnlitL) continue;
+				UMaterialInstanceDynamic* M = Mat.FindRef(Hash);
+				if (!M) { M = UMaterialInstanceDynamic::Create(UnlitL, this); M->SetTextureParameterValue(TEXT("SlateUI"), Tx->Get()); Mat.Add(Hash, M); }
+				UStaticMeshComponent* Card = CardAt(Used++);
+				if (Card->GetMaterial(0) != M) Card->SetMaterial(0, M);
+				const float Sz = D * SizeOf(Kind) * (Level == 0 ? 2.6f : 1.2f);
+				const FVector Mid = H + FVector(0.f, 0.f, Sz * 0.5f);
+				Card->SetWorldLocation(Mid);
+				Card->SetWorldRotation(FRotator(0.f, (Cam - Mid).GetSafeNormal2D().Rotation().Yaw + 90.f, 0.f));
+				Card->SetWorldScale3D(FVector(Sz, Sz * 0.02f, Sz) / 100.f);
+				Card->SetVisibility(true);
+			}
 		}
 	}
 	for (int32 c = Used; c < Pool.Num(); ++c) if (Pool[c] && Pool[c]->IsVisible()) Pool[c]->SetVisibility(false);
