@@ -104,6 +104,9 @@ public:
 	bool Summon(int32 Round, const FString& DemigodRef, double Lon, double Lat);
 	/** A public game query ("game.encounters", "game.region", ...): {t, id, d: Args}; the reply comes back as a message of the same t. */
 	void Query(const FString& Name, TSharedPtr<FJsonObject> Args = nullptr);
+	/** The room chat (room.chat {text}): everyone in the room, players and viewers, gets room.chat_msg. It never opens a
+	 *  slow window (only the WILL does). Mac session, backend contract 2026-11-15. */
+	void SendChat(const FString& Text);
 	/** Challenge mode (rules 0.8.1, the Mac kit): force a duel between your demigod and a rival sharing its hex. */
 	bool Challenge(int32 Round, const FString& MineRef, const FString& TargetRef, const FString& Level);
 	/** One typed attack line in a duel. */

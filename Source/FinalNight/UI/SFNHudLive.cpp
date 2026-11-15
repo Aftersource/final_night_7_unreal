@@ -34,11 +34,13 @@
 #include "SFNPanelMover.h"
 #include "FNPowerRing.h"
 #include "FNTableGods.h"
+#include "EngineUtils.h"
 #include "FNDuelStage.h"
 #include "FNDuelBox.h"
 #include "FN7KitHitTest.h"
 #include "FNStarBackdrop.h"
 #include "FNEarthPlay.h"
+#include "SFNChat.h"
 
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
@@ -535,6 +537,35 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	}
 	RegisterActiveTimer(0.25f, FWidgetActiveTimerDelegate::CreateSP(this, &SFNHudLive::TickTimer));
 
+	// The room chat: Enter in it sends room.chat (no slow window); look 6 anchors each bubble on the speaker's figure.
+	if (Layout.IsValid() && Layout->GetChat().IsValid())
+	{
+		TWeakPtr<SFNHudLive> WeakChat = StaticCastSharedRef<SFNHudLive>(AsShared());
+		Layout->GetChat()->SetOnSend([WeakChat](const FString& Text)
+		{
+			const TSharedPtr<SFNHudLive> Self = WeakChat.Pin();
+			if (!Self.IsValid() || !Self->Net.IsValid()) return;
+			Self->Net->SendChat(Text);
+			UE_LOG(LogTemp, Display, TEXT("FN7 chat: sent (%d chars)"), Text.Len());
+		});
+		Layout->SetChatAnchor([WeakChat](int32 Seat, FVector2D& Px)
+		{
+			const TSharedPtr<SFNHudLive> Self = WeakChat.Pin();
+			AFNStudio* St = Self.IsValid() ? Self->FindStudio() : nullptr;
+			if (!St || Seat < 0) return false;
+			APlayerController* PC = St->GetWorld() ? St->GetWorld()->GetFirstPlayerController() : nullptr;
+			if (!PC) return false;
+			for (const FSeatInfo& S : Self->Seats)
+			{
+				if (S.Seat != Seat || !S.bAlive) continue;
+				for (TActorIterator<AFNDemigodFigure> It(St->GetWorld()); It; ++It)
+					if (It->GetRef() == S.Ref && !It->IsHidden())
+						return PC->ProjectWorldLocationToScreen(It->GetActorLocation() + FVector(0, 0, 30.f), Px);
+			}
+			return false;
+		});
+	}
+
 	if (FSlateApplication::IsInitialized())
 	{
 		TSharedRef<FFN7LobbyKeys> Keys = MakeShared<FFN7LobbyKeys>();
@@ -542,6 +573,8 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		Keys->OnEscape = [Weak]()
 		{
 			TSharedPtr<SFNHudLive> Self = Weak.Pin();
+			// Typing in the chat: Esc only leaves the chat (never the lobby, never the WILL).
+			if (Self.IsValid() && Self->Layout.IsValid() && Self->Layout->ChatHasFocus()) { Self->Layout->ChatLeaveFocus(); return true; }
 			if (!Self.IsValid() || !Self->bInRoom) return false;
 			if (Self->bConfirmOpen) { Self->bConfirmOpen = false; return true; }   // Esc cancels a challenge confirm
 			// Writing: Esc rolls the WILL back up (the text stays). Otherwise it opens or closes the lobby.
@@ -552,6 +585,8 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		Keys->OnEnter = [Weak]()
 		{
 			TSharedPtr<SFNHudLive> Self = Weak.Pin();
+			// Typing in the chat: Enter is the chat's (it sends), never the WILL's.
+			if (Self.IsValid() && Self->Layout.IsValid() && Self->Layout->ChatHasFocus()) return false;
 			// In a duel of yours, Enter goes to your line, not the WILL.
 			if (Self.IsValid() && Self->Duel.IsValid() && !Self->Duel->MySide.IsEmpty() && !Self->Duel->bOver && Self->Tray.IsValid())
 			{
@@ -774,6 +809,25 @@ void SFNHudLive::HandleStatus(const FString& Status)
 void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 {
 	NetProblem.Reset();   // the server answered
+	if (T == TEXT("room.chat_msg") && Layout.IsValid() && Layout->GetChat().IsValid())
+	{
+		// The room chat: a seat's words in its aura colour (its first demigod's), a viewer's grey.
+		FFNChatMsg M;
+		double Seat = -1.0;
+		M.Seat = D.IsValid() && D->TryGetNumberField(TEXT("seat"), Seat) ? (int32)Seat : -1;
+		M.Name = FN7HudJson::Str(D, TEXT("display_name"));
+		M.Text = FN7HudJson::Str(D, TEXT("text"));
+		M.At = FN7HudJson::Num(D, TEXT("at"), 0.0);
+		if (M.Seat >= 0)
+		{
+			M.Color = FN7Style::Color::HumanAura();
+			for (const FSeatInfo& S : Seats) if (S.Seat == M.Seat) { M.Color = AuraOf(S.Ref); break; }
+		}
+		if (M.Name.IsEmpty()) M.Name = M.Seat >= 0 ? FString::Printf(TEXT("seat %d"), M.Seat) : FString(TEXT("viewer"));
+		Layout->GetChat()->Add(M);
+		UE_LOG(LogTemp, Display, TEXT("FN7 chat: received from %s (seat %d, %d chars)"), *M.Name, M.Seat, M.Text.Len());
+		return;
+	}
 	// The earth simulator on the table (AFNEarthPlay): each beat's field and phenomena, the board's records, a cast's strike.
 	// Earth time travel: the field at a beat, a join / reconnect / fork at the present, a new match.
 	if (T == TEXT("game.earth_at") || T == TEXT("match.snapshot") || T == TEXT("match.started"))

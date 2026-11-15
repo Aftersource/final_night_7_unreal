@@ -599,6 +599,13 @@ bool UFNNetClient::DuelKeys(int32 Round, const FString& DuelId, int32 Len, const
 	return true;
 }
 
+void UFNNetClient::SendChat(const FString& Text)
+{
+	TSharedRef<FJsonObject> D = Obj();
+	D->SetStringField(TEXT("text"), Text);
+	Send(TEXT("room.chat"), D);
+}
+
 bool UFNNetClient::CastAt(int32 Round, const FString& Power, double Lon, double Lat, const FString& Tier)
 {
 	return CastPower(Round, Power, FString::Printf(TEXT("%.6f,%.6f"), Lon, Lat), Tier);
