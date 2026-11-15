@@ -1,5 +1,6 @@
 // Final Night tabletop (rev 5: sound, typewriter, crisis effects)
 #include "FNStudio.h"
+#include "../UI/FNHudPrefs.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -1079,10 +1080,22 @@ void AFNStudio::PlaySfx(EFNSfx Sfx, float Gain, float DelaySeconds)
 	Voices.Add(V);
 }
 
+void AFNStudio::PlayBuffer(const TArray<float>* Samples, float Gain, float DelaySeconds)
+{
+	if (!Samples || Samples->Num() == 0 || Voices.Num() > 48) return;
+	FVoice V; V.Samples = Samples; V.Gain = Gain; V.Delay = FMath::Max(0, (int32)(DelaySeconds * FNSynth::Rate));
+	Voices.Add(V);
+}
+
 void AFNStudio::PumpAudio()
 {
 	using namespace FNSynth;
 	if (!AudioWave) return;
+	// FN7 sound pass (Mac session): the account's volumes (settings.audio, kept locally by the settings screen):
+	// the bed and the drums ride master x music, the voices master x sfx. Defaults 0.8 / 0.6 / 0.8.
+	const float VolMaster = FN7HudPrefs::GetInt(TEXT("vol_master_pct"), 80) / 100.f;
+	const float VolBed = VolMaster * FN7HudPrefs::GetInt(TEXT("vol_music_pct"), 60) / 100.f / 0.6f;   // 0.6 = the bed as it was mixed
+	const float VolSfx = VolMaster * FN7HudPrefs::GetInt(TEXT("vol_sfx_pct"), 80) / 100.f / 0.64f;    // 0.8 x 0.8 = the voices as mixed
 	// Keep ~0.15 s of sound queued ahead of the speakers
 	const int32 Want = (int32)(Rate * 0.15f) * 2;
 	int32 Guard = 0;
@@ -1096,7 +1109,7 @@ void AFNStudio::PumpAudio()
 			const float tf = (float)FMath::Fmod(t, 1000.0);   // slow LFOs only
 			const float n = Rng.FRandRange(-1.f, 1.f);
 			// Drone: a low open fifth that slowly breathes
-			const float Swell = 0.75f + 0.25f * FMath::Sin(TwoPi * 0.07f * tf);
+			const float Swell = (0.75f + 0.25f * FMath::Sin(TwoPi * 0.07f * tf)) * (1.f + 0.6f * Entropy01);   // + Entropy
 			const float Drone = (float)(0.05 * FMath::Sin(6.283185307 * 55.0 * t) + 0.035 * FMath::Sin(6.283185307 * 82.41 * t + 0.3 * FMath::Sin(TwoPi * 0.1f * tf)) + 0.022 * FMath::Sin(6.283185307 * 110.6 * t));
 			float v = Drone * Swell * (1.f + 0.8f * FatesAmt);
 			// Wind through the chamber
@@ -1122,10 +1135,11 @@ void AFNStudio::PumpAudio()
 				if (MusicLevel > 0.55f) v += 0.04f * (MusicLevel - 0.55f) * FMath::Sin(TwoPi * 0.25f * tf) * (float)FMath::Sin(6.283185307 * 164.8 * t);
 			}
 			Out[i] = 0;
+			v *= VolBed;
 			for (FVoice& Vc : Voices)
 			{
 				if (Vc.Delay > 0) { --Vc.Delay; continue; }
-				if (Vc.Pos < Vc.Samples->Num()) v += Vc.Gain * (*Vc.Samples)[Vc.Pos++];
+				if (Vc.Pos < Vc.Samples->Num()) v += VolSfx * Vc.Gain * (*Vc.Samples)[Vc.Pos++];
 			}
 			v = FMath::Clamp(v, -1.5f, 1.5f);
 			v = v - (v * v * v) / 6.75f;   // gentle soft clip

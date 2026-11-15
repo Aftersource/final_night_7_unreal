@@ -212,6 +212,10 @@ public:
 
 	// Atmosphere: sound, the day's crisis played out on the Globe, and the build-up while the day is written
 	void PlaySfx(EFNSfx Sfx, float Gain = 1.f, float DelaySeconds = 0.f);
+	/** FN7 (Mac session, the sound pass, backend go-ahead 2026-11-15): play any mono 44.1 kHz buffer through the same
+	 *  voices (UI/FNSoundPass keeps its own bank; the buffer must outlive the voice). Entropy 0..1 swells the bed. */
+	void PlayBuffer(const TArray<float>* Samples, float Gain = 1.f, float DelaySeconds = 0.f);
+	void SetEntropy01(float E) { Entropy01 = FMath::Clamp(E, 0.f, 1.f); }
 	void PlayHazard(const FString& Hazard);
 	void SetFatesDeciding(bool bOn);
 	FRotator GetShake() const;
@@ -460,6 +464,7 @@ private:
 	int32 CutIdx = -1;
 	// music
 	float MusicLevel = 0.f;
+	float Entropy01 = 0.f;   // FN7 sound pass: the bed swells a little with Entropy
 
 	TMap<FName, FVector> BaseScale;
 	FName Hovered;

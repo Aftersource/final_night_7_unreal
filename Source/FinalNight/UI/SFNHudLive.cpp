@@ -44,6 +44,7 @@
 #include "SFNChat.h"
 #include "FNDuelRules.h"
 #include "SFNMemoryTree.h"
+#include "FNSoundPass.h"
 
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
@@ -1318,6 +1319,12 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 {
 	if (!View.IsValid()) return;
+	{
+		// The server's next-move hint turning urgent (urgency 2+): a gentle chime, once per rise.
+		const int32 Urgency = (int32)FN7HudJson::Num(FN7HudJson::Obj(View, TEXT("hint")), TEXT("urgency"), 0.0);
+		if (Urgency >= 2 && LastUrgency < 2) if (AFNStudio* St = FindStudio()) { St->PlaySfx(EFNSfx::Chime, 0.3f); UE_LOG(LogTemp, Display, TEXT("FN7 sound: chime (hint urgency %d)"), Urgency); }
+		if (FN7HudJson::Obj(View, TEXT("hint")).IsValid()) LastUrgency = Urgency;
+	}
 	MySeat = (int32)FN7HudJson::Num(View, TEXT("seat"), MySeat);
 	const FString Name = FN7HudJson::Str(View, TEXT("name"));
 	if (!Name.IsEmpty()) Model.YouName = FText::FromString(Name);
@@ -1349,6 +1356,10 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 			bool bAliveHand = true;
 			G->TryGetBoolField(TEXT("alive"), bAliveHand);
 			Dg.bAlive = bAliveHand;
+			// One of yours fell (it stood at the last seat view): the low tone.
+			if (!bAliveHand && AliveSeen.Contains(Dg.Ref) && AliveSeen[Dg.Ref])
+				if (AFNStudio* St = FindStudio()) FN7Sound::Play(St->GetWorld(), FN7Sound::ESnd::Fall, 0.5f);
+			AliveSeen.Add(Dg.Ref, bAliveHand);
 			if (FN7HudJson::Has(G, TEXT("debt_open"))) { DebtSum += FN7HudJson::Num(G, TEXT("debt_open"), 0.0); bDebt = true; }
 			FString Hash, DioHash;
 			Dg.Gear = FN7Looks::Gear(G);
@@ -1504,6 +1515,7 @@ void SFNHudLive::ReadEntropy(const TSharedPtr<FJsonObject>& E)
 {
 	if (!E.IsValid()) return;
 	Model.Entropy = FText::FromString(FString::Printf(TEXT("%s %d"), *FN7HudJson::Str(E, TEXT("key")).ToUpper(), FMath::RoundToInt(FN7HudJson::Num(E, TEXT("value")))));
+	if (AFNStudio* St = FindStudio()) St->SetEntropy01((float)FN7HudJson::Num(E, TEXT("value")) / 100.f);   // the bed swells with it
 }
 
 void SFNHudLive::ReadPowers(const TArray<TSharedPtr<FJsonValue>>& Powers)
@@ -2159,6 +2171,7 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock, bool b
 	// Every duel, everyone's (flashes ... everyone centers on the fight ... the clash banner ... the globe
 	// has spun there as well"): the flash and the banner at once, the glide as soon as you aren't typing or dragging.
 	FlashStart = FPlatformTime::Seconds();
+	if (AFNStudio* Sst = FindStudio()) FN7Sound::Play(Sst->GetWorld(), FN7Sound::ESnd::Clash, Info.bMine ? 0.6f : 0.35f);   // steel on steel
 	if (Info.bMine)
 		ShowBanner(LOCTEXT("YourDuel", "YOUR DUEL: TYPE!"), FText::FromString(FString::Printf(TEXT("each line is a blow  -  %s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.62f, 0.2f), 0.0, 6.0);
 	else
@@ -2486,6 +2499,14 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 	{
 		auto LogBlow = [this](const TSharedPtr<FJsonObject>& Bl, bool bCounter)
 		{
+			{
+				// lands: a thump; misses: a swish; a whiff (no such thing to hand): a puff
+				const FString Vd = FN7HudJson::Str(Bl, TEXT("verdict"));
+				bool bWhiff = !FN7HudJson::Str(Bl, TEXT("whiff")).IsEmpty();
+				if (const TArray<TSharedPtr<FJsonValue>>* Tg = FN7HudJson::Arr(Bl, TEXT("tags"))) for (const TSharedPtr<FJsonValue>& T : *Tg) bWhiff |= T.IsValid() && T->AsString() == TEXT("unavailable");
+				const FN7Sound::ESnd Snd = bWhiff ? FN7Sound::ESnd::Puff : (Vd == TEXT("success") || Vd == TEXT("crit_success")) ? FN7Sound::ESnd::Thump : FN7Sound::ESnd::Swish;
+				if (AFNStudio* Sst = FindStudio()) FN7Sound::Play(Sst->GetWorld(), Snd, Vd == TEXT("crit_success") ? 0.7f : 0.45f, bCounter ? 0.35f : 0.f);
+			}
 			const FString By = FN7HudJson::Str(Bl, TEXT("by"));
 			const FString Side = By == Duel->A ? TEXT("a") : TEXT("b");
 			const FString ByName = FN7HudJson::Str(Bl, TEXT("by_name")).IsEmpty() ? NameOf(By) : FN7HudJson::Str(Bl, TEXT("by_name"));
@@ -2725,7 +2746,8 @@ void SFNHudLive::ShowVictory(const TSharedPtr<FJsonObject>& Summary)
 	NextMatchAt = 0.0;
 	FlashStart = VictoryShownAt;
 	UE_LOG(LogTemp, Display, TEXT("FN7 victory: %s (champion %s, seat %d, mine %d)"), *VictoryTitle.ToString(), *ChampPlayer, ChampSeat, bVictoryMine ? 1 : 0);
-	UE_LOG(LogTemp, Display, TEXT("FN7_Victory_Sting"));   // audio hook: the victory sting plays here once there's an audio path
+	// The sting: a rising chord when your side won, the low falling tone when it didn't.
+	if (AFNStudio* St = FindStudio()) FN7Sound::Play(St->GetWorld(), bVictoryMine ? FN7Sound::ESnd::Victory : FN7Sound::ESnd::Fall, 0.6f);
 	FetchNextMatch();
 }
 

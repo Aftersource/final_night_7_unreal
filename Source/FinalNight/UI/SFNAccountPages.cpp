@@ -245,6 +245,14 @@ namespace FN7SettingsUi
 	/** The settings the client applies itself, kept in Saved/FN7Hud.json (reduce flashing now, text size next run). */
 	static void KeepLocal(const TSharedPtr<FJsonObject>& S)
 	{
+		// The volumes the studio's synth mixes by (master, music = the ambient bed, sfx = the sounds).
+		const TSharedPtr<FJsonObject>* Au = nullptr;
+		if (S.IsValid() && S->TryGetObjectField(TEXT("audio"), Au) && Au && Au->IsValid())
+			for (const TCHAR* K : { TEXT("master"), TEXT("music"), TEXT("sfx") })
+			{
+				double V = -1.0;
+				if ((*Au)->TryGetNumberField(K, V) && V >= 0.0) FN7HudPrefs::SetInt(FString::Printf(TEXT("vol_%s_pct"), K), FMath::RoundToInt(FMath::Clamp(V, 0.0, 1.0) * 100.0));
+			}
 		const TSharedPtr<FJsonObject>* X = nullptr;
 		if (!S.IsValid() || !S->TryGetObjectField(TEXT("accessibility"), X) || !X || !X->IsValid()) return;
 		bool bRf = false; double Ts = 1.0;
