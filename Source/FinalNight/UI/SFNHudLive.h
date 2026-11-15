@@ -111,6 +111,7 @@ private:
 	void TrySendDuelKeys();
 	void RestoreDuels(const TSharedPtr<FJsonObject>& Present);
 	FString NetProblem;
+	double LastFigureWheelAt = 0.0;   // the wheel near a demigod: one level per gesture
 	double UpdateAt = 0.0;   // epoch seconds of a coming restart (Saved/FN7Notice.txt), 0 = none
 	FString UpdateText;
 	bool bHowTo = false, bHowToChecked = false;   // the HOW TO PLAY tablet (once on first join, and from "?")

@@ -283,18 +283,23 @@ void AFNStudio::FocusBoard(double Lat, double Lon, int32 Level)
 	static const double LevelHexM[4] = { 3.0, 30.0, 3000.0, 120000.0 };
 	static constexpr double HexesToEdge = 22.0;
 	if (!bHasFocus) return;   // only during a match
+	const int32 NewLevel = Level < 0 ? FMath::Max(MapLevel - 1, 0) : FMath::Clamp(Level, 0, 3);   // -1: one level closer than now
+	if (IsSameBoardSpot(Lat, Lon, NewLevel)) return;   // nothing changes: no rebuild (the wheel's storm)
 	FVector OldW;
 	const bool bOld = BoardPointFor(Lat, Lon, OldW);
 	const FVector OldLocal = GetActorTransform().InverseTransformPosition(OldW);
 	const double OldR = PickRadiusM;
-	MapLevel = Level < 0 ? FMath::Max(MapLevel - 1, 0) : FMath::Clamp(Level, 0, 3);   // -1: one level closer than now
+	const bool bLevelChange = NewLevel != MapLevel;
+	MapLevel = NewLevel;
 	PickRadiusM = LevelHexM[MapLevel] * HexesToEdge;
 	PickLat = FMath::Clamp(Lat, -89.9, 89.9);
 	PickLon = Lon;
 	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
 	bUserPicked = true;
 	ZoomAnimT = -1.f;
+	if (bLevelChange) BeginZoomGhost();   // the old level stays on screen through the switch
 	if (MapPivot) { MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); }
+	NoteRebuild(TEXT("FocusBoard"));
 	BuildTable();
 	RebuildIn = -1.f;
 	FVector NewW;
@@ -345,6 +350,12 @@ void AFNStudio::ResetView()
 void AFNStudio::CenterBoardAndGlobe(double Lat, double Lon)
 {
 	// The zoom level stays; only the centre moves (Chris noted that double clicking is not centring the globe map and table map).
+	if (IsSameBoardSpot(Lat, Lon, MapLevel) && bUserPicked)
+	{
+		FocusDir = BoardDir(Lon, FMath::Clamp(Lat, -89.9, 89.9)).GetSafeNormal();   // the globe still turns to it
+		bHasFocus = true;
+		return;
+	}
 	FVector OldW;
 	const bool bOld = BoardPointFor(Lat, Lon, OldW);
 	const FVector OldLocal = GetActorTransform().InverseTransformPosition(OldW);
@@ -357,6 +368,7 @@ void AFNStudio::CenterBoardAndGlobe(double Lat, double Lon)
 	ManualUntil = -1.f;          // even if you spun it by hand a moment ago
 	ZoomAnimT = -1.f;
 	if (MapPivot) { MapPivot->SetRelativeScale3D(FVector::OneVector); MapPivot->SetRelativeLocation(FVector::ZeroVector); }
+	NoteRebuild(TEXT("CenterBoardAndGlobe"));
 	BuildTable();
 	RebuildIn = -1.f;
 	FVector NewW;
@@ -394,6 +406,32 @@ void AFNStudio::PreviewFocus(double Lat, double Lon, int32 Level)
 	bUserPicked = true;
 	BuildTable();
 	RebuildIn = -1.f;
+}
+
+void AFNStudio::NoteRebuild(const TCHAR* Why)
+{
+	// How often the board rebuilds (Benito's bridge found a storm: 203 in a minute from the wheel near a demigod).
+	static double WindowStart = 0.0;
+	static int32 Count = 0;
+	++Count;
+	const double Now = FPlatformTime::Seconds();
+	if (WindowStart <= 0.0) WindowStart = Now;
+	if (Now - WindowStart >= 60.0)
+	{
+		UE_LOG(LogTemp, Display, TEXT("FN7 board rebuilds: %d in the last minute (last: %s)"), Count, Why);
+		Count = 0;
+		WindowStart = Now;
+	}
+}
+
+bool AFNStudio::IsSameBoardSpot(double Lat, double Lon, int32 Level) const
+{
+	// Same level and within about one hexagon of the current centre: nothing to rebuild.
+	static const double LevelHexM[4] = { 3.0, 30.0, 3000.0, 120000.0 };
+	if (Level != MapLevel) return false;
+	const double L1 = FMath::DegreesToRadians(PickLat), L2 = FMath::DegreesToRadians(Lat), DO = FMath::DegreesToRadians(Lon - PickLon);
+	const double M = FMath::Acos(FMath::Clamp(FMath::Sin(L1) * FMath::Sin(L2) + FMath::Cos(L1) * FMath::Cos(L2) * FMath::Cos(DO), -1.0, 1.0)) * 6371000.0;
+	return M < LevelHexM[FMath::Clamp(MapLevel, 0, 3)];
 }
 
 void AFNStudio::BeginZoomGhost()
@@ -468,8 +506,14 @@ void AFNStudio::TickZoomGhost(float NewScale, float Ease)
 	const float G = NewScale / FMath::Max(0.001f, ZoomAnimS0);
 	// Going in it flattens by half-way (it is growing); going out it settles with the new level.
 	const float Flat = FMath::Clamp(1.f - Ease * (G > 1.f ? 2.2f : 1.35f), 0.f, 1.f);
+	TickGhostTransform(G, FVector(ZoomAnchor.X * (1.f - G), ZoomAnchor.Y * (1.f - G), ZoomAnchor.Z * (1.f - Flat)), Flat);
+}
+
+void AFNStudio::TickGhostTransform(float G, const FVector& Loc, float Flat)
+{
+	if (!bZoomGhost || !GhostPivot) return;
 	GhostPivot->SetRelativeScale3D(GhostBase.GetScale3D() * FVector(G, G, FMath::Max(0.01f, Flat)));
-	GhostPivot->SetRelativeLocation(GhostBase.GetLocation() + FVector(ZoomAnchor.X * (1.f - G), ZoomAnchor.Y * (1.f - G), ZoomAnchor.Z * (1.f - Flat)));
+	GhostPivot->SetRelativeLocation(GhostBase.GetLocation() + Loc);
 	// What leaves the table's disc drops out (going in, the old tiles grow past the rim and would cover the room).
 	const FVector C = FN7Board::ActionC;
 	const float R2 = FMath::Square(FN7Board::ActionR * 1.02f);
@@ -480,7 +524,7 @@ void AFNStudio::TickZoomGhost(float NewScale, float Ease)
 		{
 			if (GhostHidden[s][i]) continue;
 			const FVector& P = GhostPos[s][i];
-			const float X = ZoomAnchor.X + (P.X - ZoomAnchor.X) * G, Y = ZoomAnchor.Y + (P.Y - ZoomAnchor.Y) * G;
+			const float X = Loc.X + P.X * G, Y = Loc.Y + P.Y * G;
 			const float Reach = FMath::Sqrt(FMath::Square(X - C.X) + FMath::Square(Y - C.Y)) + GhostRadius[s][i] * G;   // its far edge
 			if (Reach * Reach <= R2) continue;
 			FTransform T;
@@ -536,12 +580,22 @@ void AFNStudio::TickViewAnim(float Dt)
 	const float E = 1.f - FMath::Cube(1.f - U);                          // ease out
 	const float Sc = FMath::Exp(FMath::Loge(A->S0) * (1.f - E));         // even speed in log scale, like a web map
 	const FVector P = FMath::Lerp(A->From, A->To, E);                    // the point glides from where it was to its place
-	MapPivot->SetRelativeScale3D(FVector(Sc));
-	MapPivot->SetRelativeLocation(P - A->To * Sc);
+	const bool bLevel = !FMath::IsNearlyEqual(A->S0, 1.f, 0.01f);
+	const float Rise = bLevel ? FMath::Max(0.02f, E) : 1.f;              // a new level rises from flat (as ZoomMapAt's)
+	MapPivot->SetRelativeScale3D(FVector(Sc, Sc, Rise));
+	MapPivot->SetRelativeLocation(FVector(P.X - A->To.X * Sc, P.Y - A->To.Y * Sc, P.Z - A->To.Z * Rise));
+	if (bZoomGhost)
+	{
+		// The old level moves with the same transform at the old zoom (scale Sc / S0), flattening away.
+		const float G = Sc / FMath::Max(0.001f, A->S0);
+		const float Flat = FMath::Clamp(1.f - E * (G > 1.f ? 2.2f : 1.35f), 0.f, 1.f);
+		TickGhostTransform(G, FVector(P.X - A->From.X * G, P.Y - A->From.Y * G, A->From.Z * (1.f - Flat)), Flat);
+	}
 	if (U >= 1.f)
 	{
 		A->T = -1.f;
 		MapPivot->SetRelativeScale3D(FVector::OneVector);
 		MapPivot->SetRelativeLocation(FVector::ZeroVector);
+		EndZoomGhost();
 	}
 }

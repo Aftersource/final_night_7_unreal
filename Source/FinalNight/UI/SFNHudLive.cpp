@@ -2811,7 +2811,13 @@ bool SFNHudLive::OnDemigodWheel(const FString& Ref, float Delta)
 	bool bPos = T && T->GetBoardPos(Ref, La, Lo);
 	for (const FSeatInfo& S : Seats) if (!bPos && S.Ref == Ref && S.bHasPos && S.bAlive) { La = S.Lat; Lo = S.Lon; bPos = true; }
 	if (!bPos) return false;
+	// One level per gesture: a wheel sends several notches in a few milliseconds (each used to rebuild the board), and
+	// at the widest level a scroll out changes nothing at all.
+	const double Now = FPlatformTime::Seconds();
+	if (Now - LastFigureWheelAt < 0.4) return true;
 	const int32 Lv = FMath::Clamp(St->GetMapLevel() + (Delta > 0.f ? -1 : 1), 0, 3);
+	if (St->IsSameBoardSpot(La, Lo, Lv)) return true;
+	LastFigureWheelAt = Now;
 	UE_LOG(LogTemp, Display, TEXT("FN7 wheel: %s -> level %d at %.5f, %.5f"), *Ref, Lv, La, Lo);
 	St->FocusBoard(La, Lo, Lv);
 	return true;

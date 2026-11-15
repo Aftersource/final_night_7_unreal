@@ -102,6 +102,8 @@ public:
 	void HideWillBlock();
 	/** Point the table board at a lat/lon at a zoom level (0 people, 1 houses, 2 villages, 3 regions; -1 = one closer). */
 	void FocusBoard(double Lat, double Lon, int32 Level);
+	/** Same level and within about one hexagon of the current centre: a focus there changes nothing (no rebuild). */
+	bool IsSameBoardSpot(double Lat, double Lon, int32 Level) const;
 	/** The plate (fault) lines on the globe and the board: 0 hidden .. 1 glowing. The kit fades them in only while a mega
 	 *  is in hand (FFNPowerDragDrop::OnMegaArmed). */
 	void SetFaultLinesAlpha(float Alpha);
@@ -261,6 +263,8 @@ private:
 	void BeginZoomGhost();
 	void TickZoomGhost(float NewScale, float Ease);
 	void EndZoomGhost();
+	void TickGhostTransform(float G, const FVector& Loc, float Flat);
+	static void NoteRebuild(const TCHAR* Why);   // "FN7 board rebuilds: N in the last minute"
 	UPROPERTY() TObjectPtr<USceneComponent> GhostPivot;
 	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> ZoomGhosts;
 	TArray<TArray<FVector>> GhostPos;     // per ghost set: each instance's position (pivot space)

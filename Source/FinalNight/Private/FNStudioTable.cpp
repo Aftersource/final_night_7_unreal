@@ -579,6 +579,7 @@ void AFNStudio::ZoomMapAt(double Px, double Py, int32 Step)
 	ZoomAnimS0 = FMath::Clamp((float)F, 0.03f, 2.5f);   // zooming out starts big, but not room-sized
 	ZoomAnimT = 0.f;
 	BeginZoomGhost();   // FN7 (Mac session, view-fix go-ahead): the old level stays on screen through the switch (UI/FNBoardAoe.cpp)
+	NoteRebuild(TEXT("ZoomMapAt"));
 	BuildTable();   // now, not next frame: a fast second click must land on the new scene
 	RebuildIn = -1.f;
 }
