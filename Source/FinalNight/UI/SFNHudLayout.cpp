@@ -286,7 +286,7 @@ FString SFNHudLayout::MakeYouSignature() const
 	FString S = FString::Printf(TEXT("%s|%d|%d|%d|%d|%.1f|%s|%s|%s|%d;"), *Model.YouName.ToString(), Model.Health, Model.MaxHealth, Model.Bolts, Model.Sparks,
 		Model.Debt, *Model.Place.ToString(), *Model.ArenaLine.ToString(), *Model.YourAura.ToFColor(true).ToHex(), Model.bViewer ? 1 : 0);
 	for (const FFNHudDemigod& D : Model.Mine)
-		S += FString::Printf(TEXT("%s|%s|%s|%d|%d|%d|%p|%d|%p|%d;"), *D.Ref, *D.Name.ToString(), *D.Side, D.Health, D.MaxHealth, D.bAlive ? 1 : 0, D.PortraitTexture, D.PortraitPng.Num(), D.InsetTexture, D.InsetPng.Num());
+		S += FString::Printf(TEXT("%s|%s|%s|%d|%d|%d|%p|%d|%p|%d|%s|%s;"), *D.Ref, *D.Name.ToString(), *D.Side, D.Health, D.MaxHealth, D.bAlive ? 1 : 0, D.PortraitTexture, D.PortraitPng.Num(), D.InsetTexture, D.InsetPng.Num(), *D.Gear, *D.NewItem);
 	return S;
 }
 
@@ -593,6 +593,23 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 			[
 				SNew(STextBlock).TextStyle(&Type::Small())
 				.Text(D.bAlive ? FText::Format(LOCTEXT("HealthOf", "{0}/{1}"), D.Health, D.MaxHealth) : LOCTEXT("HandFallen", "FALLEN"))
+			]
+			// Gear looks (schema 11): a just-gained item flashes, then the loadout sits under the health.
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 3.f, 0.f, 0.f)
+			[
+				SNew(SBorder).BorderImage(Brush::PillAccent()).Padding(FMargin(6.f, 1.f))
+				.Visibility(D.NewItem.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible)
+				[
+					SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(HudInk)
+					.Text(FText::FromString(TEXT("NEW: ") + D.NewItem))
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(3.f, 2.f, 3.f, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(FLinearColor(1.f, 0.84f, 0.5f))
+				.Visibility(D.Gear.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible)
+				.WrapTextAt(140.f).Justification(ETextJustify::Center)
+				.Text(FText::FromString(D.Gear))
 			]
 		];
 	}

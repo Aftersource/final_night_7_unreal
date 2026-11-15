@@ -37,6 +37,8 @@ struct FFNHudDemigod
 	TArray<uint8> PortraitPng;
 	UTexture2D* InsetTexture = nullptr;      // the portrait, small, when the diorama leads
 	TArray<uint8> InsetPng;
+	FString Gear;            // its loadout (look.loadout names), shown under its health
+	FString NewItem;         // a just-gained item: "NEW: <name>" on the card for a few seconds
 };
 
 /** One line of news: a short tag (e.g. "BEAT 7", "YOU") and the text. */

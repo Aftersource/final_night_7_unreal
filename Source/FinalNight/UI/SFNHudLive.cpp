@@ -89,6 +89,32 @@ namespace FN7HudJson
 	}
 }
 
+namespace FN7Looks
+{
+	/** The image to draw for a demigod now (schema 11): look.<Key> when the look carries one (it is the gear image once
+	 *  ready, the previous look's while the next renders), else the identity image. */
+	static TSharedPtr<FJsonObject> Image(const TSharedPtr<FJsonObject>& G, const TCHAR* Key)
+	{
+		if (const TSharedPtr<FJsonObject> Look = FN7HudJson::Obj(G, TEXT("look")))
+			if (const TSharedPtr<FJsonObject> Img = FN7HudJson::Obj(Look, Key))
+				if (!FN7HudJson::Str(Img, TEXT("hash")).IsEmpty()) return Img;
+		return FN7HudJson::Obj(G, Key);
+	}
+	/** Its loadout names ("Butterfly Wing Blade, Moonsteel Plate"), at most three. */
+	static FString Gear(const TSharedPtr<FJsonObject>& G)
+	{
+		TArray<FString> Names;
+		if (const TArray<TSharedPtr<FJsonValue>>* L = FN7HudJson::Arr(FN7HudJson::Obj(G, TEXT("look")), TEXT("loadout")))
+			for (const TSharedPtr<FJsonValue>& V : *L)
+				if (const TSharedPtr<FJsonObject> It = V.IsValid() ? V->AsObject() : nullptr)
+				{
+					const FString N = FN7HudJson::Str(It, TEXT("name"));
+					if (!N.IsEmpty() && Names.Num() < 3) Names.Add(N);
+				}
+		return FString::Join(Names, TEXT(", "));
+	}
+}
+
 /** True when keyboard focus is in the game viewport or the HUD over it (not in an editor panel). */
 static bool FN7LonLat(const TSharedPtr<FJsonObject>& O, const TCHAR* Key, double& OutLat, double& OutLon);
 
@@ -720,6 +746,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
 		Round = (int32)FN7HudJson::Num(D, TEXT("round"), Round);
 		Model.Beat = (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round);
+		HandleLooks(Pub);
 		Model.BeatsTotal = (int32)FN7HudJson::Num(Pub, TEXT("beats_total"), Model.BeatsTotal);
 		Model.Alive = (int32)FN7HudJson::Num(Pub, TEXT("alive"), Model.Alive);
 		ReadEntropy(FN7HudJson::Obj(Pub, TEXT("entropy")));
@@ -744,6 +771,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	else if (T == TEXT("round.started"))
 	{
+		HandleLooks(FN7HudJson::Obj(D, TEXT("public")));   // a look's "ready" twin can ride here
 		// The built-in AI challenges too (0.8.1): its locks come at the beat's start, same shape as challenge.lock.
 		if (const TArray<TSharedPtr<FJsonValue>>* Ch = FN7HudJson::Arr(FN7HudJson::Obj(D, TEXT("public")), TEXT("challenges")))
 			for (const TSharedPtr<FJsonValue>& V : *Ch)
@@ -754,6 +782,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
 		ReadEntropy(FN7HudJson::Obj(Pub, TEXT("entropy")));
 		HandleDuelsOutcome(Pub);   // duels_open[] (the live score) and duels[] (challenge.end)
+		HandleLooks(Pub);          // gear looks: look.changed (and its "ready" twin)
 		const FText BeatTag = FText::Format(LOCTEXT("BeatTag", "BEAT {0}"), (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round));
 		if (const TArray<TSharedPtr<FJsonValue>>* Events = FN7HudJson::Arr(Pub, TEXT("events")))
 		{
@@ -1059,13 +1088,15 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 			Dg.bAlive = bAliveHand;
 			if (FN7HudJson::Has(G, TEXT("debt_open"))) { DebtSum += FN7HudJson::Num(G, TEXT("debt_open"), 0.0); bDebt = true; }
 			FString Hash, DioHash;
-			if (const TSharedPtr<FJsonObject> Img = FN7HudJson::Obj(G, TEXT("portrait_image")))
+			Dg.Gear = FN7Looks::Gear(G);
+			if (const FNewItem* NI = NewItems.Find(Dg.Ref)) if (FPlatformTime::Seconds() - NI->At < 6.0) Dg.NewItem = NI->Name;
+			if (const TSharedPtr<FJsonObject> Img = FN7Looks::Image(G, TEXT("portrait_image")))
 			{
 				Hash = FN7HudJson::Str(Img, TEXT("hash"));
 				const FString Url = FN7HudJson::Str(Img, TEXT("status")) == TEXT("ready") ? FN7HudJson::Str(Img, TEXT("url")) : FString();
 				if (!Hash.IsEmpty() && !Url.IsEmpty()) RequestPortrait(Hash, Url);
 			}
-			if (const TSharedPtr<FJsonObject> Dio = FN7HudJson::Obj(G, TEXT("diorama_image")))
+			if (const TSharedPtr<FJsonObject> Dio = FN7Looks::Image(G, TEXT("diorama_image")))
 			{
 				DioHash = FN7HudJson::Str(Dio, TEXT("hash"));
 				const FString Url = FN7HudJson::Str(Dio, TEXT("status")) == TEXT("ready") ? FN7HudJson::Str(Dio, TEXT("url")) : FString();
@@ -1149,7 +1180,7 @@ void SFNHudLive::ReadDemigods(const TSharedPtr<FJsonObject>& PV)
 		S.bAlive = bAlive;
 		if (FN7HudJson::Has(G, TEXT("bolts"))) S.Bolts = (int32)FN7HudJson::Num(G, TEXT("bolts"), 0.0);
 		if (FN7HudJson::Has(G, TEXT("sparks"))) S.Sparks = (int32)FN7HudJson::Num(G, TEXT("sparks"), 0.0);
-		if (const TSharedPtr<FJsonObject> Img = FN7HudJson::Obj(G, TEXT("portrait_image")))
+		if (const TSharedPtr<FJsonObject> Img = FN7Looks::Image(G, TEXT("portrait_image")))
 		{
 			S.PortraitHash = FN7HudJson::Str(Img, TEXT("hash"));
 			if (FN7HudJson::Str(Img, TEXT("status")) == TEXT("ready")) S.PortraitUrl = FN7HudJson::Str(Img, TEXT("url"));
@@ -1163,7 +1194,7 @@ void SFNHudLive::ReadDemigods(const TSharedPtr<FJsonObject>& PV)
 		if (G.IsValid()) G->TryGetBoolField(TEXT("connected"), S.bConnected);
 		if (const TArray<TSharedPtr<FJsonValue>>* Pos = FN7HudJson::Arr(G, TEXT("pos")))
 			if (Pos->Num() >= 2) { S.Lon = (*Pos)[0]->AsNumber(); S.Lat = (*Pos)[1]->AsNumber(); S.bHasPos = true; }
-		if (const TSharedPtr<FJsonObject> Dio = FN7HudJson::Obj(G, TEXT("diorama_image")))
+		if (const TSharedPtr<FJsonObject> Dio = FN7Looks::Image(G, TEXT("diorama_image")))
 		{
 			S.DioramaHash = FN7HudJson::Str(Dio, TEXT("hash"));
 			const FString Status = FN7HudJson::Str(Dio, TEXT("status"));
@@ -1883,6 +1914,48 @@ void SFNHudLive::StartDuelSession(const TSharedPtr<FJsonObject>& Lock, bool bMin
 	}
 }
 
+void SFNHudLive::HandleLooks(const TSharedPtr<FJsonObject>& Pub)
+{
+	const TArray<TSharedPtr<FJsonValue>>* Looks = FN7HudJson::Arr(Pub, TEXT("looks"));
+	if (!Looks) return;
+	for (const TSharedPtr<FJsonValue>& V : *Looks)
+	{
+		const TSharedPtr<FJsonObject> L = V.IsValid() ? V->AsObject() : nullptr;
+		if (!L.IsValid()) continue;
+		const FString Ref = FN7HudJson::Str(L, TEXT("demigod"));
+		const FString Key = FString::Printf(TEXT("%s|%d|%d"), *Ref, (int32)FN7HudJson::Num(L, TEXT("memory"), -1.0), FN7HudJson::Flag(L, TEXT("ready")) ? 1 : 0);
+		if (SeenLooks.Contains(Key)) continue;
+		SeenLooks.Add(Key);
+		const TSharedPtr<FJsonObject> Gained = FN7HudJson::Obj(L, TEXT("gained"));
+		const FString Item = FN7HudJson::Str(Gained, TEXT("name"));
+		const TSharedPtr<FJsonObject> Por = FN7HudJson::Obj(L, TEXT("portrait_image")), Dio = FN7HudJson::Obj(L, TEXT("diorama_image"));
+		const bool bReady = FN7HudJson::Flag(L, TEXT("ready"));
+		UE_LOG(LogTemp, Display, TEXT("FN7 look: %s \"%s\" gained=%s image_change=%d kept=%s pending=%d ready=%d portrait=%s(%s) diorama=%s(%s)"),
+			*Ref, *FN7HudJson::Str(L, TEXT("name")), Item.IsEmpty() ? TEXT("-") : *Item, FN7HudJson::Flag(L, TEXT("image_change")) ? 1 : 0,
+			*FN7HudJson::Str(L, TEXT("kept")), FN7HudJson::Obj(L, TEXT("pending")).IsValid() ? 1 : 0, bReady ? 1 : 0,
+			*FN7HudJson::Str(Por, TEXT("hash")).Left(10), *FN7HudJson::Str(Por, TEXT("status")), *FN7HudJson::Str(Dio, TEXT("hash")).Left(10), *FN7HudJson::Str(Dio, TEXT("status")));
+		// The new pictures: fetch them, and draw them on its card and its diorama box at once.
+		FSeatInfo* S = Seats.FindByPredicate([&Ref](const FSeatInfo& X) { return X.Ref == Ref; });
+		auto Take = [this](const TSharedPtr<FJsonObject>& Img, FString* Into)
+		{
+			const FString H = FN7HudJson::Str(Img, TEXT("hash"));
+			if (H.IsEmpty() || FN7HudJson::Str(Img, TEXT("status")) != TEXT("ready")) return;
+			const FString Url = FN7HudJson::Str(Img, TEXT("url"));
+			if (!Url.IsEmpty()) RequestPortrait(H, Url);
+			if (Into) *Into = H;
+		};
+		Take(Por, S ? &S->PortraitHash : nullptr);
+		Take(Dio, S ? &S->DioramaHash : nullptr);
+		if (!bReady && !Item.IsEmpty())
+		{
+			AddNews(LOCTEXT("GearTag", "GEAR"), FN7HudJson::Str(L, TEXT("text")).IsEmpty() ? FString::Printf(TEXT("%s now carries the %s"), *FN7HudJson::Str(L, TEXT("name")), *Item) : FN7HudJson::Str(L, TEXT("text")));
+			NewItems.Add(Ref, { Item, FPlatformTime::Seconds() });
+			if (MineRefs.Contains(Ref)) Toast(FString::Printf(TEXT("NEW: %s"), *Item));
+		}
+	}
+	Publish();
+}
+
 void SFNHudLive::UpdateBoardInfo()
 {
 	// The board's debug lines (ZOOM n of 4, map size, lat/lon, terrain, people) are the studio's 3D text over the table:
@@ -2378,6 +2451,8 @@ void SFNHudLive::NewMatch(const FString& Id)
 	MatchId = Id;
 	Duels.Reset();
 	EndedDuels.Reset();
+	SeenLooks.Reset();
+	NewItems.Reset();
 	if (Duel.IsValid()) CloseDuelBox();
 	Duel.Reset();
 	bWiped = false;
@@ -2877,6 +2952,7 @@ FText SFNHudLive::GetTimer() const
 EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 {
 	UpdateBoardInfo();
+	for (auto It = NewItems.CreateIterator(); It; ++It) if (FPlatformTime::Seconds() - It.Value().At > 6.5) { It.RemoveCurrent(); Publish(); break; }
 	TickDuelView();   // a challenge's queued glide (once you stop typing / dragging) and the glide back after it
 	if (bVictory && VictoryFadeAt > 0.0 && FPlatformTime::Seconds() - VictoryFadeAt > 1.25) { bVictory = false; VictoryFadeAt = 0.0; }
 	// Every 10 s, the real frame rate into the log ("FN7 fps"), so a PIE session's speed can be read afterwards.
