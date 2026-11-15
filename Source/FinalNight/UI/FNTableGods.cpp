@@ -156,13 +156,29 @@ void AFNGodPedestal::BuildBody()
 	Parts.Add(Glow);
 	Plate = NewObject<UTextRenderComponent>(this);
 	Plate->SetupAttachment(RootComponent);
-	Plate->SetRelativeLocation(FVector(32.f, 0.f, 58.f));
+	Plate->SetRelativeLocation(FVector(34.f, 0.f, 72.f));   // the column's top, under the cap, toward the table (58 hid behind the table edge)
 	Plate->SetHorizontalAlignment(EHTA_Center);
 	Plate->SetVerticalAlignment(EVRTA_TextCenter);
-	Plate->SetWorldSize(10.f);
+	Plate->SetWorldSize(13.f);
 	Plate->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Plate->RegisterComponent();
 	Parts.Add(Plate);
+	// The stone plate behind the name, turning with it (it is the text's child): aura-coloured letters on dark slate read
+	// from the chair, where bare letters on the marble column did not (Benito's audit 14).
+	PlateBack = NewObject<UStaticMeshComponent>(this);
+	PlateBack->SetupAttachment(Plate);
+	PlateBack->SetMobility(EComponentMobility::Movable);
+	PlateBack->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PlateBack->SetCastShadow(false);
+	PlateBack->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+	if (BaseMat)
+	{
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(BaseMat, PlateBack);
+		M->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.035f, 0.035f, 0.045f));
+		PlateBack->SetMaterial(0, M);
+	}
+	PlateBack->RegisterComponent();
+	Parts.Add(PlateBack);
 }
 
 void AFNGodPedestal::BuildFeature(int32 InKind)
@@ -381,6 +397,14 @@ void AFNGodPedestal::SetGod(const FFNTableGod& God)
 		const TCHAR* PlateTag = !God.bAlive ? TEXT("OUT") : !God.bConnected ? TEXT("AWAY") : God.bHuman ? TEXT("HUMAN") : TEXT("AI");
 		Plate->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *God.Player, PlateTag)));
 		Plate->SetTextRenderColor((God.bAlive ? Aura : GodGrey * 2.f).ToFColor(true));
+		if (PlateBack)
+		{
+			// sized to the longer line (about 0.6 of the size a letter), two lines tall, just behind the letters
+			const float Sz = Plate->WorldSize, Chars = (float)FMath::Max(God.Player.Len(), (int32)FCString::Strlen(PlateTag));
+			const float W = Chars * Sz * 0.62f + Sz * 0.9f, Ht = Sz * 2.5f;
+			PlateBack->SetRelativeLocation(FVector(-1.2f, 0.f, 0.f));
+			PlateBack->SetRelativeScale3D(FVector(0.015f, W / 100.f, Ht / 100.f));
+		}
 	}
 }
 
