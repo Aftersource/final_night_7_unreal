@@ -1,4 +1,5 @@
 #include "Features/FNInventoryShelf.h"
+#include "../../UI/FN7KitHitTest.h"
 #include "Features/FNItemIcon.h"
 #include "FNNetClient.h"
 #include "../../UI/FNTableGods.h"
@@ -248,23 +249,44 @@ void AFNInventoryShelf::Tick(float DeltaSeconds)
 	const bool bDown = FSlateApplication::IsInitialized() && FSlateApplication::Get().GetPressedMouseButtons().Contains(EKeys::LeftMouseButton);
 	const bool bClick = bDown && !bMouseWasDown;
 	bMouseWasDown = bDown;
-	if (PC && bClick)
+	// FN7 (Mac session, Chris's demigod-controls design, backend go-ahead 2026-11-15; Chris noted that a double click should not warp
+	// to them OR ask to initiate challenge"): this read the raw button on EVERY press, so a demigod's click or double-click
+	// also opened the nearest god's items (80 px around the statue's head). Now a press opens a god's items only when it
+	// lands ON that statue's pedestal or statue (its screen rectangle), never the 2nd press of a double-click, never over a
+	// demigod's piece or the kit's UI (cards, panels, the power ring), and a press anywhere else closes what's open.
+	const double PressNow = FPlatformTime::Seconds();
+	const bool bSecondPress = bClick && PressNow - LastPressAt < 0.4;
+	if (bClick) LastPressAt = PressNow;
+	if (PC && bClick && !bSecondPress)
 	{
 		float Mx = 0, My = 0;
 		FString Hit;
+		bool bBlocked = false;
 		if (PC->GetMousePosition(Mx, My))
 		{
-			float Best = 80.f;   // the nearest statue or item within 80 px
-			for (const TPair<FString, FVector>& KV : Anchors)
-			{
-				FVector2D Px;
-				if (!PC->ProjectWorldLocationToScreen(KV.Value, Px)) continue;
-				const float Dist = FVector2D::Distance(Px, FVector2D(Mx, My));
-				if (Dist < Best) { Best = Dist; Hit = KV.Key; }
-			}
+			const FVector2D M(Mx, My);
+			bBlocked = !FN7Kit::WhyBlocked(W, M).IsEmpty() || !AFNTableGods::FigureNear(W, M, 60.0).IsEmpty() || FN7Kit::IsOverKitUI(W, M);
+			if (!bBlocked)
+				for (const TPair<FString, AActor*>& KV : Peds)
+				{
+					const FBox B = KV.Value->GetComponentsBoundingBox(true);   // its parts have no collision: count them all
+					if (!B.IsValid) continue;
+					FBox2D R(ForceInit);
+					for (int32 c = 0; c < 8; ++c)
+					{
+						const FVector P((c & 1) ? B.Max.X : B.Min.X, (c & 2) ? B.Max.Y : B.Min.Y, (c & 4) ? B.Max.Z : B.Min.Z);
+						FVector2D Px;
+						if (PC->ProjectWorldLocationToScreen(P, Px)) R += Px;
+					}
+					if (R.bIsValid && R.IsInside(M)) { Hit = KV.Key; break; }
+				}
 		}
-		Open = !Open.IsEmpty() ? FString() : Hit;
-		if (!Open.IsEmpty()) UE_LOG(LogTemp, Display, TEXT("FNShelf: %s's items open"), *Open);
+		if (bBlocked) { /* a demigod's or the HUD's click: the shelf leaves it alone */ }
+		else
+		{
+			Open = (!Open.IsEmpty() || Hit.IsEmpty()) ? FString() : Hit;
+			if (!Open.IsEmpty()) UE_LOG(LogTemp, Display, TEXT("FNShelf: %s's items open (a click on the statue)"), *Open);
+		}
 	}
 
 	// each player's items, in the order first seen
@@ -436,4 +458,30 @@ void UFNInventoryShelfSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	FActorSpawnParameters P;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	InWorld.SpawnActor<AFNInventoryShelf>(AFNInventoryShelf::StaticClass(), FTransform::Identity, P);
+}
+
+// FN7 (Mac session, the demigod-controls design): the card's ITEMS button.
+void AFNInventoryShelf::ToggleForDemigod(UWorld* World, const FString& DemigodRef)
+{
+	if (!World) return;
+	if (TActorIterator<AFNInventoryShelf> It(World); It)
+	{
+		const FString* P = It->DgPlayer.Find(DemigodRef);
+		if (!P) { UE_LOG(LogTemp, Display, TEXT("FNShelf: no player known for %s yet"), *DemigodRef); return; }
+		It->Open = It->Open == *P ? FString() : *P;
+		UE_LOG(LogTemp, Display, TEXT("FNShelf: %s's items %s (the ITEMS button of %s)"), **P, It->Open.IsEmpty() ? TEXT("closed") : TEXT("open"), *DemigodRef);
+		return;
+	}
+}
+
+int32 AFNInventoryShelf::CountFor(UWorld* World, const FString& DemigodRef)
+{
+	if (!World) return 0;
+	if (TActorIterator<AFNInventoryShelf> It(World); It)
+	{
+		int32 N = 0;
+		for (const TPair<FString, FItem>& KV : It->Items) N += KV.Value.Holder == DemigodRef && KV.Value.State != TEXT("transferred");
+		return N;
+	}
+	return 0;
 }

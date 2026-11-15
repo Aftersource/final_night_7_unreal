@@ -777,11 +777,14 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 	if (E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
 	FVector2D Px;
 	if (!ToPixel(G, E.GetScreenSpacePosition(), Px)) return FReply::Unhandled();
-	const FString Ref = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Px,
-		[this](const FString& R) { return !(IsMine && IsMine(R)); });   // overlapping: the enemy first (the challenge)
+	UWorld* const DWorld = Studio.IsValid() ? Studio->GetWorld() : nullptr;
+	FString Ref = AFNTableGods::FigureAtScreen(DWorld, Px, [this](const FString& R) { return !(IsMine && IsMine(R)); });   // overlapping: the enemy first (the challenge)
+	if (Ref.IsEmpty()) Ref = AFNTableGods::FigureNear(DWorld, Px, 44.0, [this](const FString& R) { return !(IsMine && IsMine(R)); });   // a near miss on a small piece still counts
 	const bool bRival = !Ref.IsEmpty() && FN7Kit::IsRival(Ref);
-	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s%s"), Ref.IsEmpty() ? TEXT("none") : *Ref, Ref.IsEmpty() ? TEXT("") : (bRival ? TEXT(" (rival)") : TEXT(" (yours: zoom in here)")));
-	if (!bRival)
+	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: figure=%s%s"), Ref.IsEmpty() ? TEXT("none") : *Ref, Ref.IsEmpty() ? TEXT("") : (bRival ? TEXT(" (rival)") : TEXT(" (yours: centre on it)")));
+	// Chris's demigod-controls design (2026-11-15): a piece = its portrait card, the same gestures. Yours: centre on it at
+	// this zoom; a rival: the challenge in reach, else centre on it (SFNHudLive::OnDemigodDoubleClick decides).
+	if (Ref.IsEmpty())
 	{
 		// Empty map or globe: the one board double-click handler (FN7Kit::SetBoardDoubleClick: zoom one level in), unless
 		// it's near a demigod or over the kit's UI; nothing else ever moves the view. The view should stop warping around.
@@ -793,7 +796,7 @@ FReply SFNPowerRingInput::OnMouseButtonDoubleClick(const FGeometry& G, const FPo
 		if (FN7Kit::RunBoardDoubleClick(Px)) return FReply::Handled();
 		// This layer takes the board's presses (a single click must never move the view), so the player controller never
 		// sees a board double-click: the zoom happens here, the same anchored, eased step as its own (MapClick).
-		if (Studio.IsValid() && Studio->MapClick(true)) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: in (kit double-click) at %.0f, %.0f"), Px.X, Px.Y); return FReply::Handled(); }
+		if (Studio.IsValid() && Studio->MapClick(true)) { FN7Kit::NoteUserView(); UE_LOG(LogTemp, Display, TEXT("FN7 zoom: in (kit double-click) at %.0f, %.0f"), Px.X, Px.Y); return FReply::Handled(); }
 		UE_LOG(LogTemp, Display, TEXT("FN7 zoom: not here (off the board, or before the match) at %.0f, %.0f"), Px.X, Px.Y);
 		return FReply::Unhandled();
 	}

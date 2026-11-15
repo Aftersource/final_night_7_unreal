@@ -189,6 +189,8 @@ public:
 	bool PiecesTouch(const FString& A, const FString& B) const;
 	/** Lift and glow (or settle) every figure of that demigod (its diorama box and its board piece) while it is held. */
 	void SetFigureHeld(const FString& Ref, bool bHeld);
+	/** One ring of beads pulsing out under a piece (a demigod double-click: gold on yours, red on a far rival). */
+	void PulseRing(const FString& Ref, const FLinearColor& Color);
 	/** The table's gods in this world, if any. */
 	static AFNTableGods* GetAny(UWorld* World);
 	/** Show a demigod's board piece at a new point right away (a summon sent, before the server's next state). */
@@ -248,6 +250,10 @@ private:
 	TMap<FString, FVector> PieceLL;      // each board piece's lat/lon as last placed (Z: seconds gliding, -1 settled)
 	TMap<FString, float> PulseOut;       // teleporting away: the piece pulses out (seconds so far)
 	TMap<FString, float> PulseIn;        // teleporting in: the piece pulses in (seconds so far)
+	struct FRingPulse { FString Ref; float T = 0.f; FVector At = FVector::ZeroVector; float R = 20.f; TArray<UStaticMeshComponent*> Beads; };
+	TArray<FRingPulse> RingPulses;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> RingBeadsKeep;
+	void TickRingPulses(float Dt);
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> FxParts;
 	UPROPERTY() TObjectPtr<UMaterialInterface> FxMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> CardMat;

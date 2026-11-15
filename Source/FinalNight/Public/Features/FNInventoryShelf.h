@@ -28,6 +28,10 @@ public:
 	AFNInventoryShelf();
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+	/** FN7 (Mac session, Chris's demigod-controls design, backend go-ahead 2026-11-15): a demigod card's ITEMS button
+	 *  opens its player's items here (again: closes them); and how many that demigod holds, for the button's label. */
+	static void ToggleForDemigod(UWorld* World, const FString& DemigodRef);
+	static int32 CountFor(UWorld* World, const FString& DemigodRef);
 
 private:
 	struct FItem
@@ -58,6 +62,7 @@ private:
 	class UTextRenderComponent* Title = nullptr;   // over the open cards: whose items these are, and how to close
 	UStaticMeshComponent* TitleBack = nullptr;    // a dark plate behind it, so it reads over the bright globe
 	bool bMouseWasDown = false;
+	double LastPressAt = -10.0;              // FN7: the 2nd press of a double-click is never a shelf click
 	TArray<TPair<FString, FVector>> Anchors; // each statue and each item on show, by player, for the click
 	FString LastLog;
 	TWeakObjectPtr<UFNNetClient> Net;

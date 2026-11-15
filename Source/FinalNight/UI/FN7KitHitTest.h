@@ -17,6 +17,10 @@ namespace FN7Kit
 	FINALNIGHT_API bool IsOverAnyFigure(UWorld* World, const FVector2D& ViewportPixel);
 	/** Over the kit's own UI: a power hex or the pouch, the open duel box (any click while it is up), or a HUD panel. */
 	FINALNIGHT_API bool IsOverKitUI(UWorld* World, const FVector2D& ViewportPixel);
+	/** The player just moved the view on purpose (a demigod double-click's centre, a zoom): the automatic glides keep
+	 *  their hands off for a few seconds (FNEventGlide). */
+	FINALNIGHT_API void NoteUserView();
+	FINALNIGHT_API double SinceUserView();
 	/** Either of the two: no board gesture may start here. */
 	FINALNIGHT_API bool BlocksBoardGesture(UWorld* World, const FVector2D& ViewportPixel);
 	/** Which rule blocks a board gesture here, for the log ("" = none): "figure dg:3 at 31 px", "duel box up",

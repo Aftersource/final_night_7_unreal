@@ -73,6 +73,10 @@ namespace FN7Kit
 		return FString();
 	}
 
+	static double GUserViewAt = -1e9;
+	void NoteUserView() { GUserViewAt = FPlatformTime::Seconds(); }
+	double SinceUserView() { return FPlatformTime::Seconds() - GUserViewAt; }
+
 	bool IsOverKitUI(UWorld* World, const FVector2D& ViewportPixel)
 	{
 		const FString Why = WhyBlocked(World, ViewportPixel);
