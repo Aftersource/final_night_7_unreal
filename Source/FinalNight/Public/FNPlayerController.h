@@ -33,5 +33,7 @@ private:
 	FVector2D LastLeftClickPos = FVector2D::ZeroVector;
 	/** Why a board gesture is blocked under the cursor (the kit's rule: FN7Kit::WhyBlocked), else empty. */
 	FString DemigodUnderCursor() const;
+	/** Right-click's rule: inside ANY demigod's extended click zone (rival or yours) or over the kit's UI, else empty. */
+	FString RightClickBlockedBy() const;
 	FRotator LeanVel = FRotator::ZeroRotator;   // the head turn's velocity (a critically damped follow, see PlayerTick)
 };
