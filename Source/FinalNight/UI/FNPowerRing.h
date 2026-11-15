@@ -193,6 +193,8 @@ private:
 	bool bHoverPouch = false;
 	FString PressedRef;          // a demigod pressed (dragging it summons it when it's yours)
 	FString PressedWhy;          // why it can't be summoned ("" = it can)
+	bool bHandArmed = false, bHandPanning = false;   // the god's hand: pressed on the board / dragging it
+	FVector2D HandFrom = FVector2D::ZeroVector;
 	bool bHoverMine = false;
 	bool bHoverFigure = false;
 	TFunction<void(const FString&)> OnFigureDouble;

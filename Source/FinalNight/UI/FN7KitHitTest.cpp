@@ -14,6 +14,10 @@
 namespace FN7Kit
 {
 	static TFunction<void(const FVector2D&)> GBoardDoubleClick;
+	static TFunction<bool(const FString&)> GIsRival;
+
+	void SetRivalTest(TFunction<bool(const FString&)> InIsRival) { GIsRival = MoveTemp(InIsRival); }
+	bool IsRival(const FString& Ref) { return !GIsRival || GIsRival(Ref); }
 
 	static AFNStudio* StudioOf(UWorld* World)
 	{
@@ -39,15 +43,17 @@ namespace FN7Kit
 
 	bool IsOverAnyFigure(UWorld* World, const FVector2D& ViewportPixel)
 	{
-		return World && !AFNTableGods::FigureAtScreen(World, ViewportPixel, nullptr, NearMissScale).IsEmpty();
+		if (!World) return false;
+		const FString Fig = AFNTableGods::FigureAtScreen(World, ViewportPixel, [](const FString& R) { return IsRival(R); }, NearMissScale);
+		return !Fig.IsEmpty() && IsRival(Fig);
 	}
 
 	FString WhyBlocked(UWorld* World, const FVector2D& ViewportPixel)
 	{
 		if (!World) return FString();
 		double D = 0.0;
-		const FString Fig = AFNTableGods::FigureAtScreen(World, ViewportPixel, nullptr, NearMissScale, &D);
-		if (!Fig.IsEmpty()) return FString::Printf(TEXT("figure %s at %.0f px"), *Fig, D);
+		const FString Fig = AFNTableGods::FigureAtScreen(World, ViewportPixel, [](const FString& R) { return IsRival(R); }, NearMissScale, &D);
+		if (!Fig.IsEmpty() && IsRival(Fig)) return FString::Printf(TEXT("rival figure %s at %.0f px"), *Fig, D);
 		if (const AFNDuelBox* Box = AFNDuelBox::Get(World, false))
 			if (Box->IsShowing()) return TEXT("duel box up");
 		if (AFNStudio* St = StudioOf(World))
@@ -70,7 +76,7 @@ namespace FN7Kit
 	bool IsOverKitUI(UWorld* World, const FVector2D& ViewportPixel)
 	{
 		const FString Why = WhyBlocked(World, ViewportPixel);
-		return !Why.IsEmpty() && !Why.StartsWith(TEXT("figure "));
+		return !Why.IsEmpty() && !Why.StartsWith(TEXT("rival figure "));
 	}
 
 	bool BlocksBoardGesture(UWorld* World, const FVector2D& ViewportPixel)
