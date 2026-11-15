@@ -41,6 +41,18 @@ public:
 	void OnReply(const TSharedPtr<FJsonObject>& D);
 	/** A cast's streak (phase.event public): the strike plays now. */
 	void OnStreak(const TSharedPtr<FJsonObject>& Pub);
+	// --- time travel (server: game.earth {beat}, game.earth_at {beat}, present.earth) -------------------------------
+	/** A game.earth_at answer: the whole field at a beat (phenomena with stable ids, the beat's hash). */
+	void OnFieldAt(const TSharedPtr<FJsonObject>& D);
+	/** match.snapshot (a join, a reconnect, a fork): the earth as it stands at present.earth.beat. */
+	void OnSnapshot(const TSharedPtr<FJsonObject>& PresentEarth);
+	/** A new match: everything cleared; its first beat draws in full. */
+	void ResetMatch();
+	/** Show a past (or any) beat and hold it there while live beats keep arriving (a scrub / timeline). */
+	void ScrubTo(int32 Beat);
+	/** Back to the live beat after a scrub. */
+	void BackToLive();
+	int32 GetDrawnBeat() const { return DrawnBeat; }
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -97,6 +109,23 @@ private:
 	// Strikes (a cast's moment) and fault labels.
 	struct FFlash { TObjectPtr<UStaticMeshComponent> Beam; TObjectPtr<UStaticMeshComponent> Ring; TObjectPtr<UPointLightComponent> Light; TObjectPtr<UTextRenderComponent> Label; double At = 0.0; FVector Where = FVector::ZeroVector; FString Kind; bool bMega = false; };
 	TArray<FFlash> Flashes;
+	// Time travel: the beat on the table and its hash; a beat that isn't the next one is a jump (full, no since).
+	int32 DrawnBeat = -1;
+	FString DrawnHash;
+	int32 JumpBeat = -1, JumpFrom = -1;
+	bool bJumpBoard = false, bJumpTiles = false, bJumpField = false, bHashRetried = false;
+	bool bHeld = false;                         // a scrub holds the shown beat; live outcomes only record their hash
+	int32 FirstBeat = 1;                        // the match's first beat: every place's heights are measured from it
+	TMap<int32, FString> OutcomeHash;           // round.outcome public.earth.hash per beat
+	TMap<FString, TSharedPtr<FJsonObject>> BoardCache;   // "<centre>@<beat>" -> the full board answer (last 32)
+	TArray<FString> CacheOrder;
+	TSet<FString> BaseKnown, BaseAsked;         // board centres whose first-beat baseline is in / asked for
+	float CapBlend = 1.f;                       // seconds the caps take to blend in (0.3 for a jump)
+	void JumpTo(int32 Beat);
+	void ApplyJumpBoard(const TSharedPtr<FJsonObject>& D);
+	void ApplyBaseline(const TSharedPtr<FJsonObject>& Board);
+	void HeightsNow();
+	void ClearPhenomena();
 	// The Populous-style earth-heave: the earth itself should move, not the camera. A quake's hexes jolt up and down in
 	// a wave out from the epicentre and settle; raise / sink land jolt smaller. The real tiles move (SetHexOverride, one
 	// RebuildBoard a frame while it runs); the view stays still, and nothing heaves under a held hand or a zoom.
