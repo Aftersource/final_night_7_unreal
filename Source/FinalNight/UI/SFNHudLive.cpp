@@ -170,7 +170,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.TooltipSummonDelay"))) V->Set(0.45f, ECVF_SetByCode);
 	Net = InArgs._Net;
 	Model.YouName = FText::GetEmpty();
-	Model.ComposeHint = LOCTEXT("Hint", "Write what you'll do. Time slows while you write; SEND to act. Lines starting r: go to your right hand.");
+	Model.ComposeHint = LOCTEXT("Hint", "your will...");   // a short faint line (almost no text here)
 	Model.PowersNote = LOCTEXT("PowersNote", "Arm a power, write its target (a place, a name or lon,lat), SEND");
 
 	ChildSlot
@@ -1742,13 +1742,17 @@ void SFNHudLive::Publish()
 		auto Hot = [this](const TCHAR* Slug, const FString& Fill, const TCHAR* Tip) { Model.WillHotSlugs.Add(Slug); Model.WillHotFills.Add(Fill); Model.WillHotTips.Add(FString::Printf(TEXT("%s: \"%s\""), Tip, *Fill)); };
 		const FFNHudDemigod* Hurt = nullptr;
 		for (const FFNHudDemigod& D : Model.Mine) if (D.bAlive && (!Hurt || D.Health * Hurt->MaxHealth < Hurt->Health * D.MaxHealth)) Hurt = &D;
+		// the demigods by their names (no left-hand or right-hand notes, since they have demigod names)
+		auto NameOfD = [&HandOf](const FFNHudDemigod* D) { return D && !D->Name.IsEmpty() ? D->Name.ToString() : TEXT("my ") + HandOf(D); };
+		const FFNHudDemigod* Up = nullptr;
+		for (const FFNHudDemigod& D : Model.Mine) if (D.bAlive && !Up) Up = &D;
 		if (Model.Mine.Num() > 0 && Alive == 0) Hot(TEXT("ankh"), TEXT("Death, bring back my demigods"), TEXT("Bring them back"));
-		else if (Fallen) Hot(TEXT("ankh"), FString::Printf(TEXT("Death, bring back my %s, I offer 2 bolts"), *HandOf(Fallen)), TEXT("Bring back your fallen hand"));
+		else if (Fallen) Hot(TEXT("ankh"), FString::Printf(TEXT("Death, bring back %s, I offer 2 bolts"), *NameOfD(Fallen)), TEXT("Bring back your fallen hand"));
 		if (Alive > 0)
 		{
-			Hot(TEXT("bow"), FString::Printf(TEXT("arm yourself with an obsidian blade in %s and hunt %s"), *City, *Rival), TEXT("Arm and hunt"));
-			Hot(TEXT("meal"), FString::Printf(TEXT("Nature, heal my %s"), *HandOf(Hurt)), TEXT("Heal"));
-			Hot(TEXT("armies"), FString::Printf(TEXT("raise an army of 10,000 fishermen at the harbour of %s"), *City), TEXT("Raise an army"));
+			Hot(TEXT("bow"), FString::Printf(TEXT("%s, arm yourself with an obsidian blade in %s and hunt %s"), *NameOfD(Up), *City, *Rival), TEXT("Arm and hunt"));
+			Hot(TEXT("meal"), FString::Printf(TEXT("Nature, heal %s"), *NameOfD(Hurt)), TEXT("Heal"));
+			Hot(TEXT("armies"), FString::Printf(TEXT("%s, raise an army of 10,000 fishermen at the harbour of %s"), *NameOfD(Up), *City), TEXT("Raise an army"));
 		}
 		Model.WillChipHint = Model.Mine.Num() > 0 && Alive == 0
 			? FText::FromString(TEXT("Death charges sparks; can't pay = a quest"))

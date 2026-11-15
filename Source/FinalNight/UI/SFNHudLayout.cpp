@@ -2,6 +2,8 @@
 #include "Widgets/SToolTip.h"
 
 #include "Brushes/SlateRoundedBoxBrush.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Containers/Ticker.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SFNFoil.h"
@@ -52,6 +54,58 @@ static TSharedRef<SToolTip> FN7StoneTip(const FText& Text)
 				.WrapTextAt(320.f).Text(Text)
 			]
 		];
+}
+
+// The engraved HUD: it needs to look engraved into whatever surface it's in, for the general button
+// style"): icons cut into the surface they sit on (ink strokes with the carved light lip, SFNPowerIcon), red ink under the
+// hand; numbers beside them in place of words.
+namespace FN7Engrave
+{
+	static FString Roman(int32 N)
+	{
+		if (N <= 0) return TEXT("\u2013");   // no zero in Roman numerals: a dash
+		static const int32 V[] = { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 };
+		static const TCHAR* S[] = { TEXT("M"), TEXT("CM"), TEXT("D"), TEXT("CD"), TEXT("C"), TEXT("XC"), TEXT("L"), TEXT("XL"), TEXT("X"), TEXT("IX"), TEXT("V"), TEXT("IV"), TEXT("I") };
+		FString Out;
+		for (int32 k = 0; k < 13; ++k) while (N >= V[k]) { Out += S[k]; N -= V[k]; }
+		return Out;
+	}
+	/** A clickable icon engraved into its surface: Alpha < 1 for a faint one (the "?"). */
+	static TSharedRef<SWidget> Button(const FString& Slug, float Size, const FText& Tip, const FString& LogName, TFunction<void()> OnClick, float Alpha = 1.f, FLinearColor Ink = FN7Wood::Ink())
+	{
+		TSharedPtr<SButton> B;
+		SAssignNew(B, SButton)
+			.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
+			.ContentPadding(FMargin(3.f, 1.f))
+			.ToolTip(FN7StoneTip(Tip))
+			.OnClicked_Lambda([OnClick, LogName]() { UE_LOG(LogTemp, Display, TEXT("FN7 header click: %s"), *LogName); OnClick(); return FReply::Handled(); });
+		TWeakPtr<SButton> W = B;
+		B->SetContent(SNew(SFNPowerIcon).Slug(Slug).Size(Size).Color_Lambda([W, Alpha, Ink]()
+		{
+			const TSharedPtr<SButton> P = W.Pin();
+			const bool bHot = P.IsValid() && P->IsHovered();
+			FLinearColor C = bHot ? FN7Wood::RedInk() : Ink;
+			C.A = bHot ? FMath::Max(Alpha, 0.85f) : Alpha;
+			return C;
+		}));
+		return B.ToSharedRef();
+	}
+	/** An engraved icon and its number (no word). */
+	static TSharedRef<SWidget> Stat(const FString& Slug, const FText& Tip, TAttribute<FText> Value, FLinearColor Ink = FN7Wood::Ink(), float Size = 17.f)
+	{
+		return SNew(SHorizontalBox).ToolTip(FN7StoneTip(Tip))
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 3.f, 0.f)[SNew(SFNPowerIcon).Slug(Slug).Size(Size).Color(Ink * FLinearColor(1.f, 1.f, 1.f, 0.8f))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[SNew(STextBlock).Font(FN7Style::Type::Font(13, TEXT("Bold"))).ColorAndOpacity(Ink).Text(Value)];
+	}
+	/** A raised plaque with embossed edges (light above, shadow below) for an icon button on a card. */
+	static TSharedRef<SWidget> Embossed(TSharedRef<SWidget> Inner, const FLinearColor& Face)
+	{
+		static const FSlateRoundedBoxBrush Round(FLinearColor::White, 7.f);
+		return SNew(SOverlay)
+			+ SOverlay::Slot().Padding(FMargin(2.f, 2.f, 0.f, 0.f))[SNew(SBorder).BorderImage(&Round).BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.5f))]
+			+ SOverlay::Slot().Padding(FMargin(0.f, 0.f, 2.f, 2.f))[SNew(SBorder).BorderImage(&Round).BorderBackgroundColor(FLinearColor(1.f, 0.97f, 0.9f, 0.45f))]
+			+ SOverlay::Slot().Padding(FMargin(1.f))[SNew(SBorder).BorderImage(&Round).BorderBackgroundColor(Face).HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(FMargin(6.f, 2.f))[Inner]];
+	}
 }
 
 namespace FN7HudParts
@@ -411,55 +465,43 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 			];
 	};
 
-	// Lobby, reset view and "?" as real stone buttons right after the title (Benito noted there is no leave-to-lobby button):
-	// they were small ink links at the far end of the bar, at the screen edge).
-	auto StoneButton = [](const FText& Label, const FText& Tip, TFunction<void()> OnClick) -> TSharedRef<SWidget>
-	{
-		return SNew(SButton)
-			.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
-			.ContentPadding(FMargin(0.f))
-			.ToolTip(FN7StoneTip(Tip))
-			.OnPressed_Lambda([Label]() { UE_LOG(LogTemp, Display, TEXT("FN7 header press: %s"), *Label.ToString()); })
-			.OnClicked_Lambda([OnClick, Label]() { UE_LOG(LogTemp, Display, TEXT("FN7 header click: %s"), *Label.ToString()); OnClick(); return FReply::Handled(); })
-			[
-				SNew(SBorder).BorderImage(FN7Wood::StoneBrush()).Padding(FMargin(11.f, 3.f))
-				[
-					SNew(STextBlock).Font(Type::Font(12, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.97f, 0.93f, 0.84f)).Text(Label)
-				]
-			];
-	};
 	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
 		[
 			SNew(STextBlock).TextStyle(&Type::Title()).Font(Type::Font(15, TEXT("Bold"))).ColorAndOpacity(Red).Text(LOCTEXT("Game", "FINAL NIGHT 7"))
 		]
+		// the house buttons engraved into the scroll (for the lobby, make it another engraved icon, since we don't
+		// need reset view"; R or Home still resets); the "?" faint, barely there, still clickable
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 		[
-			StoneButton(LOCTEXT("LobbyPill", "LOBBY"), LOCTEXT("LobbyTip", "Back to the lobby (Esc)"), [this]() { OnLobby.ExecuteIfBound(); })
+			FN7Engrave::Button(TEXT("door"), 22.f, LOCTEXT("LobbyTip", "Back to the lobby (Esc)"), TEXT("LOBBY"), [this]() { OnLobby.ExecuteIfBound(); })
 		]
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::S, 0.f)
 		[
-			StoneButton(LOCTEXT("ResetPill", "RESET VIEW"), LOCTEXT("ResetTip", "The board, the camera and the panels back where they were (R or Home)"), [this]() { OnResetView.ExecuteIfBound(); })
+			FN7Engrave::Button(TEXT("tree"), 22.f, LOCTEXT("TreeTip", "The tree of consequence: exactly how the game remembers, from the world down to a 3 m hex"), TEXT("TREE"), [this]() { OnTree.ExecuteIfBound(); })
 		]
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
 		[
-			StoneButton(LOCTEXT("HowPill", "?"), LOCTEXT("HowTip", "How to play"), [this]() { OnHowToPlay.ExecuteIfBound(); })
-		]
-		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
-		[
-			StoneButton(LOCTEXT("TreePill", "TREE"), LOCTEXT("TreeTip", "The tree of consequence: exactly how the game remembers, from the world down to a 3 m hex"), [this]() { OnTree.ExecuteIfBound(); })
+			FN7Engrave::Button(TEXT("question"), 19.f, LOCTEXT("HowTip", "How to play"), TEXT("?"), [this]() { OnHowToPlay.ExecuteIfBound(); }, 0.3f)
 		];
 	auto Add = [&Row](TSharedRef<SWidget> W)
 	{
 		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)[W];
 	};
-	if (!Model.Room.IsEmpty()) Add(InkStat(LOCTEXT("Room", "ROOM"), Model.Room));
+	// icons and numbers, no words (there is too much text there)
+	if (!Model.Room.IsEmpty()) Add(FN7Engrave::Stat(TEXT("key"), LOCTEXT("RoomTip", "The room's code"), Model.Room));
 	if (Model.BeatsTotal > 0)
 	{
-		Add(InkStat(LOCTEXT("Beat", "BEAT"), FText::Format(LOCTEXT("BeatFmt", "{0}/{1}"), Model.Beat, Model.BeatsTotal)));
-		Add(InkStat(LOCTEXT("Alive", "ALIVE"), Model.AliveOf > 0 ? FText::Format(LOCTEXT("AliveOf", "{0}/{1}"), Model.Alive, Model.AliveOf) : FText::AsNumber(Model.Alive)));
+		Add(FN7Engrave::Stat(TEXT("moon"), LOCTEXT("BeatTip", "The beat: one night of the war"), FText::Format(LOCTEXT("BeatFmt", "{0}/{1}"), Model.Beat, Model.BeatsTotal)));
+		Add(FN7Engrave::Stat(TEXT("figure"), LOCTEXT("AliveTip", "Demigods still standing"), Model.AliveOf > 0 ? FText::Format(LOCTEXT("AliveOf", "{0}/{1}"), Model.Alive, Model.AliveOf) : FText::AsNumber(Model.Alive)));
 	}
-	if (!Model.Entropy.IsEmpty()) Add(InkStat(LOCTEXT("Entropy", "ENTROPY"), Model.Entropy));
+	if (!Model.Entropy.IsEmpty())
+	{
+		// only the number ("WEATHER 38" -> 38)
+		FString E = Model.Entropy.ToString(), Num;
+		for (int32 k = E.Len() - 1; k >= 0 && (FChar::IsDigit(E[k]) || E[k] == TEXT('.')); --k) Num = FString::Chr(E[k]) + Num;
+		Add(FN7Engrave::Stat(TEXT("swirl"), FText::Format(LOCTEXT("EntropyTip2", "Entropy {0} of 100: at 100 the world ends. Big powers raise it."), FText::FromString(Num.IsEmpty() ? E : Num)), FText::FromString(Num.IsEmpty() ? E : Num)));
+	}
 	if (Model.bReplay) Add(InkStat(FText::GetEmpty(), LOCTEXT("Replay", "REPLAY")));
 
 	return Row;
@@ -719,13 +761,18 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 				.ToolTip(FN7StoneTip(LOCTEXT("ItemsTip", "Open this demigod's items (click again or Esc to close)")))
 				.OnClicked_Lambda([this, R = D.Ref]() { OnCardItems.ExecuteIfBound(R); return FReply::Handled(); })
 				[
-					SNew(SBox).MinDesiredWidth(96.f).HeightOverride(44.f)
+					SNew(SBox).MinDesiredWidth(64.f).HeightOverride(44.f)
 					[
-						SNew(SBorder).BorderImage(Brush::PillAccent()).Padding(FMargin(12.f, 0.f)).HAlign(HAlign_Center).VAlign(VAlign_Center)
-						[
-							SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(13, TEXT("Bold"))).ColorAndOpacity(HudInk)
-							.Text(FText::Format(LOCTEXT("ItemsN", "ITEMS {0}"), D.ItemCount))
-						]
+						// an engraved chest on an embossed plaque (items need to be an icon ... engraved in a nice clickable
+						// button ... embossed edges"), its count small
+						FN7Engrave::Embossed(
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[SNew(SFNPowerIcon).Slug(TEXT("chest")).Size(28.f).Color(FN7Wood::Ink())]
+							+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom).Padding(2.f, 0.f, 0.f, 2.f)
+							[
+								SNew(STextBlock).Font(Type::Font(10, TEXT("Bold"))).ColorAndOpacity(FN7Wood::Ink()).Text(FText::AsNumber(D.ItemCount))
+							],
+							FLinearColor(0.86f, 0.8f, 0.68f))
 					]
 				]
 			]
@@ -736,18 +783,14 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 	TSharedRef<SHorizontalBox> Purse = SNew(SHorizontalBox);
 	Purse->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
 	[
-		SNew(SBox).ToolTip(FN7StoneTip(LOCTEXT("BoltTip", "Bolts pay for BIG powers: open the jar on the right and drag one onto the globe.")))
-		[
-			Chip(Brush::PillAccent(), Model.Bolts == 1 ? LOCTEXT("OneBolt", "1 BOLT") : FText::Format(LOCTEXT("Bolts", "{0} BOLTS"), Model.Bolts), HudInk)
-		]
+		FN7Engrave::Stat(TEXT("lightning"), FText::Format(LOCTEXT("BoltTip2", "{0} bolts: they pay for BIG powers (open the jar on the right, drag one onto the globe)"), Model.Bolts),
+			FText::FromString(FN7Engrave::Roman(Model.Bolts)), FLinearColor(1.f, 0.82f, 0.4f), 20.f)
 	];
 	if (Model.Sparks >= 0)
 		Purse->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
 		[
-			SNew(SBox).ToolTip(FN7StoneTip(LOCTEXT("SparkTip", "Sparks pay for small powers on the board, and Death takes them to raise a fallen hand.")))
-			[
-				Chip(Brush::Pill(EFNSeatRole::AI), Model.Sparks == 1 ? LOCTEXT("OneSpark", "1 SPARK") : FText::Format(LOCTEXT("Sparks", "{0} SPARKS"), Model.Sparks), Color::AIAura())
-			]
+			FN7Engrave::Stat(TEXT("spark"), FText::Format(LOCTEXT("SparkTip2", "{0} sparks: small powers on the board; Death takes them to raise a fallen hand"), Model.Sparks),
+				FText::FromString(FN7Engrave::Roman(Model.Sparks)), Color::AIAura(), 20.f)
 		];
 	if (Model.Debt >= 0.0)
 	{
@@ -755,10 +798,8 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 		One.SetMinimumFractionalDigits(1).SetMaximumFractionalDigits(1);
 		Purse->AddSlot().AutoWidth().VAlign(VAlign_Center)
 		[
-			SNew(SBox).ToolTip(FN7StoneTip(LOCTEXT("DebtTip", "What you owe Time for slowing it while you write. Time collects it later.")))
-			[
-				Chip(Brush::Pill(EFNSeatRole::Fallen), FText::Format(LOCTEXT("Debt", "DEBT {0}"), FText::AsNumber(Model.Debt, &One)), Color::Text())
-			]
+			FN7Engrave::Stat(TEXT("hourglass"), LOCTEXT("DebtTip", "What you owe Time for slowing it while you write. Time collects it later."),
+				FText::AsNumber(Model.Debt, &One), Color::Text(), 20.f)
 		];
 	}
 
@@ -781,13 +822,13 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 			]
 			+ SVerticalBox::Slot().AutoHeight()[Pair]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)[Purse]
-			// what the chips are, said once in plain words (audit: nothing explained them; hover a chip for more)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f, 0.f, 0.f)
+			// the notes: a "\u25CF" list in a small scroll with a styled bar (text notes need the unicode filled
+			// circle medium like a bullet point and scrollable with a nice scroll mark")
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 0.f)
 			[
-				SNew(SBox).WidthOverride(2.f * CardW + Space::M + 6.f)
+				SNew(SBox).WidthOverride(2.f * CardW + Space::M + 6.f).MaxDesiredHeight(54.f)
 				[
-					SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true)
-					.Text(LOCTEXT("PurseHow", "Bolts and sparks pay for powers (the jar on the right). Debt is what slowing time costs."))
+					MakeNotes()
 				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
@@ -804,15 +845,35 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 					.Text_Lambda([this]() { return FText::Format(LOCTEXT("TimeBill", "TIME'S BILL  {0}"), Model.TimeBill); })
 				]
 			]
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
-			[
-				SNew(SBox).WidthOverride(2.f * CardW + Space::M + 6.f)
-				[
-					SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true)
-					.Text(Model.Place.IsEmpty() ? Model.ArenaLine : (Model.ArenaLine.IsEmpty() ? Model.Place : FText::Format(LOCTEXT("PlaceArena", "{0}  -  {1}"), Model.Place, Model.ArenaLine)))
-				]
-			]
 		];
+}
+
+TSharedRef<SWidget> SFNHudLayout::MakeNotes()
+{
+	using namespace FN7Style;
+	static FScrollBarStyle Bar = []()
+	{
+		FScrollBarStyle B = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar");
+		static const FSlateRoundedBoxBrush Thumb(FLinearColor(0.95f, 0.78f, 0.42f, 0.85f), 3.f);
+		static const FSlateRoundedBoxBrush Track(FLinearColor(0.f, 0.f, 0.f, 0.18f), 3.f);
+		B.SetNormalThumbImage(Thumb).SetHoveredThumbImage(Thumb).SetDraggedThumbImage(Thumb);
+		B.SetVerticalBackgroundImage(Track).SetVerticalTopSlotImage(Track).SetVerticalBottomSlotImage(Track);
+		return B;
+	}();
+	TArray<FText> Lines;
+	Lines.Add(LOCTEXT("NoteBolts", "Bolts and sparks pay for powers: the jar on the right."));
+	Lines.Add(LOCTEXT("NoteDebt", "The hourglass is what slowing time costs you."));
+	if (!Model.Place.IsEmpty()) Lines.Add(Model.Place);
+	if (!Model.ArenaLine.IsEmpty()) Lines.Add(Model.ArenaLine);
+	TSharedRef<SScrollBox> List = SNew(SScrollBox).ScrollBarStyle(&Bar).ScrollBarThickness(FVector2D(5.f, 5.f)).ScrollBarAlwaysVisible(Lines.Num() > 2);
+	for (const FText& L : Lines)
+		List->AddSlot().Padding(0.f, 0.f, 8.f, 1.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0.f, 0.f, 5.f, 0.f)[SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(FLinearColor(0.95f, 0.78f, 0.42f)).Text(FText::FromString(TEXT("\u25CF")))]
+			+ SHorizontalBox::Slot().FillWidth(1.f)[SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true).Text(L)]
+		];
+	return List;
 }
 
 TSharedRef<SWidget> SFNHudLayout::MakeYou()
@@ -1011,7 +1072,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeWillChips()
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 0.f)
 		[
 			SNew(STextBlock).Font(Type::Font(10, TEXT("Italic"))).ColorAndOpacity(InkDim).AutoWrapText(true)
-			.Visibility_Lambda([this]() { return HotSendAt > 0.0 ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+			.Visibility(EVisibility::Collapsed)   // no helper line (almost no text here)
 			.Text_Lambda([this]() { return Model.WillChipHint; })
 		];
 }
@@ -1074,8 +1135,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeComposePanel()
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 						[
-							SNew(STextBlock).TextStyle(&Type::Small()).Font(Type::Font(10, TEXT("Italic"))).ColorAndOpacity(InkDim).AutoWrapText(true)
-							.Text(LOCTEXT("HandsHint", "l: for your Left Hand, r: for your Right Hand"))
+							SNew(SSpacer)   // no l:/r: notes: the demigods go by their names (Chris)
 						]
 						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Space::S, 0.f, 0.f, 0.f)
 						[
@@ -1188,7 +1248,7 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.Place = FText::FromString(TEXT("Vienna, Western Europe"));
 	M.ArenaLine = FText::FromString(TEXT("Time's circle: 8637 km around Kinshasa. Stay inside."));
 	M.PowersNote = FText::FromString(TEXT("Drag a block onto the board to cast it there, or arm it and write its target."));
-	M.ComposeHint = FText::FromString(TEXT("Write what you'll do today. Time slows while you write..."));
+	M.ComposeHint = FText::FromString(TEXT("your will..."));
 	M.Timer = FText::FromString(TEXT("0:05"));
 
 	auto Seat = [](const TCHAR* Name, EFNSeatRole Role, bool bYou, bool bTime, const TCHAR* Png)
@@ -1229,7 +1289,7 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.Entropy = FText::FromString(TEXT("RESTLESS 34"));
 	M.TimeBill = FText::FromString(TEXT("1 bolt + 2.4 debt"));
 	M.Timer = FText::FromString(TEXT("0:22"));
-	M.ComposeHint = FText::FromString(TEXT("Write what you'll do. Time slows while you write."));
+	M.ComposeHint = FText::FromString(TEXT("your will..."));
 	const int32 SeatBolts[] = { 1, 3, 2, 0 }, SeatSparks[] = { 5, 4, 2, 0 };
 	for (int32 i = 0; i < M.Seats.Num() && i < 4; ++i) { M.Seats[i].Bolts = SeatBolts[i]; M.Seats[i].Sparks = SeatSparks[i]; }
 
