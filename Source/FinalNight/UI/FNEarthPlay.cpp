@@ -1,5 +1,6 @@
 #include "FNEarthPlay.h"
 #include "FNHudPrefs.h"
+#include "FNSoundPass.h"
 
 #include "FNNetClient.h"
 #include "FNStudio.h"
@@ -731,6 +732,9 @@ void AFNEarthPlay::OnStreak(const TSharedPtr<FJsonObject>& Pub)
 		F.Where = W;
 		F.Kind = Power;
 		F.bMega = Str(C, TEXT("tier")) == TEXT("mega");
+		// The sound of it: a mini a soft breath, a mega a deep rush with the studio's impact under it.
+		FN7Sound::Play(GetWorld(), F.bMega ? FN7Sound::ESnd::MegaWhoosh : FN7Sound::ESnd::MiniWhoosh, F.bMega ? 0.55f : 0.35f);
+		if (F.bMega) Studio->PlaySfx(EFNSfx::Impact, 0.35f, 0.9f);
 		// A column of light out of the sky onto the point, and a shock ring that runs out over the land.
 		F.Beam = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), KindColor(Power) * 5.f + FLinearColor(0.4f, 0.4f, 0.4f));
 		F.Beam->SetWorldLocation(W + FVector(0, 0, 45.f * S));
@@ -974,6 +978,7 @@ void AFNEarthPlay::StartHeave(double Lat, double Lon, float AmpCm, float RadiusK
 	AFNStudio* St = FindStudio();
 	int32 Q0, R0;
 	if (!St || !St->BoardCentreHex(Q0, R0)) return;
+	FN7Sound::Play(GetWorld(), FN7Sound::ESnd::Rumble, 0.45f);   // the ground heaving
 	const double Now = FPlatformTime::Seconds();
 	for (const FHeave& H : Heaves) if (Now - H.Start < 1.5 && Km(H.Lat, H.Lon, Lat, Lon) < RadiusKm * 0.3) return;   // the same quake twice
 	const FString Board = St->BoardCellKey(Q0, R0);

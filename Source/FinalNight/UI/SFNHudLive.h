@@ -163,6 +163,8 @@ private:
 	FText ConfirmTitle, ConfirmBody;
 	// game.duel_odds for the open challenge card (Benito: the odds in the confirm): the headline and the why lines.
 	FString OddsLine, OddsWhy;
+	TMap<FString, bool> AliveSeen;   // the sound pass: your hands' last known standing
+	int32 LastUrgency = 0;
 	// The tree of consequence overlay (game.memory_tree); asked again when the beat turns while it is open.
 	TSharedPtr<class SFNMemoryTree> MemTree;
 	bool bTreeOpen = false;
