@@ -67,6 +67,20 @@ private:
 	void Add(int32 Mesh, const FColor& C, const FTransform& T);
 	void Stick(const FVector& A, const FVector& B, float Thick, const FColor& C);
 	void Decide(FPerson& P, const TArray<FVector2D>& Spots, const TArray<FVector2D>& Houses);
+
+	// The server's people pictures (game.people sprite library, CLIENT_API "People and houses"): per role, the
+	// pictures it has; a person whose role has one is drawn as a standing picture card instead of the shapes.
+	TMap<uint8, TArray<FString>> RoleSprites;          // role -> picture hashes (several looks)
+	TMap<FString, FString> SpriteUrl;                  // hash -> url
+	UPROPERTY() TMap<FString, TObjectPtr<UTexture2D>> SpriteTex;
+	UPROPERTY() TMap<FString, TObjectPtr<class UMaterialInstanceDynamic>> SpriteMat;
+	TSet<FString> SpriteLoading;
+	UPROPERTY() TArray<TObjectPtr<class UStaticMeshComponent>> CardPool;
+	FString AskedCell;
+	float SinceAsk = 100.f;
+	void ReadPeople(const TSharedPtr<class FJsonObject>& D);
+	void FetchSprite(const FString& Hash);
+	class UStaticMeshComponent* CardAt(int32 Index);
 };
 
 UCLASS()
