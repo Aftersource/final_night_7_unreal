@@ -113,6 +113,12 @@ private:
 	FString NetProblem;
 	double LastFigureWheelAt = 0.0;   // the wheel near a demigod: one level per gesture
 	TWeakObjectPtr<class AFNStarBackdrop> StarSky;
+	// The duel's opening slam (OpenDuelBox): two portraits and VS, before the box rises.
+	double SlamAt = -10.0;
+	FSlateBrush SlamBrushA, SlamBrushB;
+	FString SlamNameA, SlamNameB;
+	bool bSlamTexA = false, bSlamTexB = false;
+	TSharedRef<SWidget> SlamCard(bool bA);
 	double UpdateAt = 0.0;   // epoch seconds of a coming restart (Saved/FN7Notice.txt), 0 = none
 	FString UpdateText;
 	bool bHowTo = false, bHowToChecked = false;   // the HOW TO PLAY tablet (once on first join, and from "?")
