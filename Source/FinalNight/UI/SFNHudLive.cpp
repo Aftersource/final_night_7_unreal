@@ -46,6 +46,7 @@
 #include "SFNMemoryTree.h"
 #include "FNSoundPass.h"
 #include "FNVoiceOver.h"
+#include "Features/FNInventoryShelf.h"
 
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
@@ -198,6 +199,24 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnHowToPlay_Lambda([this]() { bHowTo = true; })
 			.OnTree_Lambda([this]() { OpenTree(); })
 			.OnCardDoubleClick_Lambda([this](const FString& Ref) { OnDemigodDoubleClick(Ref); })
+			.OnCardSelect_Lambda([this](const FString& Ref)
+			{
+				// a click on your card: select it (the piece lit); nothing moves
+				AFNStudio* St = FindStudio();
+				if (AFNTableGods* T = AFNTableGods::GetAny(St ? St->GetWorld() : nullptr))
+				{
+					if (!SelectedRef.IsEmpty() && SelectedRef != Ref) T->SetFigureHeld(SelectedRef, false);
+					T->SetFigureHeld(Ref, true);
+				}
+				SelectedRef = Ref;
+				SelectedUntil = FPlatformTime::Seconds() + 2.0;
+				UE_LOG(LogTemp, Display, TEXT("FN7 select: %s (card click)"), *Ref);
+			})
+			.OnCardItems_Lambda([this](const FString& Ref)
+			{
+				AFNStudio* St = FindStudio();
+				AFNInventoryShelf::ToggleForDemigod(St ? St->GetWorld() : nullptr, Ref);
+			})
 			.OnCardDrag_Lambda([this](const FString& Ref, const FVector2D& Screen) -> TSharedPtr<FDragDropOperation>
 			{
 				const FString Why = WhyNotSummon(Ref);
@@ -1358,6 +1377,7 @@ void SFNHudLive::ReadSeatView(const TSharedPtr<FJsonObject>& View)
 			bool bAliveHand = true;
 			G->TryGetBoolField(TEXT("alive"), bAliveHand);
 			Dg.bAlive = bAliveHand;
+			if (AFNStudio* St = FindStudio()) Dg.ItemCount = AFNInventoryShelf::CountFor(St->GetWorld(), Dg.Ref);
 			// One of yours fell (it stood at the last seat view): the low tone.
 			if (!bAliveHand && AliveSeen.Contains(Dg.Ref) && AliveSeen[Dg.Ref])
 				if (AFNStudio* St = FindStudio()) FN7Sound::Play(St->GetWorld(), FN7Sound::ESnd::Fall, 0.5f);
@@ -3107,9 +3127,24 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 	const bool bMine = IsMyDemigod(Ref);
 	UE_LOG(LogTemp, Display, TEXT("FN7 double-click: %s %s %s"), *Ref, bMine ? TEXT("(yours)") : TEXT("(rival)"), bPos ? *FString::Printf(TEXT("-> centre %.4f, %.4f"), La, Lo) : TEXT("(not on the map)"));
 	if (!St || !bPos) { Toast(TEXT("That demigod isn't on the map.")); return; }
-	// The view stays where the hand put it (Chris, 2026-11-15, asked for hand movement like a Molyneux game, with a double click if you're
-	// not near an enemy's demigod ... to zoom in, right click to zoom out ... whatever else is going on is so annoying"):
-	// a double-click on your own demigod zooms in there (SFNPowerRingInput); on a rival's it challenges, nothing moves.
+	// Chris's demigod-controls design (2026-11-15, "if i double click my demigod's portrait i expect to visually have them
+	// centered on the minimap at whatever zoom i'm presently at"): the card and the piece are the same gestures.
+	// YOURS: the board and the globe glide to centre it at THIS zoom, one gold ring pulse under the piece.
+	if (bMine)
+	{
+		St->CenterBoardAndGlobe(La, Lo);
+		FN7Kit::NoteUserView();
+		if (T)
+		{
+			if (!SelectedRef.IsEmpty() && SelectedRef != Ref) T->SetFigureHeld(SelectedRef, false);
+			T->SetFigureHeld(Ref, true);
+			T->PulseRing(Ref, FLinearColor(1.f, 0.78f, 0.25f));
+		}
+		SelectedRef = Ref;
+		SelectedUntil = FPlatformTime::Seconds() + 2.0;
+		UE_LOG(LogTemp, Display, TEXT("FN7 double-click: centred on your %s at this zoom (level %d)"), *NameOf(Ref), St->GetMapLevel());
+		return;
+	}
 	if (!bMine)
 	{
 		// A rival: a challenge, always one confirm away (the challenge felt harder to reach than it should be). In reach (the two pieces
@@ -3137,6 +3172,17 @@ void SFNHudLive::OnDemigodDoubleClick(const FString& Ref)
 			// The one you selected goes first, then one already in reach, then the nearest.
 			const double Score = K - (S.Ref == SelectedRef ? 1e7 : 0.0) - (bIn ? 1e6 : 0.0);
 			if (Score < Best) { Best = Score; Mine = S.Ref; bReach = bIn; }
+		}
+		// A rival FAR away (not in reach, not on your board now): glide to centre it at this zoom (the design: "Double-click
+		// FAR = glide to centre it, same zoom"); in reach, or on your board: the challenge card below.
+		FVector OnBoardSpot;
+		if (!bReach && !St->BoardPointFor(La, Lo, OnBoardSpot))
+		{
+			St->CenterBoardAndGlobe(La, Lo);
+			FN7Kit::NoteUserView();
+			if (T) T->PulseRing(Ref, FLinearColor(0.95f, 0.25f, 0.2f));
+			UE_LOG(LogTemp, Display, TEXT("FN7 double-click: %s is far: centred on it at this zoom (level %d)"), *NameOf(Ref), Lv);
+			return;
 		}
 		if (Mine.IsEmpty()) { Toast(bDuelling ? TEXT("Your demigod is already in a duel: finish this one first.") : TEXT("Both of your demigods have fallen: no one to send into a challenge.")); return; }
 		ConfirmMine = Mine;

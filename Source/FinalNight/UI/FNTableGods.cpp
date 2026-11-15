@@ -1463,6 +1463,7 @@ void AFNTableGods::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	TickFx(Dt);
+	TickRingPulses(Dt);
 	AFNStudio* St = Studio.Get();
 	if (St) { St->HideWillBlock(); St->TickViewAnim(Dt); }   // the WILL bar stays hidden; view changes animate
 	if (!St || !bHasGods || !bShown) return;
@@ -1511,6 +1512,64 @@ void AFNTableGods::Tick(float Dt)
 				if (*Pi >= 1.4f) PulseIn.Remove(KV.Key);
 			}
 			Fig->SetActorScale3D(FVector(0.36f * S * FMath::Max(Sc, 0.01f)));
+		}
+	}
+}
+
+void AFNTableGods::PulseRing(const FString& Ref, const FLinearColor& Color)
+{
+	const TObjectPtr<AFNDemigodFigure>* F = OnBoard.Find(Ref);
+	if (!F || !*F) return;   // not on the board now: the centre brings it there; nothing to ring
+	FRingPulse P;
+	P.Ref = Ref;
+	const FBox B = (*F)->GetComponentsBoundingBox(true);
+	P.At = B.IsValid ? FVector(B.GetCenter().X, B.GetCenter().Y, B.Min.Z + 1.f) : (*F)->GetActorLocation();
+	P.R = B.IsValid ? FMath::Max(8.f, (float)FMath::Max(B.GetExtent().X, B.GetExtent().Y)) : 20.f;
+	UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	for (int32 i = 0; i < 18; ++i)
+	{
+		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+		C->SetupAttachment(RootComponent);
+		C->SetMobility(EComponentMobility::Movable);
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		C->SetCastShadow(false);
+		C->SetStaticMesh(Sphere);
+		if (M)
+		{
+			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(M, C);
+			D->SetVectorParameterValue(TEXT("Color"), Color);
+			C->SetMaterial(0, D);
+		}
+		C->RegisterComponent();
+		RingBeadsKeep.Add(C);
+		P.Beads.Add(C);
+	}
+	RingPulses.Add(MoveTemp(P));
+}
+
+void AFNTableGods::TickRingPulses(float Dt)
+{
+	for (int32 k = RingPulses.Num() - 1; k >= 0; --k)
+	{
+		FRingPulse& P = RingPulses[k];
+		P.T += Dt;
+		// follow the piece while the board glides under it
+		if (const TObjectPtr<AFNDemigodFigure>* F = OnBoard.Find(P.Ref))
+			if (*F) { const FBox B = (*F)->GetComponentsBoundingBox(true); if (B.IsValid) P.At = FVector(B.GetCenter().X, B.GetCenter().Y, B.Min.Z + 1.f); }
+		const float U = FMath::Clamp(P.T / 0.9f, 0.f, 1.f);
+		const float Rad = P.R * (0.9f + 1.6f * FMath::Sin(U * PI * 0.5f));
+		const float Bead = P.R * 0.11f * (1.f - U) / 50.f;
+		for (int32 i = 0; i < P.Beads.Num(); ++i)
+		{
+			const float A = 2.f * PI * i / P.Beads.Num();
+			P.Beads[i]->SetWorldLocation(P.At + FVector(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, 0.f));
+			P.Beads[i]->SetWorldScale3D(FVector(FMath::Max(0.0005f, Bead)));
+		}
+		if (U >= 1.f)
+		{
+			for (UStaticMeshComponent* C : P.Beads) { RingBeadsKeep.Remove(C); C->DestroyComponent(); }
+			RingPulses.RemoveAt(k);
 		}
 	}
 }

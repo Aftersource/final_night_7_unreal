@@ -1,4 +1,5 @@
 #include "Features/FNEventGlide.h"
+#include "../../UI/FN7KitHitTest.h"
 #include "Features/FNEventFx.h"
 #include "Features/FNScenePlayer.h"
 #include "FNStudio.h"
@@ -131,6 +132,9 @@ void AFNEventGlide::Tick(float DeltaSeconds)
 		}
 	}
 	if (Queue.Num() == 0 || Busy()) return;
+	// FN7 (Mac session, Chris's demigod-controls design): the player just centred or zoomed the view themselves: the
+	// glides wait their hands off (dropped, not deferred) so a double-click's centre is never yanked away.
+	if (FN7Kit::SinceUserView() < 6.0) { UE_LOG(LogTemp, Display, TEXT("FNGlide: you just moved the view: %d glide(s) dropped"), Queue.Num()); Queue.Reset(); return; }
 	const FGo G = Queue[0];
 	Queue.RemoveAt(0);
 	FVector Spot;

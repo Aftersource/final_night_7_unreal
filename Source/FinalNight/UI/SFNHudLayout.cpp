@@ -113,6 +113,8 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnHowToPlay = InArgs._OnHowToPlay;
 	OnCardDrag = InArgs._OnCardDrag;
 	OnCardDoubleClick = InArgs._OnCardDoubleClick;
+	OnCardSelect = InArgs._OnCardSelect;
+	OnCardItems = InArgs._OnCardItems;
 
 	// Screen map v2: four corners, the centre (the hex board and the globe) completely clear.
 	ChildSlot
@@ -553,6 +555,7 @@ public:
 		SLATE_ARGUMENT(FString, Ref)
 		SLATE_EVENT(FOnFNHudCardDrag, OnCardDrag)
 		SLATE_EVENT(FOnFNHudCardDouble, OnCardDouble)
+		SLATE_EVENT(FOnFNHudCardDouble, OnCardSelect)
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
 	void Construct(const FArguments& InArgs)
@@ -560,7 +563,15 @@ public:
 		Ref = InArgs._Ref;
 		OnCardDrag = InArgs._OnCardDrag;
 		OnCardDouble = InArgs._OnCardDouble;
+		OnCardSelect = InArgs._OnCardSelect;
 		ChildSlot[InArgs._Content.Widget];
+	}
+	virtual FReply OnMouseButtonUp(const FGeometry&, const FPointerEvent& E) override
+	{
+		// a click (no drag) selects it; nothing moves
+		if (E.GetEffectingButton() != EKeys::LeftMouseButton || Ref.IsEmpty()) return FReply::Unhandled();
+		OnCardSelect.ExecuteIfBound(Ref);
+		return FReply::Handled();
 	}
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry&, const FPointerEvent& E) override
 	{
@@ -587,6 +598,7 @@ private:
 	FString Ref;
 	FOnFNHudCardDrag OnCardDrag;
 	FOnFNHudCardDouble OnCardDouble;
+	FOnFNHudCardDouble OnCardSelect;
 };
 
 TSharedRef<SWidget> SFNHudLayout::MakeMine()
@@ -641,6 +653,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 					.Ref(D.bAlive ? D.Ref : FString())
 					.OnCardDrag(OnCardDrag)
 					.OnCardDouble(OnCardDoubleClick)
+					.OnCardSelect(OnCardSelect)
 					.ToolTip(FN7StoneTip(D.bAlive ? LOCTEXT("DragToSummon", "Drag onto the board or the globe to summon this demigod there") : LOCTEXT("HandFallenTip", "This demigod has fallen")))
 					[
 						SNew(SBorder).BorderImage(AuraFrame()).Padding(3.f)[CardW_]
@@ -692,6 +705,25 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 				.Visibility(D.Gear.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible)
 				.WrapTextAt(140.f).Justification(ETextJustify::Center)
 				.Text(FText::FromString(D.Gear))
+			]
+			// ITEMS n: its items drawer (the only way items open from a card; Chris's demigod-controls design, 44 px).
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 4.f, 0.f, 0.f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+				.Visibility(D.bAlive ? EVisibility::Visible : EVisibility::Collapsed)
+				.ToolTip(FN7StoneTip(LOCTEXT("ItemsTip", "Open this demigod's items (click again or Esc to close)")))
+				.OnClicked_Lambda([this, R = D.Ref]() { OnCardItems.ExecuteIfBound(R); return FReply::Handled(); })
+				[
+					SNew(SBox).MinDesiredWidth(96.f).HeightOverride(44.f)
+					[
+						SNew(SBorder).BorderImage(Brush::PillAccent()).Padding(FMargin(12.f, 0.f)).HAlign(HAlign_Center).VAlign(VAlign_Center)
+						[
+							SNew(STextBlock).TextStyle(&Type::Label()).Font(Type::Font(13, TEXT("Bold"))).ColorAndOpacity(HudInk)
+							.Text(FText::Format(LOCTEXT("ItemsN", "ITEMS {0}"), D.ItemCount))
+						]
+					]
+				]
 			]
 		];
 	}

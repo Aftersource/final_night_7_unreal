@@ -38,6 +38,7 @@ struct FFNHudDemigod
 	UTexture2D* InsetTexture = nullptr;      // the portrait, small, when the diorama leads
 	TArray<uint8> InsetPng;
 	FString Gear;            // its loadout (look.loadout names), shown under its health
+	int32 ItemCount = 0;     // the items it holds (the ITEMS button on its card opens them)
 	FString NewItem;         // a just-gained item: "NEW: <name>" on the card for a few seconds
 };
 
@@ -140,6 +141,9 @@ public:
 		SLATE_EVENT(FOnFNHudCardDrag, OnCardDrag)
 		/** Double-clicking one of your demigod cards zooms the board to it. */
 		SLATE_EVENT(FOnFNHudCardDouble, OnCardDoubleClick)
+		/** A click on a card selects it; its ITEMS button opens its items (Chris's demigod-controls design). */
+		SLATE_EVENT(FOnFNHudCardDouble, OnCardSelect)
+		SLATE_EVENT(FOnFNHudCardDouble, OnCardItems)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -177,6 +181,8 @@ private:
 	FOnFNHudResetView OnTree;
 	FOnFNHudCardDrag OnCardDrag;
 	FOnFNHudCardDouble OnCardDoubleClick;
+	FOnFNHudCardDouble OnCardSelect;
+	FOnFNHudCardDouble OnCardItems;
 	bool bTypingSignalled = false;
 
 	TSharedPtr<SBox> HeaderHolder, NewsHolder, YouHolder, PowersHolder;
