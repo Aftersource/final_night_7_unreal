@@ -253,11 +253,16 @@ void AFNInventoryShelf::Tick(float DeltaSeconds)
 		float Mx = 0, My = 0;
 		FString Hit;
 		if (PC->GetMousePosition(Mx, My))
+		{
+			float Best = 80.f;   // the nearest statue or item within 80 px
 			for (const TPair<FString, FVector>& KV : Anchors)
 			{
 				FVector2D Px;
-				if (PC->ProjectWorldLocationToScreen(KV.Value, Px) && FVector2D::Distance(Px, FVector2D(Mx, My)) < 80.f) Hit = KV.Key;
+				if (!PC->ProjectWorldLocationToScreen(KV.Value, Px)) continue;
+				const float Dist = FVector2D::Distance(Px, FVector2D(Mx, My));
+				if (Dist < Best) { Best = Dist; Hit = KV.Key; }
 			}
+		}
 		Open = !Open.IsEmpty() ? FString() : Hit;
 		if (!Open.IsEmpty()) UE_LOG(LogTemp, Display, TEXT("FNShelf: %s's items open"), *Open);
 	}
