@@ -1,0 +1,77 @@
+{
+ "slug": "kestrel_god",
+ "kind": "god",
+ "name": "Bot Kestrel",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "likeness (the player's Left Hand portrait)",
+   "file": {
+    "path": "figures/kestrel_god/likeness.png",
+    "sha256": "f77c92e971855f253428cd0e84e9b6922fbb06ab0338ad06bc7ab7473176a59d",
+    "bytes": 1532718
+   }
+  },
+  {
+   "step": 2,
+   "asset": "marble statue reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/kestrel_god/likeness.png"
+   ],
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, standing like the Augustus of Prima Porta: one arm raised and extended to address a crowd, the other holding a fan of oversized playing cards against the hip, weight on one leg. The god has the likeness of the character in the reference image (a round, sturdy figure with long braids, in ornate plate armour over a hooded cloak), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "usage": {
+    "input_tokens": 1232,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 208
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7472
+   },
+   "made_at": "2026-11-14",
+   "file": {
+    "path": "figures/kestrel_god/heroic.png",
+    "sha256": "af96f3ae5e9f299cef72cb4a6132a532491e8d8b8a603f1b4caaecfb98d5c73d",
+    "bytes": 2376934
+   }
+  },
+  {
+   "step": 3,
+   "asset": "god statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "task_id": "01a1dca0-ed77-703b-9441-83d389970a0c",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/kestrel_god/kestrel_god_statue.glb",
+     "sha256": "c84a48ccfac76208e3abac33b2d94418627d140d9defb249510410eeadb3c710",
+     "bytes": 23411796
+    },
+    {
+     "path": "figures/kestrel_god/preview.png",
+     "sha256": "0120bb5fe5089ab4595d5608d09d9ca436f70fa014b466978bf8f208f2fb7692",
+     "bytes": 126015
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,77 @@
+{
+ "slug": "sable_god",
+ "kind": "god",
+ "name": "Sable",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "likeness (the player's Left Hand portrait)",
+   "file": {
+    "path": "figures/sable_god/likeness.png",
+    "sha256": "c1157a4f5686105eecaddd86a7b4642b013b505277aff0619317a4d7bfbc923c",
+    "bytes": 1503881
+   }
+  },
+  {
+   "step": 2,
+   "asset": "marble statue reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/sable_god/likeness.png"
+   ],
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, reclining on one elbow on a low stone couch like a classical river god, the other hand lifting a cup, with a broad gap-toothed grin. The god has the likeness of the character in the reference image (a tall, willowy figure with a round face, in a ceremonial breastplate), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "usage": {
+    "input_tokens": 1224,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 200
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7464
+   },
+   "made_at": "2026-11-14",
+   "file": {
+    "path": "figures/sable_god/heroic.png",
+    "sha256": "714087fbeb1f9e062517faff0ad93d8e1ca3e9ec6db40f14d6b1dae222a50244",
+    "bytes": 2481745
+   }
+  },
+  {
+   "step": 3,
+   "asset": "god statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "task_id": "01a1dca3-499b-72c4-9ceb-c12263b02317",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/sable_god/sable_god_statue.glb",
+     "sha256": "a6337623ef4e8a06d10fb4a892cc6e441aa9a2418eb6500f681166aca59b7997",
+     "bytes": 20315352
+    },
+    {
+     "path": "figures/sable_god/preview.png",
+     "sha256": "918f0ddaf19d2a5d428b3f7458843129378bd325a1e18254bbdc6781499e4cbe",
+     "bytes": 155227
+    }
+   ]
+  }
+ ]
+}

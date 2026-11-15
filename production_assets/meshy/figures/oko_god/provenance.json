@@ -1,0 +1,77 @@
+{
+ "slug": "oko_god",
+ "kind": "god",
+ "name": "Oko",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "likeness (the player's Left Hand portrait)",
+   "file": {
+    "path": "figures/oko_god/likeness.png",
+    "sha256": "b7d056c0e3129a8dcae917bb6e99a1748b5adb3a4ef7b23cf3ae40c179ab7850",
+    "bytes": 1254417
+   }
+  },
+  {
+   "step": 2,
+   "asset": "marble statue reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/oko_god/likeness.png"
+   ],
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, kneeling on one knee as Atlas, straining to hold a great sphere on the shoulders and the back of the neck with both hands. The god has the likeness of the character in the reference image (a towering, broad-shouldered figure with a pointed chin, in a tailcoat with a torn sleeve), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "usage": {
+    "input_tokens": 1226,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 202
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7466
+   },
+   "made_at": "2026-11-14",
+   "file": {
+    "path": "figures/oko_god/heroic.png",
+    "sha256": "fa71c8d553e2d0bb99dacad605d56d49d211b09aa9391139c55bae56f16e620b",
+    "bytes": 2727496
+   }
+  },
+  {
+   "step": 3,
+   "asset": "god statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "task_id": "01a1dca2-43f0-7478-867a-6cca8ea117d6",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/oko_god/oko_god_statue.glb",
+     "sha256": "4350187d1fd1eacf760ffb3a96938663368528f164352856c37b0a5db70de49b",
+     "bytes": 14840884
+    },
+    {
+     "path": "figures/oko_god/preview.png",
+     "sha256": "fa5959482bb35ed06187bba55c915e3fa27a432b6439d33e490cce5c8ce7f97c",
+     "bytes": 100010
+    }
+   ]
+  }
+ ]
+}

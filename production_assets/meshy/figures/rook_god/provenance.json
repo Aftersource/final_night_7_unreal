@@ -1,0 +1,77 @@
+{
+ "slug": "rook_god",
+ "kind": "god",
+ "name": "Rook",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "likeness (the player's Left Hand portrait)",
+   "file": {
+    "path": "figures/rook_god/likeness.png",
+    "sha256": "1453677ddd46252a499aa35214b69017a554d9ee645f144dc44afe088c672af3",
+    "bytes": 1276045
+   }
+  },
+  {
+   "step": 2,
+   "asset": "marble statue reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/rook_god/likeness.png"
+   ],
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, standing like the Farnese Hercules: weary and massive, leaning his weight on a great club propped under one arm, the other hand behind his back, head bowed. The god has the likeness of the character in the reference image (a hulking, heavy-set figure with a wild beard, in a high-collared coat of overlapping scales), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "usage": {
+    "input_tokens": 1233,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 209
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7473
+   },
+   "made_at": "2026-11-14",
+   "file": {
+    "path": "figures/rook_god/heroic.png",
+    "sha256": "fee3f005a4721eec7f46fa8b75ca6610612c6d672179b4899330e7d71ed15cc6",
+    "bytes": 2291316
+   }
+  },
+  {
+   "step": 3,
+   "asset": "god statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "task_id": "01a1dca4-a1b2-731a-a713-1d1dd17da9ac",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/rook_god/rook_god_statue.glb",
+     "sha256": "8e5b6963711fe0ef522a92d91ec13231085310c77955f0d64bed457f1ff152f0",
+     "bytes": 26445720
+    },
+    {
+     "path": "figures/rook_god/preview.png",
+     "sha256": "dd0f9a9db1e358c71ac7cbb4e32c30cc0762f42ad2bbbad9fd0c3a54db4b1bd4",
+     "bytes": 119323
+    }
+   ]
+  }
+ ]
+}

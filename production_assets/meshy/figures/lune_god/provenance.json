@@ -1,0 +1,77 @@
+{
+ "slug": "lune_god",
+ "kind": "god",
+ "name": "Lune",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "likeness (the player's Left Hand portrait)",
+   "file": {
+    "path": "figures/lune_god/likeness.png",
+    "sha256": "e446a7a9f2bc7c27704255e4f9d8d601d3e62d5049806a757fd3a6e52c87da6a",
+    "bytes": 1386795
+   }
+  },
+  {
+   "step": 2,
+   "asset": "marble statue reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/lune_god/likeness.png"
+   ],
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, balanced on the ball of one foot like Giambolognas flying Mercury, the other leg kicked back, one arm pointing to the sky, the other holding a horn. The god has the likeness of the character in the reference image (a wiry, long-limbed figure with sharp cheekbones, in a ceremonial breastplate), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "usage": {
+    "input_tokens": 1230,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 206
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7470
+   },
+   "made_at": "2026-11-14",
+   "file": {
+    "path": "figures/lune_god/heroic.png",
+    "sha256": "96fc008f82cae82d18ab9fd115911c7e6f6acf1775045be15faaa62cbd032958",
+    "bytes": 2501500
+   }
+  },
+  {
+   "step": 3,
+   "asset": "god statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "task_id": "01a1dcac-a64f-719a-baff-0dda497e61ab",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/lune_god/lune_god_statue.glb",
+     "sha256": "03cbe297e084710534795bc8b806105ee055bc4d9769eeeafbf708e5e9db6abb",
+     "bytes": 12106416
+    },
+    {
+     "path": "figures/lune_god/preview.png",
+     "sha256": "ac587f532c62a1bb372903e735463ec5b38b7be80687391ba87c1bb0a65daceb",
+     "bytes": 73102
+    }
+   ]
+  }
+ ]
+}

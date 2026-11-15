@@ -1,0 +1,77 @@
+{
+ "slug": "mara_god",
+ "kind": "god",
+ "name": "Mara",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "likeness (the player's Left Hand portrait)",
+   "file": {
+    "path": "figures/mara_god/likeness.png",
+    "sha256": "9dc78926f92ed5ccf2dde189c2d495064d658ec788cb3ec81eaee70c7d229752",
+    "bytes": 1498643
+   }
+  },
+  {
+   "step": 2,
+   "asset": "marble statue reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/mara_god/likeness.png"
+   ],
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, striding forward like the Winged Victory of Samothrace, robes blown back, one arm raising a war banner on a broken spear high overhead. The god has the likeness of the character in the reference image (a compact, muscular figure wearing a cracked half-mask and a laurel crown), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "usage": {
+    "input_tokens": 1222,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 198
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7462
+   },
+   "made_at": "2026-11-14",
+   "file": {
+    "path": "figures/mara_god/heroic.png",
+    "sha256": "cced6dbb77580e4f04c52dec2530357bc17ec679203846c57152c08e5e1c795f",
+    "bytes": 2447089
+   }
+  },
+  {
+   "step": 3,
+   "asset": "god statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "task_id": "01a1dca8-d395-77c9-9a5e-4c4aacb6969e",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/mara_god/mara_god_statue.glb",
+     "sha256": "213799fb65a63d0d3f90e1518b1a12ca2f81cef620cd0d87804bfcaffce470c4",
+     "bytes": 22527260
+    },
+    {
+     "path": "figures/mara_god/preview.png",
+     "sha256": "b5b9f62baac775a305fce8f4c3d101d1a46687e461378263b1a3596fdeb2cf66",
+     "bytes": 105594
+    }
+   ]
+  }
+ ]
+}
