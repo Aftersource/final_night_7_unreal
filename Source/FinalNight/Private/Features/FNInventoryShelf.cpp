@@ -284,8 +284,10 @@ void AFNInventoryShelf::Tick(float DeltaSeconds)
 		if (bBlocked) { /* a demigod's or the HUD's click: the shelf leaves it alone */ }
 		else
 		{
+			const FString Was = Open;
 			Open = (!Open.IsEmpty() || Hit.IsEmpty()) ? FString() : Hit;
-			if (!Open.IsEmpty()) UE_LOG(LogTemp, Display, TEXT("FNShelf: %s's items open (a click on the statue)"), *Open);
+			if (!Open.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FNShelf: %s's items open (a click on the statue)"), *Open); }
+			else if (!Was.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FNShelf: %s's items closed (a click away)"), *Was); }
 		}
 	}
 
