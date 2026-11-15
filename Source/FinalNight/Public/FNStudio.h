@@ -308,6 +308,7 @@ private:
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> PickRing;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PickPin;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> BeamRays;
+	UPROPERTY() TObjectPtr<UTextRenderComponent> BeamHint;   // hover a ray: what the light is (audit 7)
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> FogPuffs;
 	UPROPERTY() TObjectPtr<USpotLightComponent> Projector;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> TableInfo;
