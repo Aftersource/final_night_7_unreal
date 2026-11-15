@@ -2492,6 +2492,14 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 			FN7HudJson::Num(Pub, TEXT("damage"), 0.0), *FN7HudJson::Str(Pub, TEXT("text")).Left(40));
 		Duel->Blows.Add((int32)FN7HudJson::Num(Pub, TEXT("n"), (double)Duel->Blows.Num()), Pub);
 		LogBlow(Pub, false);
+		// Each Enter plays its move on screen at once (Benito: a race of who types faster and thinks harder).
+		if (AFNStudio* St = FindStudio())
+			if (AFNDuelBox* Box = AFNDuelBox::Get(St->GetWorld(), false))
+			{
+				Box->PlayInstant(FN7HudJson::Str(Pub, TEXT("by")) == Duel->A ? TEXT("a") : TEXT("b"), Pub);
+				if (const TSharedPtr<FJsonObject> Co = FN7HudJson::Obj(Pub, TEXT("counter")))
+					Box->PlayInstant(FN7HudJson::Str(Co, TEXT("by")) == Duel->A ? TEXT("a") : TEXT("b"), Co);
+			}
 		if (const TSharedPtr<FJsonObject> Counter = FN7HudJson::Obj(Pub, TEXT("counter"))) LogBlow(Counter, true);
 		const TSharedPtr<FJsonObject> HpAfter = FN7HudJson::Obj(Pub, TEXT("hp_after")).IsValid() ? FN7HudJson::Obj(Pub, TEXT("hp_after")) : FN7HudJson::Obj(Pub, TEXT("hp"));
 		Duel->HpA = (float)FN7HudJson::Num(HpAfter, TEXT("a"), Duel->HpA);

@@ -37,6 +37,10 @@ public:
 	void Open(const TSharedPtr<FFNDuelSession>& Session, AFNStudio* Studio, bool bTakeCamera, TFunction<double()> ServerNowMs);
 	void SetPortraits(UTexture2D* A, UTexture2D* B);
 	void Close();
+	/** Typed roll, enter, then the character jumps on screen: a blow's instant `stage` (schema 21:
+	 *  [{clip, path?, prop?, whiff?, target_part?, object_id?}], else its `anim`) plays on that fighter at once, then the
+	 *  panels take over again. Side is "a" or "b". */
+	void PlayInstant(const FString& Side, const TSharedPtr<FJsonObject>& Blow);
 	bool IsShowing() const { return Phase != EPhase::Hidden; }
 	const FString& CurrentCaption() const { return Caption; }
 	const FString& DuelId() const { return ShownDuel; }
@@ -116,6 +120,11 @@ private:
 	struct FPropPart { TObjectPtr<UStaticMeshComponent> C; FVector Off = FVector::ZeroVector; FRotator Rot = FRotator::ZeroRotator; FVector Size = FVector::OneVector; };
 	struct FHeld { FString Key, Class; TArray<FPropPart> Parts; double DrawnAt = -10.0; TSharedPtr<FJsonObject> Prop; };
 	FHeld HeldA, HeldB;
+	/** An instant move per Enter (PlayInstant): its steps, when it began (seconds), where the fighter stood. */
+	struct FInstant { TArray<TSharedPtr<FJsonObject>> Steps; double StartS = -1.0; FVector From = FVector::ZeroVector; int32 BlowN = -1; };
+	FInstant InstA, InstB;
+	FVector ShownAtA = FVector::ZeroVector, ShownAtB = FVector::ZeroVector;
+	static double InstantStepMs(const TSharedPtr<FJsonObject>& Step);
 	TSet<FString> DrawsSeen;                         // "<panel>:<side>:<seg>" draws whose flash played
 	struct FFx { TArray<TObjectPtr<UStaticMeshComponent>> Parts; TArray<FVector> Dirs; TObjectPtr<class UPointLightComponent> Light; FVector At = FVector::ZeroVector; double Start = 0.0; float Dur = 0.5f, Size = 3.f, Lux = 0.f; };
 	TArray<FFx> Fxs;

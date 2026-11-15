@@ -258,7 +258,7 @@ void AFNArmies::Tick(float DeltaSeconds)
 	if (SinceDraw < 0.05f) return;   // 20 updates a second is plenty for pieces that follow the board
 	SinceDraw = 0.f;
 	AFNStudio* St = nullptr;
-	if (TActorIterator<AFNStudio> It(W); It) St = *It;   // (Mac clang -Werror: a loop that breaks at once is an error)
+	if (TActorIterator<AFNStudio> It(W); It) St = *It;
 
 	// The board's hex grid in world space: the centre hex and its two axial neighbours give the lattice, so every piece
 	// stands exactly on hexagons (Benito: armies share 1-3 hexagons zoomed out, one figure per hexagon fully zoomed in).
