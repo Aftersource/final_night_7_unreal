@@ -8,12 +8,17 @@ class SFNTextBox;
 class SEditableTextBox;
 class SBox;
 class FJsonObject;
+class UTexture2D;
+#include "UObject/StrongObjectPtr.h"
+#include "Styling/SlateBrush.h"
 
 /**
  * The account screens, each on the lobby's tablet with its own six looks (FNLooks; Chris: six to pick a favourite):
  * WELCOME (ACCOUNTS.md §13 steps 2-4: a name, PLAY AS GUEST, SIGN IN WITH GOOGLE when the server offers it).
  * SETTINGS (§6: the whole document, GET on open, PUT on APPLY; the server's detail shown on a refusal).
  * DEMIGODS (§7: the two sheets, Left and Right; one moderation pass per save, answered ok / rephrase / refuse).
+ * YOUR GOD (§14: "How does your stone godform look?", the stone, the pose; PREVIEW draws a reference image, ACCEPT
+ * makes it your seat's god).
  * Every page: a header (title, the screen's word, the 1-6 switch), its look's ink, the same calls whatever the look.
  */
 namespace FN7AccountUi
@@ -136,6 +141,57 @@ private:
 	void Fill(int32 i, const TSharedPtr<FJsonObject>& Demigod);
 	void SetTexts(int32 i, const TSharedPtr<FJsonObject>& Sheet);
 	void Save(int32 i);
+	FSlateColor Ink() const;
+	FSlateColor Dim() const;
+	FSlateColor Accent() const;
+};
+
+class FINALNIGHT_API SFNGodPage : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SFNGodPage) {}
+		SLATE_ARGUMENT(UFNNetClient*, Net)
+		SLATE_EVENT(FSimpleDelegate, OnBack)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	int32 GetLook() const { return Look; }
+	/** GET /api/me/god: the form, the newest preview, the portrait, the pickers' options. */
+	void Open();
+
+private:
+	TWeakObjectPtr<UFNNetClient> Net;
+	FSimpleDelegate OnBack;
+	int32 Look = 1;
+	TSharedPtr<SFNTextBox> Desc, StoneOwn;
+	FString Stone = TEXT("white_marble");
+	bool bStoneOwn = false;
+	FString Pose = TEXT("thinker");
+	TArray<TPair<FString, FString>> Stones, Poses;   // id, label (from the server; the documented ones until it answers)
+	int32 DescLimit = 600;
+	int32 PreviewsLeft = -1;
+	bool bSaved = false;
+	bool bBusy = false;
+	bool bMeshy = false;          // accepting also queues the account's one 3D statue
+	bool bAcceptAsk = false;
+	FString PreviewHash, PreviewStatus, PreviewUrl;
+	bool bPreviewAccepted = false;
+	FString StatueStatus;
+	FString Status;
+	bool bBad = false;
+	double PollUntil = 0.0;
+	TStrongObjectPtr<UTexture2D> Tex;
+	FSlateBrush ImageBrush;
+	FString TexHash;
+	TSharedPtr<SBox> StoneRow, PoseRow;
+
+	void Read(const TSharedPtr<FJsonObject>& God, bool bForm = true);
+	void Save();
+	void Preview();
+	void Accept();
+	void PollPreview();
+	void LoadImage(const FString& Hash, const FString& Url);
+	TSharedRef<SWidget> Picker(bool bStones);
 	FSlateColor Ink() const;
 	FSlateColor Dim() const;
 	FSlateColor Accent() const;

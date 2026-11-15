@@ -5,11 +5,18 @@
 #include "FNNetClient.h"
 #include "FNStyle.h"
 #include "SFNTextBox.h"
+#include "FNMedia.h"
+#include "Containers/Ticker.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Engine/Texture2D.h"
 #include "Dom/JsonObject.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
@@ -811,6 +818,381 @@ void SFNDemigodsPage::Save(int32 i)
 		if (Err == TEXT("name_conflict")) { C.Status = TEXT("The name: ") + FN7Account::ErrorText(Code, O); C.bBad = true; return; }
 		C.Status = FN7Account::ErrorText(Code, O);   // 400 limits / control characters, 429 wait N s, ...
 		C.bBad = true;
+	});
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Your god (ACCOUNTS.md §14): an entry box where people choose how their stone godform looks, and is textured.
+
+namespace FN7GodUi
+{
+	static FString Str(const TSharedPtr<FJsonObject>& O, const TCHAR* K) { FString V; if (O.IsValid()) O->TryGetStringField(K, V); return V; }
+	static TSharedPtr<FJsonObject> Obj(const TSharedPtr<FJsonObject>& O, const TCHAR* K) { const TSharedPtr<FJsonObject>* V = nullptr; return O.IsValid() && O->TryGetObjectField(K, V) && V ? *V : nullptr; }
+}
+
+FSlateColor SFNGodPage::Ink() const { return FN7Looks::Ink(Look); }
+FSlateColor SFNGodPage::Dim() const { return FN7Looks::Dim(Look); }
+FSlateColor SFNGodPage::Accent() const { return FN7Looks::Accent(Look); }
+
+void SFNGodPage::Construct(const FArguments& InArgs)
+{
+	using namespace FN7Style;
+	Net = InArgs._Net;
+	OnBack = InArgs._OnBack;
+	Look = FN7Looks::Get(TEXT("god"), 1);
+	Stones = { {TEXT("white_marble"), TEXT("White marble")}, {TEXT("black_onyx"), TEXT("Black onyx")}, {TEXT("granite"), TEXT("Granite")}, {TEXT("sandstone"), TEXT("Sandstone")},
+		{TEXT("jade"), TEXT("Jade")}, {TEXT("bronze"), TEXT("Bronze")}, {TEXT("gold_leaf"), TEXT("Gold leaf")} };
+	Poses = { {TEXT("thinker"), TEXT("The Thinker")}, {TEXT("david"), TEXT("Michelangelo's David")}, {TEXT("moses_seated"), TEXT("Moses, seated")}, {TEXT("discus_thrower"), TEXT("The Discus Thrower")},
+		{TEXT("atlas"), TEXT("Atlas")}, {TEXT("winged_victory"), TEXT("Winged Victory")}, {TEXT("boxer_at_rest"), TEXT("The Boxer at Rest")}, {TEXT("custom"), TEXT("Your own")} };
+	ImageBrush.DrawAs = ESlateBrushDrawType::Image;
+	ImageBrush.ImageSize = FVector2D(300.f, 300.f);
+	auto Btn = [](const FText& T, bool bAccent, TFunction<void()> F, TFunction<bool()> Enabled, TAttribute<FText> Label = TAttribute<FText>())
+	{
+		return SNew(SBox).HeightOverride(40.f).MinDesiredWidth(110.f)
+			[
+				SNew(SButton).ButtonStyle(bAccent ? &AccentButton() : &PillButton()).HAlign(HAlign_Center).VAlign(VAlign_Center)
+				.IsEnabled_Lambda([Enabled]() { return Enabled(); })
+				.OnClicked_Lambda([F]() { F(); return FReply::Handled(); })
+				[ SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(bAccent ? FSlateColor(FLinearColor(0.08f, 0.05f, 0.02f)) : FSlateColor(Color::Text())).Text(Label.IsSet() ? Label : TAttribute<FText>(T)) ]
+			];
+	};
+	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight()[ FN7AccountUi::Header(LOCTEXT("GodTitle", "YOUR GOD"), LOCTEXT("GodWord", "THE STATUE AT YOUR SEAT"), TEXT("god"), &Look) ]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			// The form.
+			+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, Space::L, 0.f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1.f)[ SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(this, &SFNGodPage::Ink).Text(LOCTEXT("GodAsk", "How does your stone godform look?")) ]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom)
+					[
+						SNew(STextBlock).TextStyle(&Type::Small())
+						.ColorAndOpacity_Lambda([this]() { return Desc.IsValid() && Desc->GetText().ToString().Len() > DescLimit ? Accent() : Dim(); })
+						.Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("%d / %d"), Desc.IsValid() ? Desc->GetText().ToString().Len() : 0, DescLimit)); })
+					]
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
+				[
+					SNew(SBox).HeightOverride(110.f)
+					[ SAssignNew(Desc, SFNTextBox).bMultiLine(true).HintText(LOCTEXT("GodDescH", "In your words: the figure, the pose, what it holds. \"A hunched old god with a lantern, half-buried in sand.\"")) ]
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, Space::XS)[ SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNGodPage::Dim).Text(LOCTEXT("GodStone", "THE STONE")) ]
+				+ SVerticalBox::Slot().AutoHeight()[ SAssignNew(StoneRow, SBox)[ Picker(true) ] ]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
+				[
+					SNew(SBox).Visibility_Lambda([this]() { return bStoneOwn ? EVisibility::Visible : EVisibility::Collapsed; })
+					[ SAssignNew(StoneOwn, SFNTextBox).HintText(LOCTEXT("GodStoneOwn", "your own words, up to 60 characters: \"veined obsidian\", \"weathered limestone\"")) ]
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, Space::XS)[ SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNGodPage::Dim).Text(LOCTEXT("GodPose", "THE POSE (Your own = say it in the box above)")) ]
+				+ SVerticalBox::Slot().AutoHeight()[ SAssignNew(PoseRow, SBox)[ Picker(false) ] ]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Body()).AutoWrapText(true)
+					.ColorAndOpacity_Lambda([this]() { return bBad ? Accent() : Dim(); })
+					.Text_Lambda([this]() { return FText::FromString(Status); })
+				]
+			]
+			// The picture.
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(SBorder).BorderImage(Brush::Segment(FLinearColor(0.f, 0.f, 0.f, 0.35f))).Padding(4.f)
+					[
+						SNew(SBox).WidthOverride(300.f).HeightOverride(300.f).HAlign(HAlign_Center).VAlign(VAlign_Center)
+						[
+							SNew(SOverlay)
+							+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[ SNew(SImage).Image(&ImageBrush).Visibility_Lambda([this]() { return Tex.IsValid() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; }) ]
+							+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+							[
+								SNew(STextBlock).TextStyle(&Type::Body()).ColorAndOpacity(Color::TextDim()).Justification(ETextJustify::Center).AutoWrapText(true)
+								.Visibility_Lambda([this]() { return Tex.IsValid() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+								.Text_Lambda([this]() { return PreviewStatus == TEXT("pending") ? LOCTEXT("GodDrawing", "Drawing your god...") : LOCTEXT("GodNoPic", "SAVE your god, then PREVIEW: the server draws it here."); })
+							]
+						]
+					]
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, Space::XS, 0.f, 0.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNGodPage::Accent)
+					.Text_Lambda([this]()
+					{
+						if (bPreviewAccepted) return FText::FromString(StatueStatus.IsEmpty() ? TEXT("YOUR SEAT SHOWS THIS") : TEXT("YOUR SEAT SHOWS THIS  -  STATUE ") + StatueStatus.ToUpper());
+						if (!PreviewHash.IsEmpty()) return LOCTEXT("GodPreviewWord", "PREVIEW (not yet yours: ACCEPT it)");
+						return FText::GetEmpty();
+					})
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 2.f, 0.f, 0.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNGodPage::Dim)
+					.Text_Lambda([this]() { return PreviewsLeft < 0 ? FText::GetEmpty() : FText::FromString(FString::Printf(TEXT("%d new previews left today (a picture you already have is free)"), PreviewsLeft)); })
+				]
+			]
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()[ Btn(LOCTEXT("GodBack", "BACK"), false, [this]() { OnBack.ExecuteIfBound(); }, []() { return true; }) ]
+			+ SHorizontalBox::Slot().FillWidth(1.f)
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, Space::S, 0.f)[ Btn(LOCTEXT("GodSave", "SAVE"), false, [this]() { Save(); }, [this]() { return !bBusy; }) ]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, Space::S, 0.f)[ Btn(LOCTEXT("GodPreview", "PREVIEW"), false, [this]() { Preview(); }, [this]() { return !bBusy && bSaved && PreviewStatus != TEXT("pending"); }) ]
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				Btn(LOCTEXT("GodAccept", "ACCEPT"), true, [this]() { Accept(); }, [this]() { return !bBusy && PreviewStatus == TEXT("ready") && !bPreviewAccepted; },
+					TAttribute<FText>::CreateLambda([this]() { return bAcceptAsk ? LOCTEXT("GodAcceptSure", "YES, MAKE IT MY GOD") : LOCTEXT("GodAccept2", "ACCEPT"); }))
+			]
+		]
+	];
+}
+
+TSharedRef<SWidget> SFNGodPage::Picker(bool bStones)
+{
+	TSharedRef<SWrapBox> Wrap = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(4.f, 4.f));
+	const TArray<TPair<FString, FString>>& L = bStones ? Stones : Poses;
+	for (const TPair<FString, FString>& O : L)
+	{
+		const FString Id = O.Key;
+		if (bStones)
+			Wrap->AddSlot()[ FN7Looks::Chip(FText::FromString(O.Value), [this, Id]() { return !bStoneOwn && Stone == Id; }, [this, Id]() { Stone = Id; bStoneOwn = false; }) ];
+		else
+			Wrap->AddSlot()[ FN7Looks::Chip(FText::FromString(O.Value), [this, Id]() { return Pose == Id; }, [this, Id]() { Pose = Id; }) ];
+	}
+	if (bStones) Wrap->AddSlot()[ FN7Looks::Chip(LOCTEXT("GodStoneOwnChip", "Your own words"), [this]() { return bStoneOwn; }, [this]() { bStoneOwn = true; }) ];
+	return Wrap;
+}
+
+void SFNGodPage::Read(const TSharedPtr<FJsonObject>& G, bool bForm)
+{
+	using namespace FN7GodUi;
+	if (!G.IsValid()) return;
+	G->TryGetBoolField(TEXT("saved"), bSaved);
+	G->TryGetBoolField(TEXT("statue_meshy"), bMeshy);
+	if (bForm)   // the poll never overwrites what is being typed
+	{
+		if (Desc.IsValid()) Desc->SetText(FText::FromString(Str(G, TEXT("description"))));
+		const FString St = Str(G, TEXT("stone"));
+		bool bCustom = false;
+		G->TryGetBoolField(TEXT("stone_custom"), bCustom);
+		if (!St.IsEmpty()) { Stone = St; bStoneOwn = bCustom; if (bCustom && StoneOwn.IsValid()) StoneOwn->SetText(FText::FromString(St)); }
+		if (!Str(G, TEXT("pose")).IsEmpty()) Pose = Str(G, TEXT("pose"));
+	}
+	if (const TSharedPtr<FJsonObject> Lim = Obj(G, TEXT("limits")))
+	{
+		double V = 0.0;
+		if (Lim->TryGetNumberField(TEXT("description"), V) && V > 0.0) DescLimit = (int32)V;
+		if (Lim->TryGetNumberField(TEXT("previews_left_today"), V)) PreviewsLeft = (int32)V;
+	}
+	if (const TSharedPtr<FJsonObject> Op = Obj(G, TEXT("options")))
+	{
+		for (int32 k = 0; k < 2; ++k)
+		{
+			const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
+			if (!Op->TryGetArrayField(k == 0 ? TEXT("stones") : TEXT("poses"), A) || !A || A->Num() == 0) continue;
+			TArray<TPair<FString, FString>>& L = k == 0 ? Stones : Poses;
+			L.Reset();
+			for (const TSharedPtr<FJsonValue>& V : *A) if (const TSharedPtr<FJsonObject> O = V.IsValid() ? V->AsObject() : nullptr) L.Add({ Str(O, TEXT("id")), Str(O, TEXT("label")) });
+		}
+		if (StoneRow.IsValid()) StoneRow->SetContent(Picker(true));
+		if (PoseRow.IsValid()) PoseRow->SetContent(Picker(false));
+	}
+	// The newest preview (or, if none, the accepted portrait).
+	TSharedPtr<FJsonObject> P = Obj(G, TEXT("preview"));
+	const TSharedPtr<FJsonObject> Portrait = Obj(G, TEXT("portrait"));
+	if (!P.IsValid()) P = Portrait;
+	PreviewHash = Str(P, TEXT("hash"));
+	PreviewStatus = Str(P, TEXT("status"));
+	PreviewUrl = Str(P, TEXT("url"));
+	bPreviewAccepted = false;
+	if (P.IsValid()) P->TryGetBoolField(TEXT("accepted"), bPreviewAccepted);
+	if (Portrait.IsValid() && Str(Portrait, TEXT("hash")) == PreviewHash) bPreviewAccepted = true;
+	StatueStatus.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Statues = nullptr;
+	if (G->TryGetArrayField(TEXT("statues"), Statues) && Statues && Statues->Num() > 0)
+		if (const TSharedPtr<FJsonObject> S = (*Statues).Last()->AsObject()) StatueStatus = Str(S, TEXT("status"));
+	if (PreviewStatus == TEXT("ready") && !PreviewUrl.IsEmpty()) LoadImage(PreviewHash, PreviewUrl);
+}
+
+void SFNGodPage::Open()
+{
+	Status = TEXT("Reading your god...");
+	bBad = false;
+	bAcceptAsk = false;
+	TWeakPtr<SFNGodPage> Weak = SharedThis(this);
+	FN7Account::Call(Net.Get(), TEXT("GET"), TEXT("/api/me/god"), nullptr, [Weak](int32 Code, TSharedPtr<FJsonObject> O)
+	{
+		const TSharedPtr<SFNGodPage> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		if (Code != 200) { Self->Status = Code == 404 ? FString(TEXT("This server has no god form yet.")) : FN7Account::ErrorText(Code, O); Self->bBad = true; return; }
+		Self->Read(O);
+		Self->Status = Self->bSaved ? FString() : FString(TEXT("Until you make one, your seat shows a marble god with your Left Hand's likeness."));
+		UE_LOG(LogTemp, Display, TEXT("FN7 god: loaded (saved %d, stone %s, pose %s, preview %s, statues %s)"), Self->bSaved ? 1 : 0, *Self->Stone, *Self->Pose,
+			Self->PreviewStatus.IsEmpty() ? TEXT("none") : *Self->PreviewStatus, Self->bMeshy ? TEXT("on") : TEXT("off"));
+	});
+}
+
+void SFNGodPage::Save()
+{
+	if (bBusy) return;
+	const FString D = Desc.IsValid() ? Desc->GetText().ToString() : FString();
+	const FString St = bStoneOwn ? (StoneOwn.IsValid() ? StoneOwn->GetText().ToString().TrimStartAndEnd() : FString()) : Stone;
+	if (D.Len() > DescLimit) { Status = FString::Printf(TEXT("The description is limited to %d characters (this is %d)."), DescLimit, D.Len()); bBad = true; return; }
+	if (bStoneOwn && (St.IsEmpty() || St.Len() > 60)) { Status = TEXT("Your own stone is 1 to 60 characters."); bBad = true; return; }
+	if (Pose == TEXT("custom") && D.TrimStartAndEnd().IsEmpty()) { Status = TEXT("Your own pose: say it in the box."); bBad = true; return; }
+	TSharedPtr<FJsonObject> B = MakeShared<FJsonObject>();
+	B->SetStringField(TEXT("description"), D);
+	B->SetStringField(TEXT("stone"), St);
+	B->SetStringField(TEXT("pose"), Pose);
+	bBusy = true;
+	bBad = false;
+	Status = TEXT("Saving (one moderation pass)...");
+	TWeakPtr<SFNGodPage> Weak = SharedThis(this);
+	FN7Account::Call(Net.Get(), TEXT("PUT"), TEXT("/api/me/god"), B, [Weak](int32 Code, TSharedPtr<FJsonObject> O)
+	{
+		using namespace FN7GodUi;
+		const TSharedPtr<SFNGodPage> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		Self->bBusy = false;
+		const FString Verdict = Str(O, TEXT("verdict"));
+		UE_LOG(LogTemp, Display, TEXT("FN7 god: save -> %d %s (%s)"), Code, *Verdict, *Str(O, TEXT("model")));
+		if (const TSharedPtr<FJsonObject> G = Obj(O, TEXT("god"))) if (Code == 200) Self->Read(G);
+		if (Code == 200 && Verdict == TEXT("ok")) { Self->Status = TEXT("Saved exactly as you wrote it. PREVIEW to see it drawn."); return; }
+		if (Code == 200 && Verdict == TEXT("rephrase")) { Self->Status = TEXT("Saved with a small rewrite: ") + Str(O, TEXT("reason")) + TEXT(" The box shows what was saved."); return; }
+		if (Code == 422) { Self->Status = TEXT("Not saved: ") + Str(O, TEXT("reason")) + TEXT(" Your words are still here."); Self->bBad = true; return; }
+		Self->Status = FN7Account::ErrorText(Code, O);
+		Self->bBad = true;
+	});
+}
+
+void SFNGodPage::Preview()
+{
+	if (bBusy) return;
+	bBusy = true;
+	bBad = false;
+	Status = TEXT("Asking for a picture...");
+	TWeakPtr<SFNGodPage> Weak = SharedThis(this);
+	FN7Account::Call(Net.Get(), TEXT("POST"), TEXT("/api/me/god/preview"), nullptr, [Weak](int32 Code, TSharedPtr<FJsonObject> O)
+	{
+		using namespace FN7GodUi;
+		const TSharedPtr<SFNGodPage> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		Self->bBusy = false;
+		bool bCharged = false;
+		if (O.IsValid()) { O->TryGetBoolField(TEXT("charged"), bCharged); double V = 0.0; if (O->TryGetNumberField(TEXT("previews_left_today"), V)) Self->PreviewsLeft = (int32)V; }
+		UE_LOG(LogTemp, Display, TEXT("FN7 god: preview -> %d %s%s"), Code, *Str(O, TEXT("status")), bCharged ? TEXT(" (a new picture)") : TEXT(" (free: already drawn)"));
+		if (Code != 200) { Self->Status = Code == 404 ? FString(TEXT("SAVE your god first.")) : FN7Account::ErrorText(Code, O); Self->bBad = true; return; }
+		Self->PreviewHash = Str(O, TEXT("hash"));
+		Self->PreviewStatus = Str(O, TEXT("status"));
+		Self->PreviewUrl = Str(O, TEXT("url"));
+		Self->bPreviewAccepted = false;
+		Self->Tex.Reset();
+		Self->Status = Self->PreviewStatus == TEXT("ready") ? FString(TEXT("Here it is. ACCEPT makes it your god.")) : FString(TEXT("Drawing your god (this takes a little while)..."));
+		if (Self->PreviewStatus == TEXT("ready") && !Self->PreviewUrl.IsEmpty()) Self->LoadImage(Self->PreviewHash, Self->PreviewUrl);
+		else { Self->PollUntil = FPlatformTime::Seconds() + 180.0; Self->PollPreview(); }
+	});
+}
+
+void SFNGodPage::PollPreview()
+{
+	TWeakPtr<SFNGodPage> Weak = SharedThis(this);
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7GodPoll"), 2.5f, [Weak](float)
+	{
+		const TSharedPtr<SFNGodPage> Self = Weak.Pin();
+		if (!Self.IsValid() || Self->PreviewStatus != TEXT("pending")) return false;
+		if (FPlatformTime::Seconds() > Self->PollUntil) { Self->Status = TEXT("The picture is taking long: come back to this screen in a minute."); return false; }
+		FN7Account::Call(Self->Net.Get(), TEXT("GET"), TEXT("/api/me/god"), nullptr, [Weak](int32 Code, TSharedPtr<FJsonObject> O)
+		{
+			const TSharedPtr<SFNGodPage> Self = Weak.Pin();
+			if (!Self.IsValid()) return;
+			if (Code == 200)
+			{
+				const FString Hash = Self->PreviewHash;
+				const TSharedPtr<FJsonObject> P = FN7GodUi::Obj(O, TEXT("preview"));
+				if (P.IsValid() && FN7GodUi::Str(P, TEXT("hash")) == Hash && FN7GodUi::Str(P, TEXT("status")) != TEXT("pending"))
+				{
+					Self->Read(O, false);
+					UE_LOG(LogTemp, Display, TEXT("FN7 god: preview %s"), *Self->PreviewStatus);
+					Self->Status = Self->PreviewStatus == TEXT("ready") ? FString(TEXT("Here it is. ACCEPT makes it your god.")) : FString(TEXT("The picture failed: PREVIEW again."));
+					return;
+				}
+			}
+			Self->PollPreview();
+		});
+		return false;
+	});
+}
+
+void SFNGodPage::LoadImage(const FString& Hash, const FString& Url)
+{
+	if (Hash.IsEmpty() || Hash == TexHash) return;
+	TArray<uint8> Bytes;
+	if (FN7Media::LoadCached(Hash, Bytes))
+		if (UTexture2D* T = FN7Media::TextureFromPng(Bytes))
+		{
+			Tex.Reset(T); TexHash = Hash; ImageBrush.SetResourceObject(T);
+			ImageBrush.ImageSize = FVector2D(T->GetSizeX(), T->GetSizeY()) * (300.f / FMath::Max(1, FMath::Max(T->GetSizeX(), T->GetSizeY())));
+			return;
+		}
+	UFNNetClient* N = Net.Get();
+	if (!N) return;
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(N->MediaUrl(Url));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetTimeout(30.f);
+	TWeakPtr<SFNGodPage> Weak = SharedThis(this);
+	Req->OnProcessRequestComplete().BindLambda([Weak, Hash](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		const TSharedPtr<SFNGodPage> Self = Weak.Pin();
+		if (!Self.IsValid() || !bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) { UE_LOG(LogTemp, Display, TEXT("FN7 god: picture not fetched (%d)"), Resp.IsValid() ? Resp->GetResponseCode() : 0); return; }
+		const TArray<uint8>& B = Resp->GetContent();
+		if (UTexture2D* T = FN7Media::TextureFromPng(B))
+		{
+			FN7Media::SaveCached(Hash, B);
+			Self->Tex.Reset(T);
+			Self->TexHash = Hash;
+			Self->ImageBrush.SetResourceObject(T);
+			Self->ImageBrush.ImageSize = FVector2D(T->GetSizeX(), T->GetSizeY()) * (300.f / FMath::Max(1, FMath::Max(T->GetSizeX(), T->GetSizeY())));   // its own shape (the server draws 2:3)
+			UE_LOG(LogTemp, Display, TEXT("FN7 god: picture shown (%dx%d)"), T->GetSizeX(), T->GetSizeY());
+		}
+	});
+	Req->ProcessRequest();
+}
+
+void SFNGodPage::Accept()
+{
+	if (bBusy || PreviewHash.IsEmpty()) return;
+	if (!bAcceptAsk)
+	{
+		// Accepting is final for the seat, and on a server with statues it also makes the account's one 3D statue.
+		bAcceptAsk = true;
+		Status = bMeshy ? TEXT("This becomes your god, and the server makes your one 3D statue from it. Press again to accept.") : TEXT("This becomes your god at your seat. Press again to accept.");
+		bBad = false;
+		return;
+	}
+	bAcceptAsk = false;
+	bBusy = true;
+	TSharedPtr<FJsonObject> B = MakeShared<FJsonObject>();
+	B->SetStringField(TEXT("hash"), PreviewHash);
+	TWeakPtr<SFNGodPage> Weak = SharedThis(this);
+	FN7Account::Call(Net.Get(), TEXT("POST"), TEXT("/api/me/god/accept"), B, [Weak](int32 Code, TSharedPtr<FJsonObject> O)
+	{
+		const TSharedPtr<SFNGodPage> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		Self->bBusy = false;
+		FString Statue;
+		if (O.IsValid() && !O->TryGetStringField(TEXT("statue"), Statue)) if (const TSharedPtr<FJsonObject> S = FN7GodUi::Obj(O, TEXT("statue"))) Statue = FN7GodUi::Str(S, TEXT("status"));
+		UE_LOG(LogTemp, Display, TEXT("FN7 god: accept -> %d (statue %s)"), Code, *Statue);
+		if (Code != 200) { Self->Status = FN7Account::ErrorText(Code, O); Self->bBad = true; return; }
+		Self->bPreviewAccepted = true;
+		Self->StatueStatus = Statue == TEXT("not_enabled") || Statue == TEXT("not_configured") ? FString() : Statue;
+		Self->Status = Statue == TEXT("queued") ? FString(TEXT("Your god is set; the statue is being made (it appears at your seat when ready).")) : FString(TEXT("Your god is set: your seat shows it."));
 	});
 }
 

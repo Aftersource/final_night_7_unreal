@@ -292,6 +292,12 @@ void SFNStartPanel::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(Demigods, SFNDemigodsPage).Net(Net.Get())
 						.OnBack_Lambda([this]() { Page = EPage::Lobby; })
+					]
+					// YOUR GOD: the stone godform at your seat.
+					+ SWidgetSwitcher::Slot()
+					[
+						SAssignNew(God, SFNGodPage).Net(Net.Get())
+						.OnBack_Lambda([this]() { Page = EPage::Lobby; })
 					], FMargin(Space::XL + Space::S, Space::XL))
 			]
 		]
@@ -739,9 +745,10 @@ int32 SFNStartPanel::PageLook() const
 	if (Page == EPage::Welcome && Welcome.IsValid()) return Welcome->GetLook();
 	if (Page == EPage::Settings && Settings.IsValid()) return Settings->GetLook();
 	if (Page == EPage::Demigods && Demigods.IsValid()) return Demigods->GetLook();
+	if (Page == EPage::God && God.IsValid()) return God->GetLook();
 	return Look;
 }
-float SFNStartPanel::PageWidth() const { return Page == EPage::Demigods ? 1000.f : Page == EPage::Settings ? 760.f : 600.f; }
+float SFNStartPanel::PageWidth() const { return Page == EPage::Demigods ? 1000.f : Page == EPage::God ? 900.f : Page == EPage::Settings ? 760.f : 600.f; }
 
 void SFNStartPanel::OnBooted(bool bSignedIn)
 {
@@ -827,6 +834,8 @@ TSharedRef<SWidget> SFNStartPanel::MakeAccountStrip()
 			[ Small(LOCTEXT("MenuSettings", "SETTINGS"), [this]() { Page = EPage::Settings; if (Settings.IsValid()) Settings->Open(); UE_LOG(LogTemp, Display, TEXT("FN7 lobby: settings opened")); }) ]
 			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, Space::XS, 0.f)
 			[ Small(LOCTEXT("MenuDemigods", "DEMIGODS"), [this]() { Page = EPage::Demigods; if (Demigods.IsValid()) Demigods->Open(); UE_LOG(LogTemp, Display, TEXT("FN7 lobby: demigods opened")); }) ]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, Space::XS, 0.f)
+			[ Small(LOCTEXT("MenuGod", "YOUR GOD"), [this]() { Page = EPage::God; if (God.IsValid()) God->Open(); UE_LOG(LogTemp, Display, TEXT("FN7 lobby: god opened")); }) ]
 		]
 		// A guest logging out gives the account up (ACCOUNTS.md §2): say so first.
 		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
