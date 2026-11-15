@@ -143,7 +143,11 @@ void AFNTurnBar::ReadMine(const TSharedPtr<FJsonObject>& View)
 	if (View->TryGetObjectField(TEXT("hint"), Hint) && Hint)
 	{
 		const FString Tx = (*Hint)->GetStringField(TEXT("text")), Why = (*Hint)->GetStringField(TEXT("why"));
-		ServerHint = Why.IsEmpty() ? Tx : Tx + TEXT("  ") + Why;
+		// the reason on its own line, after a full stop (the two used to run together: "gear may wait there  Your Left Hand...")
+		const bool bStop = Tx.IsEmpty() || FString(TEXT(".!?")).Contains(Tx.Right(1));
+		ServerHint = Why.IsEmpty() ? Tx : Tx + (bStop ? TEXT("\n") : TEXT(".\n")) + Why;
+		// the powers live in the jar on the right; nothing said so (audit: "drag a power" from where?)
+		ServerHint = ServerHint.Replace(TEXT("drag a power"), TEXT("click the jar on the right, drag a power"));
 	}
 	const TSharedPtr<FJsonObject>* GoalO = nullptr;
 	FString GoalStr;

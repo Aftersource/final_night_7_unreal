@@ -362,7 +362,8 @@ void AFNScenePlayer::Tick(float DeltaSeconds)
 	if (!bDiceDone && Now.DiceAt >= 0.f && T >= Now.DiceAt)
 	{
 		bDiceDone = true;
-		St->RollDice(Now.Roll, Now.Mod, Now.Verdict);
+		// say what the roll is for (audit 7b: a bare "d20 12 SUCCESS" on the table meant nothing)
+		St->RollDice(Now.Roll, Now.Mod, Now.PlaceName.IsEmpty() ? Now.Verdict : Now.Verdict + TEXT("\nthe scene at ") + Now.PlaceName);
 		UE_LOG(LogTemp, Display, TEXT("FNScene: d20 %d %+d %s"), Now.Roll, Now.Mod, *Now.Verdict);
 	}
 	FVector Place;

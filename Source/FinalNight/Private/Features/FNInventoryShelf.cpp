@@ -313,9 +313,9 @@ void AFNInventoryShelf::Tick(float DeltaSeconds)
 				// around the statue's flanks (pedestal +X faces the table): left, right, then further back, so the table sees them
 				const int32 Row = i / 4, Col = i % 4;
 				const float Side = (i % 2) ? -1.f : 1.f;
-				const float A = FMath::DegreesToRadians(Side * (80.f + 28.f * (i / 2)));
-				if (Ped) Size = 32.f;
-				Pos = Ped ? PT.TransformPosition(FVector(FMath::Cos(A) * 85.f, FMath::Sin(A) * 85.f, 80.f))
+				const float A = FMath::DegreesToRadians(Side * (80.f + 32.f * (i / 2)));   // wider steps: the bigger items don't touch
+				if (Ped) Size = 44.f;   // the statues are ~5 m from the chair: 32 cm read as specks (audit)
+				Pos = Ped ? PT.TransformPosition(FVector(FMath::Cos(A) * 100.f, FMath::Sin(A) * 100.f, 80.f))
 					: Mine + Rt * ((Col - 1.5f) * 22.f) - FVector(0, 0, Row * 30.f);
 			}
 			const float Pop = It.Glint > 0.f ? 1.f + 0.6f * FMath::Clamp(It.Glint - 1.5f, 0.f, 1.f) : 1.f;
@@ -369,16 +369,46 @@ void AFNInventoryShelf::Tick(float DeltaSeconds)
 				Tint(S.Spark, Gold * (3.f * G));
 			}
 			// the name (and in the open view, what it is)
-			FString Text = Wrap(It.Name.IsEmpty() ? It.Ref : It.Name, bOpen ? 22 : 16, 2);
+			FString Text = Wrap(It.Name.IsEmpty() ? It.Ref : It.Name, bOpen ? 18 : Ped ? 14 : 16, 2);
 			if (bStolen) Text += TEXT("\nSTOLEN");
 			else if (bGrey) Text += TEXT("\ndestroyed");
-			if (bOpen && !It.Desc.IsEmpty()) Text += TEXT("\n") + Wrap(It.Desc, 30, 4);
+			if (bOpen && !It.Desc.IsEmpty()) Text += TEXT("\n") + Wrap(It.Desc, 22, 5);
 			S.Label->SetText(FText::FromString(Text));
-			S.Label->SetWorldSize(bOpen ? 1.7f : 3.6f);
+			S.Label->SetWorldSize(bOpen ? 2.4f : Ped ? 6.5f : 3.6f);   // by a statue: readable from the chair
 			S.Label->SetTextRenderColor(bStolen ? FColor(235, 60, 50) : bGrey ? FColor(150, 150, 150) : FColor(245, 225, 170));
 			S.Label->SetRelativeLocation(FVector(bOpen ? 1.f : 0.f, 0, bOpen ? -1.f : -10.f));
 			S.Label->SetVisibility(true);
 		}
+	}
+	// the open view's title (audit: two dark cards came up and nothing said whose they were)
+	if (!Title)
+	{
+		Title = NewObject<UTextRenderComponent>(this);
+		Title->SetupAttachment(RootComponent);
+		Title->SetHorizontalAlignment(EHTA_Center);
+		Title->SetVerticalAlignment(EVRTA_TextBottom);
+		Title->SetCastShadow(false);
+		Title->SetTextRenderColor(FColor(245, 225, 170));
+		Title->RegisterComponent();
+		Keep.Add(Title);
+		TitleBack = Piece(RootComponent, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		FNShelfImpl::Tint(TitleBack, FLinearColor(0.012f, 0.01f, 0.014f));
+	}
+	TitleBack->SetVisibility(!Open.IsEmpty());
+	Title->SetVisibility(!Open.IsEmpty());
+	if (!Open.IsEmpty())
+	{
+		const TArray<FItem*>* L = ByPlayer.Find(Open);
+		const FRotationMatrix M(CamRot);
+		const FVector P = Cam + M.GetUnitAxis(EAxis::X) * 170.f + M.GetUnitAxis(EAxis::Z) * 26.f;
+		Title->SetWorldLocation(P);
+		Title->SetWorldRotation((Cam - P).Rotation());
+		Title->SetWorldSize(3.2f);
+		const FVector Up = M.GetUnitAxis(EAxis::Z);
+		TitleBack->SetWorldLocation(P + Up * 3.6f + (P - Cam).GetSafeNormal() * 1.f);
+		TitleBack->SetWorldRotation((Cam - P).Rotation());
+		TitleBack->SetWorldScale3D(FVector(0.002f, 0.66f, 0.1f));
+		Title->SetText(FText::FromString(Open.ToUpper() + (L && L->Num() ? TEXT("'S ITEMS") : TEXT(" HAS NO ITEMS YET")) + TEXT("\nclick anywhere to close")));
 	}
 	for (TPair<FString, FSlot>& KV : Slots)
 		if (!Shown.Contains(KV.Key) && KV.Value.Root->IsVisible()) KV.Value.Root->SetVisibility(false, true);
