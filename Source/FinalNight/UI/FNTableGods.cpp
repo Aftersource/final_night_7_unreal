@@ -2,6 +2,9 @@
 
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PointLightComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "HAL/IConsoleManager.h"
+#include "Components/LocalFogVolumeComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Dom/JsonObject.h"
@@ -36,6 +39,21 @@ namespace FN7Gods
 	static const FLinearColor GodPlinthWood(0.10f, 0.06f, 0.03f);
 
 	static constexpr float GodPedestalTop = 92.f;
+	// The marble gods (stone/marble statues like The Thinker or Michelangelo's David): heroic, base on the cap.
+	static constexpr float GodStatueHeight = 128.f;   // the faceted figure stands ~96: half again
+	static constexpr float GodStatueYaw = -90.f;      // Meshy's glTF front -> the pedestal's +X (toward the table)
+	static const FLinearColor GodMarble(0.62f, 0.60f, 0.57f);
+	static const FLinearColor GodMarbleDark(0.40f, 0.385f, 0.36f);
+
+	/** "Chris" -> chris_god, "Bot Kestrel" -> bot_kestrel_god: the figures.json slug of a player's god. */
+	static FString GodSlug(const FString& Player)
+	{
+		FString Out;
+		for (TCHAR Ch : Player.ToLower()) Out.AppendChar(FChar::IsAlnum(Ch) ? Ch : TEXT('_'));
+		while (Out.Contains(TEXT("__"))) Out = Out.Replace(TEXT("__"), TEXT("_"));
+		Out.TrimCharInline(TEXT('_'), nullptr);
+		return Out + TEXT("_god");
+	}
 	static constexpr int32 GodNumBeads = 14, GodNumCubes = 8;
 	static constexpr float GodBodyR = 330.f, GodFigR = 222.f, GodTableTop = 80.f;
 	static constexpr float GodPairOffsetCm = 25.f;
@@ -186,6 +204,84 @@ void AFNGodPedestal::BuildFeature(int32 InKind)
 	}
 }
 
+void AFNGodPedestal::UpdateStatue(const FString& Player)
+{
+	using namespace FN7Gods;
+	if (Player == StatueFor) return;
+	StatueFor = Player;
+	const FString Slug = GodSlug(Player);
+	const FString Path = FString::Printf(TEXT("/Game/Figures/%s/SM_%s.SM_%s"), *Slug, *Slug, *Slug);
+	UStaticMesh* Mesh = Player.IsEmpty() ? nullptr : Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
+	bHasStatue = Mesh != nullptr;
+	if (bHasStatue)
+	{
+		if (!Statue)
+		{
+			Statue = NewObject<UStaticMeshComponent>(this);
+			Statue->SetupAttachment(RootComponent);
+			Statue->SetMobility(EComponentMobility::Movable);
+			Statue->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Statue->RegisterComponent();
+		}
+		Statue->SetStaticMesh(Mesh);
+		const FBoxSphereBounds B = Mesh->GetBounds();
+		const float Scale = GodStatueHeight / FMath::Max(1.f, (float)B.BoxExtent.Z * 2.f);
+		Statue->SetRelativeScale3D(FVector(Scale));
+		Statue->SetRelativeRotation(FRotator(0.f, GodStatueYaw, 0.f));
+		// Its own stone base sits on the pedestal's cap; centred over the column.
+		const FVector C = FRotator(0.f, GodStatueYaw, 0.f).RotateVector(FVector(B.Origin.X, B.Origin.Y, 0.0)) * Scale;
+		Statue->SetRelativeLocation(FVector(-C.X, -C.Y, GodPedestalTop + ((float)B.BoxExtent.Z - (float)B.Origin.Z) * Scale));
+		Statue->SetVisibility(true);
+		// Lit like a statue in a museum: a warm key from above and in front, the aura as a rim light behind it, and a
+		// low glowing mist at its feet in the player's colour (Chris asked for cheap but nice glowing fog, like Greek statues).
+		if (!StatueKey)
+		{
+			StatueKey = NewObject<USpotLightComponent>(this);
+			StatueKey->SetupAttachment(RootComponent);
+			StatueKey->SetMobility(EComponentMobility::Movable);
+			StatueKey->SetIntensityUnits(ELightUnits::Candelas);
+			StatueKey->SetIntensity(16.f);
+			StatueKey->SetLightColor(FLinearColor(1.f, 0.93f, 0.82f));
+			StatueKey->SetInnerConeAngle(14.f);
+			StatueKey->SetOuterConeAngle(26.f);
+			StatueKey->SetAttenuationRadius(520.f);
+			StatueKey->SetCastShadows(false);   // cheap
+			const FVector From(95.f, 0.f, GodPedestalTop + GodStatueHeight + 90.f), To(0.f, 0.f, GodPedestalTop + GodStatueHeight * 0.55f);
+			StatueKey->SetRelativeLocationAndRotation(From, (To - From).Rotation());
+			StatueKey->RegisterComponent();
+		}
+		if (!StatueFog)
+		{
+			// Local fog volumes start 10 m from the camera by default; the table is closer than that.
+			if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LocalFogVolume.GlobalStartDistance")))
+				if (V->GetFloat() > 20.f) V->Set(10.f, ECVF_SetByCode);
+			StatueFog = NewObject<ULocalFogVolumeComponent>(this);
+			StatueFog->SetupAttachment(RootComponent);
+			StatueFog->SetRelativeLocation(FVector(0.f, 0.f, GodPedestalTop + 18.f));
+			StatueFog->SetRelativeScale3D(FVector(0.2f, 0.2f, 0.2f));   // the volume is a 500 cm sphere at scale 1
+			StatueFog->SetRadialFogExtinction(0.5f);   // a little body; the height mist is dense at the feet, thinning upward
+			StatueFog->SetHeightFogExtinction(2.f);
+			StatueFog->SetHeightFogFalloff(1400.f);
+			StatueFog->SetHeightFogOffset(0.f);
+			StatueFog->RegisterComponent();
+		}
+		StatueKey->SetVisibility(true);
+		StatueFog->SetVisibility(true);
+		if (Glow) Glow->SetRelativeLocation(FVector(-34.f, 0.f, GodPedestalTop + GodStatueHeight * 0.6f));   // rim, from behind
+	}
+	else if (Statue)
+	{
+		Statue->SetVisibility(false);
+		if (StatueKey) StatueKey->SetVisibility(false);
+		if (StatueFog) StatueFog->SetVisibility(false);
+	}
+	// The faceted figure only where there's no statue; the hem ring and the glow stay: the player's colour reads.
+	for (UStaticMeshComponent* R : Robe) R->SetVisibility(!bHasStatue);
+	for (UStaticMeshComponent* F : Feature) F->SetVisibility(!bHasStatue);
+	for (int32 i = 1; i < Hands.Num(); ++i) Hands[i]->SetVisibility(!bHasStatue);
+	UE_LOG(LogTemp, Display, TEXT("FN7 god: %s -> %s"), *Player, bHasStatue ? *Path : TEXT("the faceted figure, in marble"));
+}
+
 void AFNGodPedestal::SetGod(const FFNTableGod& God)
 {
 	using namespace FN7Gods;
@@ -199,7 +295,14 @@ void AFNGodPedestal::SetGod(const FFNTableGod& God)
 	for (UStaticMeshComponent* H : Hands) GodSetColor(H, Aura * Dim);
 	for (UStaticMeshComponent* B : Beads) GodSetColor(B, Aura * Dim);
 	for (UStaticMeshComponent* C : Cubes) GodSetColor(C, Aura * Dim);
-	for (UStaticMeshComponent* R : Robe) GodSetColor(R, God.bAlive ? FN7Gods::GodRobe : GodGrey * 0.5f);
+	// One family at the table: the faceted figures are marble too, like stone/marble statues.
+	for (int32 i = 0; i < Robe.Num(); ++i) GodSetColor(Robe[i], God.bAlive ? (i == Robe.Num() - 1 ? GodMarble : GodMarbleDark) : GodGrey * 0.5f);
+	UpdateStatue(God.Player);
+	if (StatueFog)
+	{
+		StatueFog->SetFogAlbedo(Aura * 0.4f);
+		StatueFog->SetFogEmissive(Aura * (0.3f * Dim));
+	}
 	if (Glow) Glow->SetLightColor(Aura);
 	if (Plate)
 	{
@@ -223,22 +326,28 @@ void AFNGodPedestal::Tick(float Dt)
 	if (Glow) Glow->SetIntensity(bOn ? 7.f * Pulse * Away : 0.f);
 	for (int32 i = 0; i < Beads.Num(); ++i)
 	{
-		const bool bShow = bOn && Info.bHuman;
+		const bool bShow = bOn && Info.bHuman && !bHasStatue;   // a statue gets light and mist, not orbiting blocks
 		Beads[i]->SetVisibility(bShow);
 		if (!bShow) continue;
 		const float A = 2.f * PI * i / Beads.Num() + T * 0.4f;
-		Beads[i]->SetRelativeLocation(FVector(FMath::Cos(A) * 18.f, FMath::Sin(A) * 18.f, GodPedestalTop + 96.f + 1.5f * FMath::Sin(T * 1.6f)));
+		Beads[i]->SetRelativeLocation(FVector(FMath::Cos(A) * 18.f, FMath::Sin(A) * 18.f, (GodPedestalTop + (bHasStatue ? GodStatueHeight + 8.f : 96.f)) + 1.5f * FMath::Sin(T * 1.6f)));
 	}
 	for (int32 i = 0; i < Cubes.Num(); ++i)
 	{
-		const bool bShow = bOn && !Info.bHuman && Pulse > 0.5f;
+		const bool bShow = bOn && !Info.bHuman && Pulse > 0.5f && !bHasStatue;
 		Cubes[i]->SetVisibility(bShow);
 		if (!bShow) continue;
 		const float A = 2.f * PI * i / Cubes.Num() + T * 2.2f;
-		Cubes[i]->SetRelativeLocation(FVector(FMath::Cos(A) * 28.f, FMath::Sin(A) * 28.f, GodPedestalTop + 70.f + FMath::Sin(A * 2.f) * 12.f));
+		Cubes[i]->SetRelativeLocation(FVector(FMath::Cos(A) * 28.f, FMath::Sin(A) * 28.f, (GodPedestalTop + (bHasStatue ? GodStatueHeight - 6.f : 70.f)) + FMath::Sin(A * 2.f) * 12.f));
 		Cubes[i]->SetRelativeRotation(FRotator(T * 90.f, T * 120.f, 0.f));
 	}
 	GodFaceCamera(Plate, GodCameraLocation(GetWorld(), GetActorLocation() + FVector(0, 340.f * S, 190.f * S)));
+	if (bHasStatue && Statue)
+	{
+		// A statue that seems to breathe: a slow look around its seat, and the mist glows with the aura's pulse.
+		Statue->SetRelativeRotation(FRotator(0.f, GodStatueYaw + 9.f * FMath::Sin(T * 0.33f), 0.f));
+		if (StatueFog) StatueFog->SetFogEmissive((Info.bAlive ? Info.Aura : GodGrey) * (0.22f + 0.12f * Pulse) * Away);
+	}
 }
 
 // --- the diorama box -------------------------------------------------------------
