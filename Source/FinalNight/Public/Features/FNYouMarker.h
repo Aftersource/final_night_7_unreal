@@ -41,6 +41,7 @@ private:
 	UPROPERTY() TObjectPtr<UTexture2D> Tex;
 	float Time = 0.f;
 	FString LastLog;
+	TSet<FString> DbgSeen;
 };
 
 UCLASS()

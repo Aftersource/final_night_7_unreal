@@ -16,17 +16,22 @@
 
 namespace FNEventFxImpl
 {
-	static constexpr float Dur = 4.f;          // seconds per event (Benito: ~4 s a disaster)
+	static constexpr float Dur = 7.f;          // seconds per event (Benito: ~4 s a disaster; 4 s was too quick to catch)
 	static constexpr int32 RingSegs = 32, NumBits = 16, MaxLive = 8;
 	static constexpr float Stagger = 0.6f;     // a beat's events land one after another
 	static const FColor ThemeCol[] = { FColor(255, 214, 120), FColor(255, 110, 30), FColor(70, 160, 255), FColor(225, 225, 235) };
 
 	int32 ThemeOf(const FString& K)
 	{
+		// the server's kind word comes first in K, so it wins over words in the story text ("riot ... shops burned")
 		const FString S = K.ToLower();
-		for (const TCHAR* W : { TEXT("fire"), TEXT("lava"), TEXT("volcan"), TEXT("meteor"), TEXT("burn"), TEXT("heat") }) if (S.Contains(W)) return 1;
-		for (const TCHAR* W : { TEXT("flood"), TEXT("water"), TEXT("tidal"), TEXT("tsunami"), TEXT("rain"), TEXT("fish"), TEXT("sea") }) if (S.Contains(W)) return 2;
-		for (const TCHAR* W : { TEXT("storm"), TEXT("hurricane"), TEXT("wind"), TEXT("quake"), TEXT("battle"), TEXT("war"), TEXT("army"), TEXT("riot"), TEXT("dead") }) if (S.Contains(W)) return 3;
+		const FString First = S.Left(S.Find(TEXT(" ")) < 0 ? S.Len() : S.Find(TEXT(" ")));
+		for (const FString& T : { First, S })
+		{
+			for (const TCHAR* W : { TEXT("flood"), TEXT("water"), TEXT("tidal"), TEXT("tsunami"), TEXT("rain"), TEXT("fish") }) if (T.Contains(W)) return 2;
+			for (const TCHAR* W : { TEXT("storm"), TEXT("hurricane"), TEXT("wind"), TEXT("quake"), TEXT("battle"), TEXT("army"), TEXT("riot"), TEXT("loot"), TEXT("duel") }) if (T.Contains(W)) return 3;
+			for (const TCHAR* W : { TEXT("fire"), TEXT("lava"), TEXT("volcan"), TEXT("meteor"), TEXT("burn") }) if (T.Contains(W)) return 1;
+		}
 		return 0;
 	}
 
@@ -66,7 +71,6 @@ void AFNEventFx::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 		const TArray<TSharedPtr<FJsonValue>>* At = nullptr;
 		if (!E.IsValid() || !E->TryGetArrayField(TEXT("at"), At) || !At || At->Num() < 2) continue;
 		const FString Kind = E->GetStringField(TEXT("kind"));
-		if (Kind == TEXT("cast")) continue;   // the earth playback strikes casts
 		const FString Text = E->GetStringField(TEXT("text"));
 		double Mag = 5.0; E->TryGetNumberField(TEXT("magnitude"), Mag);
 		Play((*At)[0]->AsNumber(), (*At)[1]->AsNumber(), Kind + TEXT(" ") + Text, (float)Mag, FNEventFxImpl::DeadIn(Text), n++ * FNEventFxImpl::Stagger);
@@ -109,12 +113,18 @@ void AFNEventFx::Play(double Lon, double Lat, const FString& Kind, float Magnitu
 {
 	using namespace FNEventFxImpl;
 	if (Live.Num() >= MaxLive) return;
+	// only what lands on the board in front of you (the rest would use up the slots unseen)
+	AFNStudio* St = nullptr;
+	if (UWorld* W = GetWorld()) { if (TActorIterator<AFNStudio> It(W); It) St = *It; }
+	FVector Spot;
+	if (!St || !St->BoardPointFor(Lat, Lon, Spot)) return;
 	static UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static UStaticMesh* Ball = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	FFx F;
 	F.Lon = Lon; F.Lat = Lat; F.Mag = FMath::Clamp(Magnitude, 1.f, 10.f); F.Dead = Dead; F.T = -Delay;
 	F.Theme = ThemeOf(Kind);
 	for (int32 s = 0; s < RingSegs; ++s) F.Ring.Add(Piece(Cube, F.Theme));
+	F.Beam = Piece(Cube, F.Theme);   // a column of light over the spot, so it reads from the chair
 	FRandomStream Rng(Seq);
 	for (int32 b = 0; b < NumBits; ++b)
 	{
@@ -144,6 +154,7 @@ void AFNEventFx::Free(FFx& F)
 {
 	for (UStaticMeshComponent* C : F.Ring) C->DestroyComponent();
 	for (UStaticMeshComponent* C : F.Bits) C->DestroyComponent();
+	if (F.Beam) F.Beam->DestroyComponent();
 	if (F.Num) F.Num->DestroyComponent();
 }
 
@@ -162,23 +173,42 @@ void AFNEventFx::Tick(float DeltaSeconds)
 	FVector Cam = FVector::ZeroVector;
 	if (APlayerController* PC = W->GetFirstPlayerController()) if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
 
+	// the board's raised hexagons stand above its map points: play on top of the tiles, not under them
+	int32 Q0 = 0, R0 = 0; float Top = 0.f; FVector C0 = FVector::ZeroVector;
+	FVector C1 = FVector::ZeroVector; float Top1 = 0.f;
+	const bool bTop = St && St->BoardCentreHex(Q0, R0) && St->BoardHexTop(Q0, R0, true, Top, C0) && St->BoardHexTop(Q0 + 1, R0, true, Top1, C1);
+	// everything is sized in hexagons, so it reads the same at every zoom (one hexagon = D cm; 10 cm was the old fixed size)
+	const float D = bTop ? FMath::Max(FVector::Dist2D(C0, C1), 1.f) : 10.f, K = D / 10.f;
 	for (int32 i = Live.Num() - 1; i >= 0; --i)
 	{
 		FFx& F = Live[i];
 		F.T += DeltaSeconds;
-		FVector Foot;
+		FVector Foot = FVector::ZeroVector;
 		const bool bOn = F.T >= 0.f && St && St->BoardPointFor(F.Lat, F.Lon, Foot);   // follows the board as it pans and zooms
+		if (bOn && bTop) Foot.Z = FMath::Max(Foot.Z, C0.Z + D * 0.35f);   // above the trees on the tiles
+		if (bOn && !F.bLogged) { F.bLogged = true; UE_LOG(LogTemp, Display, TEXT("FNEventFx: shown on the board at %.0f,%.0f,%.0f"), Foot.X, Foot.Y, Foot.Z); }
 		const float U = FMath::Clamp(F.T / Dur, 0.f, 1.f);
 		for (UStaticMeshComponent* C : F.Ring) C->SetVisibility(bOn);
 		for (UStaticMeshComponent* C : F.Bits) C->SetVisibility(bOn);
 		if (F.Num) F.Num->SetVisibility(bOn);
+		if (F.Beam)
+		{
+			F.Beam->SetVisibility(bOn);
+			if (bOn)
+			{
+				const float Bs = 0.6f + F.Mag * 0.12f, Fade = U < 0.7f ? 1.f : (1.f - U) / 0.3f, Hb = 70.f * K * Bs * FMath::Min(F.T * 3.f, 1.f);
+				F.Beam->SetWorldLocation(Foot + FVector(0, 0, Hb * 0.5f));
+				F.Beam->SetWorldRotation(FRotator::ZeroRotator);
+				F.Beam->SetWorldScale3D(FVector(4.f * K * Bs * Fade, 4.f * K * Bs * Fade, Hb) / 100.f);
+			}
+		}
 		if (bOn)
 		{
 			const float Size = 0.6f + F.Mag * 0.12f;   // magnitude 1..10 -> 0.7..1.8
 			// the shockwave: fast out, then slow, thinning to nothing
 			const float RingU = FMath::Clamp(F.T / (Dur * 0.6f), 0.f, 1.f);
-			const float R = 30.f * Size * (1.f - FMath::Square(1.f - RingU)) + 1.f;
-			const float Thick = FMath::Max(1.6f * Size * (1.f - RingU), 0.01f);
+			const float R = (30.f * Size * (1.f - FMath::Square(1.f - RingU)) + 1.f) * K;
+			const float Thick = FMath::Max(3.f * Size * (1.f - RingU), 0.01f) * K;
 			for (int32 s = 0; s < RingSegs; ++s)
 			{
 				const float A = 2.f * PI * s / RingSegs;
@@ -189,12 +219,12 @@ void AFNEventFx::Tick(float DeltaSeconds)
 				C->SetVisibility(RingU < 1.f);
 			}
 			// the burst: thrown out with gravity (fire floats up instead), shrinking away
-			const float G = F.Theme == 1 ? -8.f : 60.f;
+			const float G = (F.Theme == 1 ? -8.f : 60.f) * K;
 			for (int32 b = 0; b < F.Bits.Num(); ++b)
 			{
-				const FVector V = F.Vel[b] * Size;
+				const FVector V = F.Vel[b] * Size * K;
 				FVector P = Foot + FVector(V.X * F.T, V.Y * F.T, FMath::Max(V.Z * F.T - 0.5f * G * F.T * F.T, 0.f));
-				const float Sz = 1.4f * Size * FMath::Max(1.f - U * 1.3f, 0.f);
+				const float Sz = 3.f * K * Size * FMath::Max(1.f - U * 1.3f, 0.f);
 				F.Bits[b]->SetWorldLocation(P);
 				F.Bits[b]->SetWorldRotation(FRotator(F.T * 300.f + b * 40.f, F.T * 200.f + b * 25.f, 0.f));
 				F.Bits[b]->SetWorldScale3D(FVector(Sz / 100.f));
@@ -202,10 +232,10 @@ void AFNEventFx::Tick(float DeltaSeconds)
 			// the toll rises over the spot and turns to the camera
 			if (F.Num)
 			{
-				const FVector P = Foot + FVector(0, 0, 18.f + 14.f * U);
+				const FVector P = Foot + FVector(0, 0, (18.f + 14.f * U) * K);
 				F.Num->SetWorldLocation(P);
 				F.Num->SetWorldRotation((Cam - P).GetSafeNormal2D().Rotation());
-				F.Num->SetWorldSize(FMath::Lerp(5.f, 9.f, FMath::Min(U * 3.f, 1.f)) * (U > 0.85f ? (1.f - U) / 0.15f : 1.f));
+				F.Num->SetWorldSize(K * FMath::Lerp(10.f, 16.f, FMath::Min(U * 3.f, 1.f)) * (U > 0.85f ? (1.f - U) / 0.15f : 1.f));
 			}
 		}
 		if (F.T >= Dur) { Free(F); Live.RemoveAt(i); }

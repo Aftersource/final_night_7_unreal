@@ -53,14 +53,14 @@ void AFNTurnBar::BeginPlay()
 	// left end is at 54 px). The HUD's own top-centre banner moves below this bar while it shows.
 	auto Font = [](int32 Size, const TCHAR* Style) { return FN7Style::Type::Font(Size, Style); };
 	Widget = SNew(SBox)
-		.HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 92.f, 0.f, 0.f))
+		.HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(26.f, 62.f, 0.f, 0.f))   // under the title, clear of the duel box at the top centre
 		.Visibility_Lambda([W]() { return W.IsValid() && W->IsShown() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 		[
 			SNew(SBorder)
 			.BorderImage(FN7Style::Brush::Panel())
 			.Padding(FMargin(18.f, 8.f))
 			[
-				SNew(SBox).MinDesiredWidth(560.f)
+				SNew(SBox).WidthOverride(380.f)   // narrow enough to end before the duel box at the top centre (it starts ~460 px in)
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
@@ -83,7 +83,7 @@ void AFNTurnBar::BeginPlay()
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 3.f, 0.f, 0.f)
 					[
-						SNew(STextBlock).Font(Font(11, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.7f, 0.72f, 0.8f))
+						SNew(STextBlock).Font(Font(11, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.7f, 0.72f, 0.8f)).AutoWrapText(true).Justification(ETextJustify::Center)
 						.Text_Lambda([W]() { return W.IsValid() ? W->LineGoal() : FText::GetEmpty(); })
 					]
 				]

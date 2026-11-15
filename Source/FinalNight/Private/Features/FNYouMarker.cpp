@@ -150,13 +150,17 @@ void AFNYouMarker::Tick(float DeltaSeconds)
 				const float Dd = FVector::Dist2D(C, Foot);
 				if (Dd < Best) { Best = Dd; CardC = C; Half = H; }
 			}
+			// the board's hexes stand above the map point: put the ring at the piece's feet, not under the tiles
+			if (Best < 1e9f) Foot.Z = FMath::Max(Foot.Z, CardC.Z - Half * 1.6f);
+			const FString Dbg = FString::Printf(TEXT("FNYou: %s at (%.0f,%.0f,%.0f) piece %s half %.1f"), *Mine[i].Ref, Foot.X, Foot.Y, Foot.Z, Best < 1e9f ? TEXT("found") : TEXT("missing"), Half);
+			if (!DbgSeen.Contains(Dbg.Left(Dbg.Find(TEXT(" at"))) + (Best < 1e9f ? TEXT("1") : TEXT("0")))) { DbgSeen.Add(Dbg.Left(Dbg.Find(TEXT(" at"))) + (Best < 1e9f ? TEXT("1") : TEXT("0"))); UE_LOG(LogTemp, Display, TEXT("%s"), *Dbg); }
 		}
 		for (UStaticMeshComponent* C : K.Ring) C->SetVisibility(bShow);
 		K.Arrow->SetVisibility(bShow);
 		if (!bShow) continue;
 		// a thin ring of light on the ground, slightly wider than the piece, breathing a little
 		const float R = FMath::Max(Half * 1.25f, 4.f) * (1.f + 0.08f * B);
-		const float Seg = 2.f * PI * R / Segs * 1.08f, Thick = FMath::Max(R * 0.07f, 0.35f);
+		const float Seg = 2.f * PI * R / Segs * 1.08f, Thick = FMath::Max(R * 0.14f, 0.8f);
 		for (int32 s = 0; s < Segs; ++s)
 		{
 			const float A = 2.f * PI * s / Segs;
@@ -166,7 +170,7 @@ void AFNYouMarker::Tick(float DeltaSeconds)
 			C->SetWorldScale3D(FVector(Seg / 100.f, Thick / 100.f, 0.003f));
 		}
 		// a small arrow pointing down at the piece, gently bobbing above its card
-		const float Ah = FMath::Max(Half * 0.55f, 2.5f);
+		const float Ah = FMath::Max(Half * 0.9f, 4.f);
 		K.Arrow->SetWorldScale3D(FVector(Ah * 0.7f / 100.f, Ah * 0.7f / 100.f, Ah / 100.f));
 		K.Arrow->SetWorldRotation(FRotator(180.f, 0.f, 0.f));
 		K.Arrow->SetWorldLocation(CardC + FVector(0, 0, Half + Ah * (1.2f + 0.25f * B)));

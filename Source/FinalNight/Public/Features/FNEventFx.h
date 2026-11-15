@@ -35,6 +35,8 @@ private:
 		int32 Theme = 0;       // 0 generic, 1 fire, 2 water, 3 storm/battle
 		float Mag = 5.f, T = 0.f;
 		int32 Dead = 0;
+		bool bLogged = false;
+		UStaticMeshComponent* Beam = nullptr;
 		TArray<UStaticMeshComponent*> Ring, Bits;
 		TArray<FVector> Vel;   // the bits' flight (cm/s, before scaling to the ring)
 		UTextRenderComponent* Num = nullptr;
