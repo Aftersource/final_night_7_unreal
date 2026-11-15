@@ -40,6 +40,8 @@ public:
 	bool IsShowing() const { return Phase != EPhase::Hidden; }
 	const FString& CurrentCaption() const { return Caption; }
 	const FString& DuelId() const { return ShownDuel; }
+	/** The white flash of an initiative flip (1 at the flip, 0 after 0.3 s): the HUD draws it. */
+	float FlashAlpha() const { return FMath::Clamp(1.f - (float)(FPlatformTime::Seconds() - FlashAt) / 0.3f, 0.f, 1.f); }
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -66,6 +68,14 @@ private:
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> SkyBands;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Trim;   // gilt edging, frames, plaques: blue (yours) / red (watched)
 	UPROPERTY() TObjectPtr<class UPointLightComponent> TeamLight;
+	UPROPERTY() TObjectPtr<class UPointLightComponent> KeyLight;
+	UPROPERTY() TObjectPtr<class UPointLightComponent> CandleLight;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> CandleFlame;
+	double FlashAt = -10.0;
+	bool bFlipSide = false;
+	bool bDimsTable = false;   // this opening took the camera: the table's spots dim while it's up
+	TMap<TWeakObjectPtr<class USpotLightComponent>, float> DimmedSpots;
+	void DimTable(float Alpha);
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Stars;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PortraitA;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PortraitB;
