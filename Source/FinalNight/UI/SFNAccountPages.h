@@ -13,6 +13,7 @@ class FJsonObject;
  * The account screens, each on the lobby's tablet with its own six looks (FNLooks; Chris: six to pick a favourite):
  * WELCOME (ACCOUNTS.md §13 steps 2-4: a name, PLAY AS GUEST, SIGN IN WITH GOOGLE when the server offers it).
  * SETTINGS (§6: the whole document, GET on open, PUT on APPLY; the server's detail shown on a refusal).
+ * DEMIGODS (§7: the two sheets, Left and Right; one moderation pass per save, answered ok / rephrase / refuse).
  * Every page: a header (title, the screen's word, the 1-6 switch), its look's ink, the same calls whatever the look.
  */
 namespace FN7AccountUi
@@ -92,6 +93,49 @@ private:
 	TSharedRef<SWidget> Choice(const FText& Label, const FString& SecKey, const FString& Key, const TArray<FString>& Values, const TArray<FText>& Labels);
 	TSharedRef<SWidget> Field(const FText& Label, const FString& SecKey, const FString& Key, const FText& Hint, int32 MaxLen);
 	TSharedRef<SWidget> Keybinds();
+	FSlateColor Ink() const;
+	FSlateColor Dim() const;
+	FSlateColor Accent() const;
+};
+
+class FINALNIGHT_API SFNDemigodsPage : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SFNDemigodsPage) {}
+		SLATE_ARGUMENT(UFNNetClient*, Net)
+		SLATE_EVENT(FSimpleDelegate, OnBack)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	int32 GetLook() const { return Look; }
+	/** GET /api/me/demigods and fill both cards. */
+	void Open();
+
+private:
+	struct FCard
+	{
+		FString Hand;   // left / right
+		FString MatchName;
+		TSharedPtr<SFNTextBox> Name, Personality, Style, Creed;
+		FString Status;
+		bool bBad = false;
+		bool bBusy = false;
+		// A rephrase: what you wrote, what was saved, and why (KEEP = nothing to do, EDIT = yours back in the editor).
+		TSharedPtr<FJsonObject> Original, Final;
+		FString Reason;
+	};
+	TWeakObjectPtr<UFNNetClient> Net;
+	FSimpleDelegate OnBack;
+	int32 Look = 1;
+	FCard Cards[2];
+	int32 Limit[4] = { 32, 600, 200, 200 };   // name, personality, style, creed
+
+	TSharedRef<SWidget> MakeCard(int32 i);
+	TSharedRef<SWidget> Labeled(const FText& Label, TSharedPtr<SFNTextBox>& Box, int32 LimitIdx, bool bMulti, float Height, const FText& Hint);
+	TSharedRef<SWidget> Rephrased(int32 i);
+	void Fill(int32 i, const TSharedPtr<FJsonObject>& Demigod);
+	void SetTexts(int32 i, const TSharedPtr<FJsonObject>& Sheet);
+	void Save(int32 i);
 	FSlateColor Ink() const;
 	FSlateColor Dim() const;
 	FSlateColor Accent() const;
