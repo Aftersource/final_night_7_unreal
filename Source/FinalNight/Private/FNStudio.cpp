@@ -1096,8 +1096,18 @@ void AFNStudio::PumpAudio()
 	const float VolMaster = FN7HudPrefs::GetInt(TEXT("vol_master_pct"), 80) / 100.f;
 	const float VolBed = VolMaster * FN7HudPrefs::GetInt(TEXT("vol_music_pct"), 60) / 100.f / 0.6f;   // 0.6 = the bed as it was mixed
 	const float VolSfx = VolMaster * FN7HudPrefs::GetInt(TEXT("vol_sfx_pct"), 80) / 100.f / 0.64f;    // 0.8 x 0.8 = the voices as mixed
-	// Keep ~0.15 s of sound queued ahead of the speakers
-	const int32 Want = (int32)(Rate * 0.15f) * 2;
+	// FN7 (Mac session): an EMPTY queue here means the speakers ran dry since the last frame (a hitch longer than the
+	// queue): an audible click. Counted and logged every 10 s, so a crackle report can be read in the log.
+	{
+		static double StartAt = FPlatformTime::Seconds(), LastLog = 0.0;
+		static int32 Dry = 0, Pumps = 0;
+		const double Now = FPlatformTime::Seconds();
+		++Pumps;
+		if (Now - StartAt > 5.0 && AudioWave->GetAvailableAudioByteCount() == 0) ++Dry;
+		if (Now - LastLog >= 10.0) { if (Dry > 0) UE_LOG(LogTemp, Warning, TEXT("FN7 audio: ran dry %d times in %d pumps (last 10 s)"), Dry, Pumps); Dry = 0; Pumps = 0; LastLog = Now; }
+	}
+	// Keep ~0.3 s of sound queued ahead of the speakers (0.15 s ran dry on any frame hitch longer than that: a click)
+	const int32 Want = (int32)(Rate * 0.3f) * 2;
 	int32 Guard = 0;
 	while (AudioWave->GetAvailableAudioByteCount() < Want && Guard++ < 16)
 	{
@@ -1115,9 +1125,8 @@ void AFNStudio::PumpAudio()
 			// Wind through the chamber
 			Lp1 += 0.02f * (n - Lp1); Lp2 += 0.02f * (Lp1 - Lp2);
 			v += 1.6f * Lp2 * (0.6f + 0.4f * FMath::Sin(TwoPi * 0.05f * tf + 1.f));
-			// Candle crackle
-			if (Rng.FRand() < 6.f / Rate) CrackleEnv = Rng.FRandRange(0.4f, 1.f);
-			v += 0.22f * n * CrackleEnv; CrackleEnv *= 0.993f;
+			// (The candle crackle is gone: random noise bursts ~6 a second read as constant glitchy clicking. Chris,
+			// 2026-11-15: Chris asked to remove the constant glitchy clicking sound from the audio.)
 			// Whispers while the fates decide
 			if (FatesAmt > 0.01f)
 			{
