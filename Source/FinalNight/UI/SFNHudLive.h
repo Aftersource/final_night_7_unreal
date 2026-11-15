@@ -112,6 +112,7 @@ private:
 	void RestoreDuels(const TSharedPtr<FJsonObject>& Present);
 	FString NetProblem;
 	double LastFigureWheelAt = 0.0;   // the wheel near a demigod: one level per gesture
+	TWeakObjectPtr<class AFNStarBackdrop> StarSky;
 	// The duel's opening slam (OpenDuelBox): two portraits and VS, before the box rises.
 	double SlamAt = -10.0;
 	FSlateBrush SlamBrushA, SlamBrushB;
