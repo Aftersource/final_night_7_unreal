@@ -64,6 +64,14 @@ private:
 	TArray<UStaticMeshComponent*> Cubes;       // AI ring
 	UPointLightComponent* Glow = nullptr;
 	UTextRenderComponent* Plate = nullptr;
+	/** The player's marble god statue (Content/Figures/<name>_god/SM_<name>_god, from figures.json) on the pedestal in
+	 *  place of the faceted figure; none: the faceted figure, in marble. */
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> Statue;
+	UPROPERTY() TObjectPtr<class USpotLightComponent> StatueKey;        // a museum key light from above
+	UPROPERTY() TObjectPtr<class ULocalFogVolumeComponent> StatueFog;   // glowing mist at its feet, the player's colour
+	FString StatueFor;
+	bool bHasStatue = false;
+	void UpdateStatue(const FString& Player);
 	FFNTableGod Info;
 	int32 Kind = -1;
 	float Time = 0.f;
