@@ -2,6 +2,7 @@
  "slug": "vex_god",
  "kind": "god",
  "name": "Vex",
+ "note": "second version (clothed); the first came out unclothed and was withdrawn",
  "lineage": [
   {
    "step": 1,
@@ -23,53 +24,46 @@
    "reference_images": [
     "figures/vex_god/likeness.png"
    ],
-   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, in the wound-up pose of the Discobolus, the discus thrower: crouched and twisted at the waist, one arm swung back holding a disc, the other hanging across the knee. The god has the likeness of the character in the reference image (a round, sturdy figure with a shaved head, a wrestling singlet and a laurel crown), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
+   "prompt": "A single monumental statue of a god carved from white marble with soft grey veining, in the manner of classical sculpture, in the wound-up pose of the Discobolus, the discus thrower: crouched and twisted at the waist, one arm swung back holding a disc, the other hanging across the knee. The god has the likeness of the character in the reference image (a round, sturdy figure with a shaved head, FULLY CLOTHED in a wrestling singlet that covers the torso and thighs, wrestling boots and a laurel crown; the statue is clothed, not nude), rendered entirely in stone: no colour, no paint, only pale marble. Carved in a slightly blocky, faceted, simplified way, like a chunky low-poly sculpture: broad planes, strong chisel facets, simplified hands and face, a strong readable silhouette. The whole statue visible from head to toe including its plain rough-hewn stone block seat or base, limbs clearly separated from the body. Plain flat mid-grey background, soft even studio light, no cast shadow on the background, no text, no other figures, no scenery.",
    "usage": {
-    "input_tokens": 1235,
+    "input_tokens": 1259,
     "input_tokens_details": {
      "image_tokens": 1024,
-     "text_tokens": 211
+     "text_tokens": 235
     },
     "output_tokens": 6240,
     "output_tokens_details": {
      "image_tokens": 6240,
      "text_tokens": 0
     },
-    "total_tokens": 7475
+    "total_tokens": 7499
    },
-   "made_at": "2026-11-14",
+   "made_at": "2026-11-15",
    "file": {
     "path": "figures/vex_god/heroic.png",
-    "sha256": "11d96208d821552ab1b3f7f9aecff19c5805edc0d1e40d71c86c7b9413417f0a",
-    "bytes": 2185389
+    "sha256": "1a1ff3396fdb35b37064b10f22ab7b3b67d560e64b4b7ecdd3c7b00d14d72671",
+    "bytes": 2397445
    }
   },
   {
    "step": 3,
    "asset": "god statue (static textured mesh)",
    "provider": "Meshy",
-   "cli": "meshy-cli 0.4.0",
    "operation": "image-to-3d",
-   "params": {
-    "model_type": "standard",
-    "should_texture": true,
-    "enable_pbr": true,
-    "texture_resolution": "2k",
-    "target_formats": "glb,fbx"
-   },
-   "task_id": "01a1dc9f-e7eb-76d6-9455-6a4ac315f958",
+   "task_id": "01a1dcbe-13a8-75c0-b1cd-2e36e631147c",
    "credits": 30,
-   "made_at": "2026-11-14",
+   "credits_withdrawn_first_version": 30,
+   "made_at": "2026-11-15",
    "files": [
     {
      "path": "figures/vex_god/vex_god_statue.glb",
-     "sha256": "a3b128f32e38234a7c69e81b65ba25da748c009e783892a1b3c2f7db56d5e29c",
-     "bytes": 13624612
+     "sha256": "c6e14aa1b7fca2f21e6170a8be248be3565d52b9542031a34afc3eb42297a2c2",
+     "bytes": 17192276
     },
     {
      "path": "figures/vex_god/preview.png",
-     "sha256": "d3fc7ff046851b6407f39360902a096ecf79e3eece2f20ef26acc7707a0150ce",
-     "bytes": 74079
+     "sha256": "a712980e0ff477c3fa73a439fce0b5afdeaac50128ffdf962dc67f4b90806bab",
+     "bytes": 99130
     }
    ]
   }

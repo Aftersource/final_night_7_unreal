@@ -61,9 +61,8 @@
    "statue_glb": "kestrel_god/kestrel_god_statue.glb"
   },
   "lune_god": {
-   "held": "not in the game yet: came out as an unclothed classical nude; awaiting Chris's call (keep, or redo clothed)",
    "kind": "god",
-   "meshy_task": "01a1dcac-a64f-719a-baff-0dda497e61ab",
+   "meshy_task": "01a1dcbf-24c3-768d-bc69-04b152ad8cfd",
    "name": "Lune",
    "preview": "lune_god/preview.png",
    "result": "SUCCEEDED 30",
@@ -122,9 +121,8 @@
    "statue_glb": "sable_god/sable_god_statue.glb"
   },
   "vex_god": {
-   "held": "not in the game yet: came out as an unclothed classical nude; awaiting Chris's call (keep, or redo clothed)",
    "kind": "god",
-   "meshy_task": "01a1dc9f-e7eb-76d6-9455-6a4ac315f958",
+   "meshy_task": "01a1dcbe-13a8-75c0-b1cd-2e36e631147c",
    "name": "Vex",
    "preview": "vex_god/preview.png",
    "result": "SUCCEEDED 30",
