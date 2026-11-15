@@ -691,19 +691,8 @@ bool SFNPowerRingInput::ToPixel(const FGeometry& G, const FVector2D& Screen, FVe
 
 FReply SFNPowerRingInput::OnMouseButtonDown(const FGeometry& G, const FPointerEvent& E)
 {
-	if (E.GetEffectingButton() == EKeys::RightMouseButton)
-	{
-		// Right-click zooms out (the player controller), but never inside a demigod's extended click zone (Chris asked it not to zoom out when
-		// the pointer is over the extended click zone of one of the demigods).
-		FVector2D Rp;
-		if (ToPixel(G, E.GetScreenSpacePosition(), Rp))
-		{
-			double D = 0.0;
-			const FString Fig = AFNTableGods::FigureAtScreen(Studio.IsValid() ? Studio->GetWorld() : nullptr, Rp, nullptr, 1.35, &D);
-			if (!Fig.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked right-click by figure %s at %.0f px"), *Fig, D); return FReply::Handled(); }
-		}
-		return FReply::Unhandled();
-	}
+	// Right-click passes through to the player controller: it zooms out everywhere on the globe and board, near demigods
+	// too. Right click should zoom out without losing track the same way; only real UI keeps its own right-click.
 	if (E.GetEffectingButton() != EKeys::LeftMouseButton) return FReply::Unhandled();
 	if (Studio.IsValid()) Studio->CatchHand();   // a press catches a coasting planet or board
 	AFNPowerRing* R = Ring();
@@ -841,8 +830,6 @@ FReply SFNPowerRingInput::OnDragDetected(const FGeometry&, const FPointerEvent& 
 
 FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E)
 {
-	LastAbs = E.GetScreenSpacePosition();
-	bPointerOver = true;
 	if (bHandArmed)
 	{
 		FVector2D P;
@@ -885,25 +872,13 @@ FReply SFNPowerRingInput::OnMouseMove(const FGeometry& G, const FPointerEvent& E
 
 void SFNPowerRingInput::OnMouseLeave(const FPointerEvent&)
 {
-	bPointerOver = false;
 	HoverHex = -1;
 	bHoverPouch = false;
 	if (AFNPowerRing* R = Ring()) { R->SetHover(-1); R->SetPouchHover(false); }
 }
 
-int32 SFNPowerRingInput::HandState() const
-{
-	// The hand of god's cursor: 0 OPEN, 1 GRAB, 2 POINT, 3 FLING (docs/design/hand_of_god §1).
-	if (bHandPanning) return 1;
-	if (Studio.IsValid() && Studio->SinceFling() < 0.25) return 3;
-	if (HoverHex >= 0 || bHoverPouch || bHoverFigure) return 2;
-	return 0;
-}
-
 FCursorReply SFNPowerRingInput::OnCursorQuery(const FGeometry&, const FPointerEvent&) const
 {
-	if (FN7HandCursor::bDrawn) return FCursorReply::Cursor(EMouseCursor::None);   // the software hand is drawn instead
-	if (bHandPanning) return FCursorReply::Cursor(EMouseCursor::GrabHandClosed);
 	if (HoverHex >= 0 || bHoverMine) return FCursorReply::Cursor(EMouseCursor::GrabHand);
 	if (bHoverFigure) return FCursorReply::Cursor(EMouseCursor::Hand);
 	return bHoverPouch ? FCursorReply::Cursor(EMouseCursor::Hand) : FCursorReply::Unhandled();
