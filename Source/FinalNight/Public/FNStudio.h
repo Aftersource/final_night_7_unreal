@@ -131,6 +131,7 @@ public:
 	/** The exact top of a board tile (cm, as BuildTable stacks it; with or without the earth's override) and its centre. */
 	bool BoardHexTop(int32 Q, int32 R, bool bWithEarth, float& OutTopCm, FVector& OutWorld) const;
 	double BoardCmPerMeter() const { return TableK; }
+	bool IsBoardPanning() const { return bBoardPan; }
 	bool BeginBoardPan(const FVector2D& ViewportPixel);
 	void PanBoardTo(const FVector2D& ViewportPixel);
 	void EndBoardPan();
