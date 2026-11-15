@@ -736,6 +736,7 @@ FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
 			bHandPanning = false;
 			bHandGlobe = bGlobe;
 			HandFrom = Px;
+			HandFromAt = FPlatformTime::Seconds();
 			return FReply::Handled().CaptureMouse(SharedThis(this));
 		}
 		return FReply::Unhandled();   // not the board or the globe: the game gets the click
@@ -746,11 +747,18 @@ FReply SFNPowerRingInput::PressFigure(const FVector2D& Px)
 	return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
 }
 
-FReply SFNPowerRingInput::OnMouseButtonUp(const FGeometry&, const FPointerEvent& E)
+FReply SFNPowerRingInput::OnMouseButtonUp(const FGeometry& G, const FPointerEvent& E)
 {
 	if (bHandArmed && E.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (bHandPanning && Studio.IsValid()) { if (bHandGlobe) Studio->EndGlobeGrab(); else Studio->EndBoardPan(); }
+		// A click on the globe picks that spot (Benito's globe click, restored): no drag, or a press that wandered under
+		// 20 px (1080p-scaled) and let go within 0.6 s (at ~20 fps a quick click moves a few pixels). Real drags spin it.
+		FVector2D Up = HandFrom;
+		ToPixel(G, E.GetScreenSpacePosition(), Up);
+		const double Click = 20.0 * FMath::Max(1.0, (double)G.GetLocalSize().Y * G.Scale / 1080.0);
+		const bool bGlobeClick = bHandGlobe && (!bHandPanning || (FVector2D::Distance(Up, HandFrom) < Click && FPlatformTime::Seconds() - HandFromAt < 0.6));
+		if (bGlobeClick && Studio.IsValid()) Studio->ClickGlobeAt(HandFrom);
+		else if (bHandPanning && Studio.IsValid()) { if (bHandGlobe) Studio->EndGlobeGrab(); else Studio->EndBoardPan(); }
 		bHandArmed = bHandPanning = false;
 		return FReply::Handled().ReleaseMouseCapture();
 	}

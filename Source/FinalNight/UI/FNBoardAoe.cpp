@@ -613,6 +613,30 @@ void AFNStudio::EndGlobeGrab()
 	SettleGlobe(true);
 }
 
+void AFNStudio::ClickGlobeAt(const FVector2D& ViewportPixel)
+{
+	if (!BoardRoot) return;
+	if (bGlobeGrab)
+	{
+		// The few pixels the click wandered turned the globe a little: put it back, so the pressed point is the picked one.
+		BoardRoot->SetWorldRotation(GrabStartQuat);
+		bGlobeGrab = false;
+		GrabHist.Reset();
+	}
+	bGlobeCoast = false;
+	GlobeOmega = FVector::ZeroVector;
+	FVector Dir;
+	if (!GlobeDirAt(ViewportPixel, Dir, false)) return;
+	const FVector Local = BoardRoot->GetComponentQuat().UnrotateVector(Dir);
+	const double La = FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(Local.Z, -1.0, 1.0))), Lo = FMath::RadiansToDegrees(FMath::Atan2(-Local.Y, Local.X));
+	// Exactly Benito's globe click (FNStudioTable.cpp, the release with DragMoved <= 6 px).
+	ManualUntil = Time + 12.f;                   // don't swing the Globe away from what you just picked
+	MapLevel = 3;                                // click 1 of the dive: the region around that spot (3 = regions)
+	bReliefHold = false;
+	PickSpot(La, Lo, true);
+	UE_LOG(LogTemp, Display, TEXT("FN7 hand: globe click picks %.3f, %.3f"), La, Lo);
+}
+
 void AFNStudio::SettleGlobe(bool bFinal)
 {
 	// The front of the planet (the point facing the camera) becomes the board's centre, at the zoom you're at.
