@@ -146,6 +146,14 @@ public:
 	/** Roll the WILL back up without sending (Esc while writing); the text stays. */
 	void RollUpWill();
 	const FFNHudModel& GetModel() const { return Model; }
+	/** The room chat docked above the WILL (SFNChat) and its floating bubbles. */
+	TSharedPtr<class SFNChat> GetChat() const { return Chat; }
+	void SetChatAnchor(TFunction<bool(int32 Seat, FVector2D& OutViewportPx)> F) { ChatAnchor = MoveTemp(F); }
+	bool ChatHasFocus() const;
+	/** Fold or unfold the WORLD list (what a click on its title does). */
+	void SetNewsCollapsed(bool bCollapsed) { if (bNewsCollapsed != bCollapsed) { bNewsCollapsed = bCollapsed; RefreshSections(); } }
+	void ChatLeaveFocus();
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** A model filled with a believable mid-match state, for previews and screenshots. */
 	static FFNHudModel SampleModel();
@@ -165,6 +173,11 @@ private:
 	bool bTypingSignalled = false;
 
 	TSharedPtr<SBox> HeaderHolder, NewsHolder, YouHolder, PowersHolder;
+	TSharedPtr<class SFNChat> Chat;
+	TSharedPtr<class SFNChatFloat> ChatFloat;
+	TSharedPtr<class SVerticalBox> WillStack;   // the powers panel and the WILL: the chat sits above them
+	TFunction<bool(int32, FVector2D&)> ChatAnchor;
+	float ChatFree = 400.f;                     // the chat's room this frame (layout px)
 	FString YouSignature, PowersSignature;   // rebuild those sections only when their content changes
 	FString MakeYouSignature() const;
 	bool bNewsCollapsed = false;
