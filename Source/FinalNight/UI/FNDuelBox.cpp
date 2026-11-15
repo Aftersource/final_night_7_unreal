@@ -181,6 +181,7 @@ FVector AFNDuelBox::HexLocal(double Q, double R) const
 void AFNDuelBox::Build()
 {
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	bBuilt = true;
 	Lift = NewObject<USceneComponent>(this);
 	Lift->SetupAttachment(RootComponent);
@@ -414,6 +415,7 @@ void AFNDuelBox::SetSky(const FString& TimeOfDay)
 void AFNDuelBox::BuildScene(const TSharedPtr<FJsonObject>& Scene)
 {
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	for (UStaticMeshComponent* P : SceneParts) if (P) P->DestroyComponent();
 	SceneParts.Reset();
 	ClearWeapons();
@@ -628,6 +630,7 @@ double AFNDuelBox::InstantStepMs(const TSharedPtr<FJsonObject>& Step)
 void AFNDuelBox::PlayInstant(const FString& Side, const TSharedPtr<FJsonObject>& Blow)
 {
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	if (!Blow.IsValid() || (Side != TEXT("a") && Side != TEXT("b"))) return;
 	FInstant& In = Side == TEXT("a") ? InstA : InstB;
 	In.Steps.Reset();
@@ -672,6 +675,7 @@ void AFNDuelBox::PlayInstant(const FString& Side, const TSharedPtr<FJsonObject>&
 void AFNDuelBox::PlayStage(double Now, float Dt)
 {
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	const TSharedPtr<FFNDuelSession> Ses = Session.Pin();
 	if (!Ses.IsValid()) return;
 	double StartA[2] = { -3.0, 0.0 }, StartB[2] = { 2.0, 0.0 };
@@ -1025,6 +1029,7 @@ void AFNDuelBox::UpdateCamera(const FString& Shot, float Dt)
 void AFNDuelBox::Tick(float DeltaSeconds)
 {
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	Super::Tick(DeltaSeconds);
 	if (Phase == EPhase::Hidden || !bBuilt) return;
 	PhaseT += DeltaSeconds;
@@ -1074,6 +1079,7 @@ FVector AFNDuelBox::BoneLocal(USkeletalMeshComponent* M, const TCHAR* Bone, cons
 void AFNDuelBox::UpdateHeld(FHeld& H, USkeletalMeshComponent* M, double Now)
 {
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	const FString Class = H.Prop.IsValid() ? Str(H.Prop, TEXT("weapon_class")) : FString();
 	const FString Key = Class.IsEmpty() || Class == TEXT("unarmed") ? FString() : Class + TEXT("|") + Str(H.Prop, TEXT("name")) + TEXT("|") + Str(H.Prop, TEXT("material"));
 	if (Key != H.Key)
@@ -1150,6 +1156,7 @@ void AFNDuelBox::UpdateHeld(FHeld& H, USkeletalMeshComponent* M, double Now)
 void AFNDuelBox::Flash(const FVector& At, const FLinearColor& Color, float Size, float Dur, float Lux)
 {
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	FFx F;
 	const bool bCalm = FN7HudPrefs::ReduceFlashing();   // accessibility: a smaller burst and no light flash
 	F.At = At; F.Start = FPlatformTime::Seconds(); F.Dur = Dur; F.Size = bCalm ? Size * 0.6f : Size; F.Lux = bCalm ? 0.f : Lux;
@@ -1215,6 +1222,7 @@ void AFNDuelBox::PlayShots(const TSharedPtr<FJsonObject>& Panel, int32 PanelN, d
 	// foe, a hex, or a scene object; a deflected one glances off the foe to a hex aside. A function of the panel's
 	// time, so a reconnect lands mid-flight. On landing: a burst; a rocket lights its seven hexes and knocks the objects.
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	const TArray<TSharedPtr<FJsonValue>>* Ps = Arr(Panel, TEXT("projectiles"));
 	if (!Ps) return;
 	const float Hm = S * FighterScale;
@@ -1341,6 +1349,7 @@ void AFNDuelBox::ApplyKnocks(int32 PanelN, double T)
 {
 	// Knocked objects jump, slide away from the blast and topple; they stay where they land for the rest of the duel.
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	for (const TPair<FString, FKnock>& K : Knocks)
 	{
 		const TArray<int32>* Op = ObjectParts.Find(K.Key);
@@ -1374,6 +1383,7 @@ void AFNDuelBox::BuildGround(const TSharedPtr<FJsonObject>& Ground)
 	// The earth underfoot (schema 17): the floor shows through as toy patches between the flagstones (the hazard
 	// objects themselves come with the scene's objects); lava and fire glow, a shaken floor trembles.
 	using namespace FN7Box;
+	using FN7Box::Str; using FN7Box::Arr;   // a unity neighbour's file-scope `using namespace FNUi` also has Str/Arr
 	for (UStaticMeshComponent* P : GroundPatches) if (P) P->DestroyComponent();
 	GroundPatches.Reset();
 	GroundFloor = Ground.IsValid() ? Str(Ground, TEXT("floor")) : FString();
