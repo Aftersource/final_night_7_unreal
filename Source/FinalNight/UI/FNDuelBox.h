@@ -103,6 +103,34 @@ private:
 	FVector RefPelvis = FVector::ZeroVector;
 	bool bHaveRefPelvis = false;
 
+	// Weapons, hammer-space and projectiles (server schema 14), the ground underfoot (schema 17). Toy-like, like the box.
+	struct FPropPart { TObjectPtr<UStaticMeshComponent> C; FVector Off = FVector::ZeroVector; FRotator Rot = FRotator::ZeroRotator; FVector Size = FVector::OneVector; };
+	struct FHeld { FString Key, Class; TArray<FPropPart> Parts; double DrawnAt = -10.0; TSharedPtr<FJsonObject> Prop; };
+	FHeld HeldA, HeldB;
+	TSet<FString> DrawsSeen;                         // "<panel>:<side>:<seg>" draws whose flash played
+	struct FFx { TArray<TObjectPtr<UStaticMeshComponent>> Parts; TArray<FVector> Dirs; TObjectPtr<class UPointLightComponent> Light; FVector At = FVector::ZeroVector; double Start = 0.0; float Dur = 0.5f, Size = 3.f, Lux = 0.f; };
+	TArray<FFx> Fxs;
+	TMap<FString, TArray<TObjectPtr<UStaticMeshComponent>>> ShotParts;   // projectile id -> its pieces
+	TSet<FString> ShotsBurst;                        // projectile ids whose hit (or deflection, "<id>:d") played
+	TMap<FString, TArray<int32>> ObjectParts;        // scene object id -> indices into SceneParts
+	TArray<FTransform> SceneBase;                    // each scene part as built
+	struct FKnock { int32 Panel = 0; double T1 = 0.0; float Impulse = 0.f; FVector Dir = FVector::ZeroVector; };
+	TMap<FString, FKnock> Knocks;
+	TArray<TObjectPtr<UStaticMeshComponent>> AoeTiles;
+	double AoeAt = -10.0;
+	TArray<TObjectPtr<UStaticMeshComponent>> GroundPatches;
+	TObjectPtr<class UPointLightComponent> GroundLight;
+	FString GroundFloor;
+	double NextTremor = 0.0;
+	void UpdateHeld(FHeld& H, USkeletalMeshComponent* M, double Now);
+	void PlayShots(const TSharedPtr<FJsonObject>& Panel, int32 PanelN, double T, bool bLive);
+	void Flash(const FVector& At, const FLinearColor& Color, float Size, float Dur, float Lux);
+	void TickFx(double Now);
+	void ApplyKnocks(int32 PanelN, double T);
+	void BuildGround(const TSharedPtr<FJsonObject>& Ground);
+	void ClearWeapons();
+	FVector BoneLocal(USkeletalMeshComponent* M, const TCHAR* Bone, const FVector& Fallback) const;
+
 	void Build();
 	void BuildScene(const TSharedPtr<FJsonObject>& Scene);
 	void SetSky(const FString& TimeOfDay);
