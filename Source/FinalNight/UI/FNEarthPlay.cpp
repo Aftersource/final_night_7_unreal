@@ -1,4 +1,5 @@
 #include "FNEarthPlay.h"
+#include "FNHudPrefs.h"
 
 #include "FNNetClient.h"
 #include "FNStudio.h"
@@ -661,7 +662,7 @@ void AFNEarthPlay::PlacePhen(FPhen& P, double Now)
 	}
 	else if (K == TEXT("lightning"))
 	{
-		const bool bFlash = FMath::Fmod(T, 0.9f) < 0.25f;
+		const bool bFlash = FN7HudPrefs::ReduceFlashing() || FMath::Fmod(T, 0.9f) < 0.25f;   // reduce flashing: a steady bolt
 		P.Parts[0]->SetWorldLocation(W + FVector(0, 0, 25.f * S));
 		P.Parts[0]->SetWorldScale3D(bFlash ? FVector(0.015f * S, 0.015f * S, 0.5f * S) : FVector::ZeroVector);
 	}
@@ -1080,7 +1081,7 @@ void AFNEarthPlay::Tick(float Dt)
 			const float Ru = FMath::Clamp(T / 0.9f, 0.f, 1.f), Rad = (F.bMega ? 28.f : 14.f) * S * FMath::Sqrt(Ru);
 			F.Ring->SetWorldScale3D(T < 1.1f ? FVector(Rad / 50.f, Rad / 50.f, 0.004f * S * (1.f - Ru) + 0.0005f) : FVector::ZeroVector);
 		}
-		if (F.Light) F.Light->SetIntensity((F.bMega ? 220.f : 90.f) * FMath::Max(0.f, 1.f - T / 1.0f));
+		if (F.Light) F.Light->SetIntensity(FN7HudPrefs::ReduceFlashing() ? 0.f : (F.bMega ? 220.f : 90.f) * FMath::Max(0.f, 1.f - T / 1.0f));
 		if (F.Label)
 		{
 			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())

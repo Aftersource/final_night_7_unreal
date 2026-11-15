@@ -754,6 +754,7 @@ void SFNStartPanel::OnBooted(bool bSignedIn)
 {
 	const FN7Account::FConfig& C = FN7Account::Config();
 	Page = (!bSignedIn && !bInGame.Get() && C.bKnown && C.bGuest) ? EPage::Welcome : EPage::Lobby;
+	if (bSignedIn && Settings.IsValid()) Settings->Open();   // reads the settings and keeps reduce flashing / text size locally
 	UE_LOG(LogTemp, Display, TEXT("FN7 login: %s"), bSignedIn ? TEXT("signed in, the lobby") : Page == EPage::Welcome ? TEXT("welcome (no session)") : TEXT("no accounts on this server, the lobby"));
 }
 
