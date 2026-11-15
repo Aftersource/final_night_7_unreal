@@ -402,7 +402,9 @@ void AFNDuelBox::BuildScene(const TSharedPtr<FJsonObject>& Scene)
 	using namespace FN7Box;
 	for (UStaticMeshComponent* P : SceneParts) if (P) P->DestroyComponent();
 	SceneParts.Reset();
+	ClearWeapons();
 	SetSky(Str(Scene, TEXT("time_of_day")));
+	BuildGround(Obj(Scene, TEXT("ground")));
 	const TArray<TSharedPtr<FJsonValue>>* Objects = Arr(Scene, TEXT("objects"));
 	if (!Objects) return;
 	int32 Built = 0;
@@ -416,6 +418,7 @@ void AFNDuelBox::BuildScene(const TSharedPtr<FJsonObject>& Scene)
 		const FRotator ObjRot(0.f, Yaw, 0.f);
 		const TArray<TSharedPtr<FJsonValue>>* Parts = Arr(O, TEXT("parts"));
 		if (!Parts) continue;
+		const FString ObjId = Str(O, TEXT("id"));
 		for (const TSharedPtr<FJsonValue>& Pv : *Parts)
 		{
 			const TSharedPtr<FJsonObject> P = Pv.IsValid() ? Pv->AsObject() : nullptr;
@@ -439,7 +442,10 @@ void AFNDuelBox::BuildScene(const TSharedPtr<FJsonObject>& Scene)
 			if (Glow > 0.f) Col = Col * (1.f + 3.f * Glow);
 			const FVector LocalOff = ObjRot.RotateVector(FVector(Off[0], Off[2], Off[1]) * S);
 			const FRotator PartRot = (ObjRot.Quaternion() * FRotator((float)Rot[2], -(float)Rot[1], -(float)Rot[0]).Quaternion()).Rotator();
-			SceneParts.Add(Part(SceneRoot, Mesh, Origin - FVector(0, 0, FloorTop - SlabH - TileH) + LocalOff, Size * S, Col, PartRot));
+			UStaticMeshComponent* Pc = Part(SceneRoot, Mesh, Origin - FVector(0, 0, FloorTop - SlabH - TileH) + LocalOff, Size * S, Col, PartRot);
+			if (!ObjId.IsEmpty()) ObjectParts.FindOrAdd(ObjId).Add(SceneParts.Num());
+			SceneBase.Add(Pc->GetRelativeTransform());
+			SceneParts.Add(Pc);
 			++Built;
 		}
 	}
@@ -540,6 +546,7 @@ void AFNDuelBox::Close()
 			if (Back) PC->SetViewTargetWithBlend(Back, 1.0f, VTBlend_EaseInOut, 2.f);
 		}
 	bTookCamera = false;
+	ClearWeapons();
 	UE_LOG(LogTemp, Display, TEXT("FN7 duel box: close %s"), *ShownDuel);
 }
 
@@ -617,7 +624,7 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 			}
 		return HexLocal(Def[0], Def[1]);
 	};
-	struct FPose { FVector At; FString Clip; float ClipT = 0.f; bool bLoop = true; };
+	struct FPose { FVector At; FString Clip; float ClipT = 0.f; bool bLoop = true; TSharedPtr<FJsonObject> Seg; int32 SegIdx = -1; double SegT = 0.0; };
 	auto Track = [&](const TCHAR* Side, const double* Def) -> FPose
 	{
 		FPose Out;
@@ -653,6 +660,9 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 				Sg->TryGetBoolField(TEXT("loop"), bLoopSeg);
 				Out.bLoop = bLoopSeg;
 				Out.ClipT = (float)((T - Acc) / 1000.0 * Num(Sg, TEXT("speed"), 1.0));
+				Out.Seg = Sg;
+				Out.SegIdx = i;
+				Out.SegT = T - Acc;
 				return Out;
 			}
 			From = Dest;
@@ -664,6 +674,33 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 	const FPose Pa = Track(TEXT("a"), StartA), Pb = Track(TEXT("b"), StartB);
 	PoseFighter(FighterA, ClipA, Pa.Clip, Pa.ClipT, Pa.bLoop, Pa.At, Pb.At);
 	PoseFighter(FighterB, ClipB, Pb.Clip, Pb.ClipT, Pb.bLoop, Pb.At, Pa.At);
+
+	// Weapons in hand: each seg of an armed fighter carries its prop (none = empty hands). A hammer-space draw
+	// (a draw_from_nowhere seg) flashes at the hand and the new weapon grows into it.
+	{
+		const double NowS = FPlatformTime::Seconds();
+		auto Arm = [&](FHeld& Hd, USkeletalMeshComponent* M, const FPose& P, const TCHAR* Side)
+		{
+			if (Panel.IsValid()) Hd.Prop = P.Seg.IsValid() ? Obj(P.Seg, TEXT("prop")) : TSharedPtr<FJsonObject>();
+			if (P.Seg.IsValid() && Str(P.Seg, TEXT("clip")) == TEXT("draw_from_nowhere"))
+			{
+				const FString Key = FString::Printf(TEXT("%d:%s:%d"), Cur, Side, P.SegIdx);
+				if (!DrawsSeen.Contains(Key))
+				{
+					DrawsSeen.Add(Key);
+					if (P.SegT < 700.0)
+					{
+						Flash(BoneLocal(M, TEXT("hand_r"), P.At + FVector(0, 0, 11.f)), FLinearColor(1.f, 0.85f, 0.45f), 4.5f, 0.45f, 40.f);
+						Hd.DrawnAt = NowS + 0.15;
+						UE_LOG(LogTemp, Display, TEXT("FN7 duel box: %s draws %s from nowhere"), Side, *Str(Hd.Prop, TEXT("name")));
+					}
+				}
+			}
+			UpdateHeld(Hd, M, NowS);
+		};
+		Arm(HeldA, FighterA, Pa, TEXT("a"));
+		Arm(HeldB, FighterB, Pb, TEXT("b"));
+	}
 
 	// Contacts: the burst word, a shake; the bars move to the panel's hp after its last contact.
 	if (Panel.IsValid())
@@ -709,8 +746,24 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 			bFlipSide = !bFlipSide;               // to the other side of the stage
 		}
 		Caption = Cap;
+		PlayShots(Panel, Cur, T, bLive);
 		LastPanel = Cur;
 		LastPanelT = T;
+	}
+	ApplyKnocks(Cur, T);
+	TickFx(FPlatformTime::Seconds());
+	if (GroundFloor == TEXT("shaken") && FPlatformTime::Seconds() > NextTremor)
+	{
+		// The ground shakes underfoot: a short tremor every few seconds.
+		NextTremor = FPlatformTime::Seconds() + 2.2 + FMath::FRand() * 1.5;
+		ShakeLeft = FMath::Max(ShakeLeft, 0.35f);
+		ShakeAmp = FMath::Max(ShakeAmp, 0.7f);
+	}
+	if (GroundLight)
+	{
+		const float Tm = (float)FPlatformTime::Seconds();
+		const float Base = GroundFloor == TEXT("lava") ? 28.f : GroundFloor == TEXT("burning") ? 18.f : 0.f;
+		GroundLight->SetIntensity(Base * (0.8f + 0.2f * FMath::PerlinNoise1D(Tm * 5.f)));
 	}
 	SetHpBars(ShownHpA, ShownHpB);
 
@@ -813,4 +866,375 @@ void AFNDuelBox::Tick(float DeltaSeconds)
 	FighterA->SetVisibility(Lid > 0.5f);
 	FighterB->SetVisibility(Lid > 0.5f);
 	PlayStage(NowMs ? NowMs() : 0.0, DeltaSeconds);
+}
+
+// --- weapons, hammer-space, projectiles, the ground (server CLIENT_API.md "Duel weapons" + schema 17) ----------------
+
+FVector AFNDuelBox::BoneLocal(USkeletalMeshComponent* M, const TCHAR* Bone, const FVector& Fallback) const
+{
+	if (!M || !Lift || M->GetBoneIndex(FName(Bone)) == INDEX_NONE) return Fallback;
+	return Lift->GetComponentTransform().InverseTransformPosition(M->GetBoneLocation(FName(Bone), EBoneSpaces::WorldSpace));
+}
+
+void AFNDuelBox::UpdateHeld(FHeld& H, USkeletalMeshComponent* M, double Now)
+{
+	using namespace FN7Box;
+	const FString Class = H.Prop.IsValid() ? Str(H.Prop, TEXT("weapon_class")) : FString();
+	const FString Key = Class.IsEmpty() || Class == TEXT("unarmed") ? FString() : Class + TEXT("|") + Str(H.Prop, TEXT("name")) + TEXT("|") + Str(H.Prop, TEXT("material"));
+	if (Key != H.Key)
+	{
+		for (FPropPart& P : H.Parts) if (P.C) P.C->DestroyComponent();
+		H.Parts.Reset();
+		H.Key = Key;
+		H.Class = Class;
+		if (Now - H.DrawnAt > 0.6) H.DrawnAt = Now - 1.0;   // taken in hand without a draw: there at once
+		if (!Key.IsEmpty())
+		{
+			const FString Mat = Str(H.Prop, TEXT("material"));
+			FLinearColor Metal = Mat.IsEmpty() ? FLinearColor(0.55f, 0.57f, 0.6f) : MaterialColor(Mat);
+			if (Str(H.Prop, TEXT("tier")) == TEXT("artifact")) Metal = Metal * 1.6f + FLinearColor(0.08f, 0.06f, 0.02f);   // an artifact gleams
+			const FLinearColor Haft = WoodMid * 2.5f, Dark(0.05f, 0.05f, 0.055f);
+			auto Add = [&](const TCHAR* Mesh, const FVector& Off, const FVector& Size, const FLinearColor& Col, const FRotator& Rot = FRotator::ZeroRotator)
+			{
+				FPropPart P;
+				P.C = Part(Lift, Mesh, FVector::ZeroVector, Size, Col, Rot);
+				P.Off = Off; P.Rot = Rot; P.Size = Size;
+				H.Parts.Add(P);
+			};
+			if (Class == TEXT("one_handed")) { Add(Cube, FVector(4.6f, 0, 0), FVector(7.5f, 0.8f, 0.25f), Metal); Add(Cube, FVector(0.9f, 0, 0), FVector(0.45f, 2.4f, 0.5f), GiltDark * 2.f); Add(Cube, FVector(-0.1f, 0, 0), FVector(1.6f, 0.45f, 0.45f), Haft); }
+			else if (Class == TEXT("two_handed")) { Add(Cube, FVector(4.f, 0, 0), FVector(11.f, 0.5f, 0.5f), Haft); Add(Cube, FVector(9.6f, 0, 0), FVector(1.9f, 3.3f, 1.4f), Metal); }
+			else if (Class == TEXT("staff")) { Add(Cube, FVector(3.f, 0, 0), FVector(14.f, 0.45f, 0.45f), Haft); Add(Sphere, FVector(10.4f, 0, 0), FVector(1.7f), Metal * 2.5f + FLinearColor(0.2f, 0.1f, 0.35f)); }
+			else if (Class == TEXT("bow"))
+			{
+				// Upright (X), the curve bulging toward the foe (Y), a string behind.
+				for (int32 k = -2; k <= 2; ++k)
+				{
+					const float A = k / 2.f, Bulge = 1.1f * (1.f - A * A);
+					Add(Cube, FVector(k * 1.55f, Bulge, 0), FVector(1.7f, 0.4f, 0.45f), Haft, FRotator(FMath::RadiansToDegrees(FMath::Atan(2.2f * A * 1.1f / 3.1f)), 0.f, 0.f));
+				}
+				Add(Cube, FVector(0, -0.05f, 0), FVector(6.3f, 0.08f, 0.08f), FLinearColor(0.8f, 0.78f, 0.7f));
+			}
+			else if (Class == TEXT("rifle")) { Add(Cube, FVector(1.6f, 0, 0.3f), FVector(5.5f, 0.8f, 1.0f), Dark); Add(Cube, FVector(5.9f, 0, 0.5f), FVector(4.f, 0.38f, 0.38f), Metal); Add(Cube, FVector(-1.7f, 0, 0), FVector(2.f, 0.8f, 1.3f), Haft); }
+			else if (Class == TEXT("launcher")) { Add(Cube, FVector(1.5f, 0, 0), FVector(10.f, 1.7f, 1.7f), Mat.IsEmpty() ? FLinearColor(0.2f, 0.24f, 0.11f) : Metal); Add(Cube, FVector(6.7f, 0, 0), FVector(0.6f, 2.1f, 2.1f), Dark); Add(Cube, FVector(0.4f, 0, -1.4f), FVector(0.7f, 0.5f, 1.4f), Dark); }
+			else if (Class == TEXT("thrown")) Add(Sphere, FVector::ZeroVector, FVector(1.4f), MaterialColor(TEXT("stone")) * 1.4f);
+			else if (Class == TEXT("shield")) { Add(Cyl, FVector::ZeroVector, FVector(6.2f, 6.2f, 0.5f), Metal, FRotator(90.f, 0.f, 0.f)); Add(Sphere, FVector(0.4f, 0, 0), FVector(1.3f), GiltDark * 2.f); }
+			else { Add(Cube, FVector(3.f, 0, 0), FVector(6.f, 0.7f, 0.3f), Metal); }   // anything else: a plain blade
+		}
+	}
+	if (H.Parts.Num() == 0 || !M) return;
+	// Where it sits: in the right hand along the forearm (a blade, a gun, a hammer); a staff upright; a bow upright in the
+	// left hand; a launcher on the right shoulder; a shield on the left arm, facing the foe.
+	const FVector Feet = M->GetRelativeLocation();
+	const FVector Fwd = M->GetRelativeRotation().RotateVector(FVector(0, 1, 0)).GetSafeNormal2D();
+	const FVector Up(0, 0, 1);
+	const float Hm = S * FighterScale;   // cm per metre of the miniature
+	const FVector HandR = BoneLocal(M, TEXT("hand_r"), Feet + Up * 1.1f * Hm + Fwd * 0.3f * Hm);
+	const FVector HandL = BoneLocal(M, TEXT("hand_l"), Feet + Up * 1.1f * Hm + Fwd * 0.3f * Hm);
+	const FVector Elbow = BoneLocal(M, TEXT("lowerarm_r"), HandR - Fwd * 0.3f * Hm);
+	FVector Axis = (HandR - Elbow).GetSafeNormal();
+	if (Axis.IsNearlyZero()) Axis = Fwd;
+	FVector Origin = HandR;
+	FRotator R = FRotationMatrix::MakeFromXZ(Axis, Up).Rotator();
+	if (H.Class == TEXT("staff")) R = FRotationMatrix::MakeFromXZ((Up + 0.25f * Fwd).GetSafeNormal(), Fwd).Rotator();
+	else if (H.Class == TEXT("bow")) { Origin = HandL; R = FRotationMatrix::MakeFromXY(Up, Fwd).Rotator(); }
+	else if (H.Class == TEXT("launcher")) { Origin = BoneLocal(M, TEXT("clavicle_r"), Feet + Up * 1.45f * Hm) + Up * 0.12f * Hm; R = FRotationMatrix::MakeFromXZ(Fwd, Up).Rotator(); }
+	else if (H.Class == TEXT("shield")) { Origin = HandL + Fwd * 0.1f * Hm; R = FRotationMatrix::MakeFromXZ(Fwd, Up).Rotator(); }
+	const float G = FMath::Clamp((float)((Now - H.DrawnAt) / 0.25), 0.f, 1.f);
+	const float Grow = G < 1.f ? G * (1.f + 0.25f * FMath::Sin(G * PI)) : 1.f;   // pops in a little past full
+	const bool bShow = M->IsVisible();
+	for (FPropPart& P : H.Parts)
+	{
+		if (!P.C) continue;
+		P.C->SetRelativeLocation(Origin + R.RotateVector(P.Off * Grow));
+		P.C->SetRelativeRotation((R.Quaternion() * P.Rot.Quaternion()).Rotator());
+		P.C->SetRelativeScale3D(P.Size / 100.f * FMath::Max(Grow, 0.001f));
+		P.C->SetVisibility(bShow && Grow > 0.01f);
+	}
+}
+
+void AFNDuelBox::Flash(const FVector& At, const FLinearColor& Color, float Size, float Dur, float Lux)
+{
+	using namespace FN7Box;
+	FFx F;
+	F.At = At; F.Start = FPlatformTime::Seconds(); F.Dur = Dur; F.Size = Size; F.Lux = Lux;
+	F.Parts.Add(Part(Lift, Sphere, At, FVector(0.01f), Color * 2.5f + FLinearColor(0.3f, 0.3f, 0.3f)));
+	F.Dirs.Add(FVector::ZeroVector);
+	for (int32 i = 0; i < 7; ++i)
+	{
+		const float A = i * 2.f * PI / 7.f + FMath::FRand() * 0.6f;
+		F.Dirs.Add(FVector(FMath::Cos(A), FMath::Sin(A), 0.4f + FMath::FRand() * 0.8f).GetSafeNormal());
+		F.Parts.Add(Part(Lift, Sphere, At, FVector(0.01f), Color * 2.f));
+	}
+	if (Lux > 0.f)
+	{
+		UPointLightComponent* L = NewObject<UPointLightComponent>(this);
+		L->SetupAttachment(Lift);
+		L->SetRelativeLocation(At + FVector(0, 0, 2.f));
+		L->SetIntensity(Lux);
+		L->SetAttenuationRadius(Size * 14.f);
+		L->SetLightColor(Color);
+		L->SetCastShadows(false);
+		L->RegisterComponent();
+		F.Light = L;
+	}
+	Fxs.Add(F);
+}
+
+void AFNDuelBox::TickFx(double Now)
+{
+	for (int32 i = Fxs.Num() - 1; i >= 0; --i)
+	{
+		FFx& F = Fxs[i];
+		const float U = (float)((Now - F.Start) / FMath::Max(0.05f, F.Dur));
+		if (U >= 1.f)
+		{
+			for (UStaticMeshComponent* C : F.Parts) if (C) C->DestroyComponent();
+			if (F.Light) F.Light->DestroyComponent();
+			Fxs.RemoveAt(i);
+			continue;
+		}
+		const float Core = F.Size * (U < 0.3f ? U / 0.3f : 1.f - (U - 0.3f) / 0.7f);
+		for (int32 k = 0; k < F.Parts.Num(); ++k)
+		{
+			if (!F.Parts[k]) continue;
+			if (k == 0) { F.Parts[k]->SetRelativeScale3D(FVector(FMath::Max(Core, 0.01f) / 100.f)); continue; }
+			F.Parts[k]->SetRelativeLocation(F.At + F.Dirs[k] * F.Size * 1.6f * U);
+			F.Parts[k]->SetRelativeScale3D(FVector(FMath::Max(F.Size * 0.22f * (1.f - U), 0.01f) / 100.f));
+		}
+		if (F.Light) F.Light->SetIntensity(F.Lux * (1.f - U));
+	}
+	// The rocket's blast on its seven hexes: glowing, then gone.
+	const float Ua = (float)((Now - AoeAt) / 0.9);
+	for (UStaticMeshComponent* T : AoeTiles)
+	{
+		if (!T) continue;
+		T->SetVisibility(Ua >= 0.f && Ua < 1.f);
+		if (Ua >= 0.f && Ua < 1.f) T->SetRelativeScale3D(FVector(FN7Box::S * 0.93f / 50.f * (1.f - 0.3f * Ua), FN7Box::S * 0.93f / 50.f * (1.f - 0.3f * Ua), 0.004f * (1.f - Ua) + 0.0005f));
+	}
+}
+
+void AFNDuelBox::PlayShots(const TSharedPtr<FJsonObject>& Panel, int32 PanelN, double T, bool bLive)
+{
+	// panel.projectiles[]: each flies from its shooter's hand on an arc (t_fire_ms -> t_hit_ms, arc_h metres high) to the
+	// foe, a hex, or a scene object; a deflected one glances off the foe to a hex aside. A function of the panel's
+	// time, so a reconnect lands mid-flight. On landing: a burst; a rocket lights its seven hexes and knocks the objects.
+	using namespace FN7Box;
+	const TArray<TSharedPtr<FJsonValue>>* Ps = Arr(Panel, TEXT("projectiles"));
+	if (!Ps) return;
+	const float Hm = S * FighterScale;
+	const FVector PosA = FighterA ? FighterA->GetRelativeLocation() : FVector::ZeroVector, PosB = FighterB ? FighterB->GetRelativeLocation() : FVector::ZeroVector;
+	for (const TSharedPtr<FJsonValue>& Pv : *Ps)
+	{
+		const TSharedPtr<FJsonObject> P = Pv.IsValid() ? Pv->AsObject() : nullptr;
+		if (!P.IsValid()) continue;
+		const FString Id = Str(P, TEXT("id")), Kind = Str(P, TEXT("kind")), By = Str(P, TEXT("by"));
+		const double T0 = Num(P, TEXT("t_fire_ms")), T1 = FMath::Max(T0 + 1.0, Num(P, TEXT("t_hit_ms")));
+		const float ArcH = (float)Num(P, TEXT("arc_h"), 0.3) * Hm;
+		USkeletalMeshComponent* Shooter = By == TEXT("b") ? FighterB : FighterA;
+		const FVector Feet = By == TEXT("b") ? PosB : PosA;
+		FVector From = BoneLocal(Shooter, Kind == TEXT("rocket") ? TEXT("clavicle_r") : TEXT("hand_r"), Feet + FVector(0, 0, 1.2f * Hm));
+		double Fh[2];
+		if (!Shooter && Vec(P, TEXT("from_hex"), Fh, 2)) From = HexLocal(Fh[0], Fh[1]) + FVector(0, 0, 1.2f * Hm);
+		// Where it lands.
+		FString ToStr; double Th[2] = { 0, 0 };
+		const bool bToHex = Vec(P, TEXT("to_hex"), Th, 2);
+		P->TryGetStringField(TEXT("to"), ToStr);
+		FVector To = bToHex ? HexLocal(Th[0], Th[1]) + FVector(0, 0, 0.3f * Hm) : From;
+		const FVector Foe = (By == TEXT("b") ? PosA : PosB) + FVector(0, 0, 1.25f * Hm);
+		if (ToStr == TEXT("a") || ToStr == TEXT("b")) To = (ToStr == TEXT("a") ? PosA : PosB) + FVector(0, 0, 1.25f * Hm);
+		else if (!ToStr.IsEmpty())
+			if (const TArray<int32>* Op = ObjectParts.Find(ToStr); Op && Op->Num() && SceneParts.IsValidIndex((*Op)[0]) && SceneParts[(*Op)[0]])
+				To = SceneParts[(*Op)[0]]->GetRelativeLocation() + FVector(0, 0, 0.2f * Hm);
+		FString Defl;
+		P->TryGetStringField(TEXT("deflected_by"), Defl);
+		auto PathAt = [&](float U) -> FVector
+		{
+			FVector A = From, B = To;
+			float V = U;
+			if (!Defl.IsEmpty()) { if (U < 0.55f) { B = Foe; V = U / 0.55f; } else { A = Foe; V = (U - 0.55f) / 0.45f; } }
+			FVector X = FMath::Lerp(A, B, V);
+			X.Z += 4.f * ArcH * V * (1.f - V) * (Defl.IsEmpty() ? 1.f : 0.5f);
+			return X;
+		};
+		TArray<TObjectPtr<UStaticMeshComponent>>& Parts = ShotParts.FindOrAdd(Id);
+		if (T >= T0 && T <= T1)
+		{
+			if (Parts.Num() == 0)
+			{
+				// Toy projectiles, readable from the wide shot.
+				if (Kind == TEXT("arrow")) { Parts.Add(Part(Lift, Cube, From, FVector(5.f, 0.35f, 0.35f), FLinearColor(0.85f, 0.75f, 0.55f))); Parts.Add(Part(Lift, Cone, From, FVector(0.8f, 0.8f, 1.f), FLinearColor(0.7f, 0.72f, 0.76f))); }
+				else if (Kind == TEXT("bullet")) { Parts.Add(Part(Lift, Sphere, From, FVector(0.6f), FLinearColor(1.f, 0.85f, 0.3f) * 3.f)); Parts.Add(Part(Lift, Cube, From, FVector(3.f, 0.12f, 0.12f), FLinearColor(1.f, 0.9f, 0.5f) * 2.f)); }
+				else if (Kind == TEXT("rocket")) { Parts.Add(Part(Lift, Cube, From, FVector(2.6f, 0.8f, 0.8f), FLinearColor(0.25f, 0.27f, 0.2f))); Parts.Add(Part(Lift, Sphere, From, FVector(1.1f), FLinearColor(1.f, 0.45f, 0.08f) * 3.f)); }
+				else if (Kind == TEXT("orb")) Parts.Add(Part(Lift, Sphere, From, FVector(1.5f), FLinearColor(0.6f, 0.3f, 1.f) * 3.f));
+				else if (Kind == TEXT("bolt")) Parts.Add(Part(Lift, Cube, From, FVector(4.f, 0.3f, 0.3f), FLinearColor(0.7f, 0.85f, 1.f) * 4.f));
+				else Parts.Add(Part(Lift, Sphere, From, FVector(1.2f), MaterialColor(TEXT("stone")) * 1.5f));   // a rock
+			}
+			const float U = (float)((T - T0) / (T1 - T0));
+			const FVector X = PathAt(U), Ahead = PathAt(FMath::Min(1.f, U + 0.03f));
+			const FRotator Rot = (Ahead - X).IsNearlyZero() ? FRotator::ZeroRotator : (Ahead - X).Rotation();
+			for (int32 k = 0; k < Parts.Num(); ++k)
+			{
+				if (!Parts[k]) continue;
+				const float Back = (Kind == TEXT("arrow") && k == 1) ? 2.6f : (Kind == TEXT("bullet") && k == 1) ? -1.6f : (Kind == TEXT("rocket") && k == 1) ? -1.7f : 0.f;
+				Parts[k]->SetRelativeLocation(X + Rot.Vector() * Back);
+				Parts[k]->SetRelativeRotation(Kind == TEXT("arrow") && k == 1 ? (Rot.Quaternion() * FRotator(-90.f, 0.f, 0.f).Quaternion()).Rotator() : Rot);
+				Parts[k]->SetVisibility(true);
+				if (Kind == TEXT("rocket") && k == 1) Parts[k]->SetRelativeScale3D(FVector(1.1f / 100.f * (0.8f + 0.4f * FMath::FRand())));
+			}
+			if (!Defl.IsEmpty() && U >= 0.55f && !ShotsBurst.Contains(Id + TEXT(":d")))
+			{
+				ShotsBurst.Add(Id + TEXT(":d"));
+				if (bLive) Flash(Foe, FLinearColor(1.f, 0.9f, 0.5f), 2.2f, 0.3f, 10.f);   // the glance off a parry / shield
+			}
+		}
+		else for (UStaticMeshComponent* C : Parts) if (C) C->SetVisibility(false);
+		if (T >= T1 && !ShotsBurst.Contains(Id))
+		{
+			ShotsBurst.Add(Id);
+			const TSharedPtr<FJsonObject> Hit = Obj(P, TEXT("on_hit"));
+			bool bMiss = false;
+			P->TryGetBoolField(TEXT("miss"), bMiss);
+			const FVector At = PathAt(1.f);
+			const bool bFresh = bLive && T - T1 < 900.0;
+			if (Kind == TEXT("rocket"))
+			{
+				if (bFresh) Flash(At, FLinearColor(1.f, 0.5f, 0.1f), 9.f, 0.75f, 90.f);
+				for (UStaticMeshComponent* Tl : AoeTiles) if (Tl) Tl->DestroyComponent();
+				AoeTiles.Reset();
+				if (const TArray<TSharedPtr<FJsonValue>>* Aoe = Arr(Hit, TEXT("aoe_hexes")))
+					for (const TSharedPtr<FJsonValue>& Hv : *Aoe)
+					{
+						const TArray<TSharedPtr<FJsonValue>>* Qr = nullptr;
+						if (!Hv.IsValid() || !Hv->TryGetArray(Qr) || Qr->Num() < 2) continue;
+						UStaticMeshComponent* Tl = Part(Lift, HexMesh, HexLocal((*Qr)[0]->AsNumber(), (*Qr)[1]->AsNumber()) + FVector(0, 0, 0.15f), FVector(S * 0.93f * 2.f, S * 0.93f * 2.f, 0.4f), FLinearColor(1.f, 0.3f, 0.03f) * 1.6f);
+						Tl->SetRelativeScale3D(FVector(S * 0.93f / 50.f, S * 0.93f / 50.f, 0.004f));
+						AoeTiles.Add(Tl);
+					}
+				AoeAt = bFresh ? FPlatformTime::Seconds() : -10.0;
+				if (const TArray<TSharedPtr<FJsonValue>>* Objs = Arr(Hit, TEXT("objects")))
+					for (const TSharedPtr<FJsonValue>& Ov : *Objs)
+					{
+						const TSharedPtr<FJsonObject> O = Ov.IsValid() ? Ov->AsObject() : nullptr;
+						const FString Oid = Str(O, TEXT("id"));
+						const TArray<int32>* Op = ObjectParts.Find(Oid);
+						if (!Op || !Op->Num() || !SceneBase.IsValidIndex((*Op)[0])) continue;
+						FVector Dir = SceneBase[(*Op)[0]].GetLocation() - At;
+						Dir.Z = 0.f;
+						Knocks.Add(Oid, { PanelN, T1, (float)Num(O, TEXT("impulse"), 0.5), Dir.GetSafeNormal() });
+					}
+			}
+			else if (bFresh)
+			{
+				const FLinearColor Cc = Kind == TEXT("orb") ? FLinearColor(0.6f, 0.3f, 1.f) : Kind == TEXT("bolt") ? FLinearColor(0.7f, 0.85f, 1.f) : Kind == TEXT("bullet") ? FLinearColor(1.f, 0.85f, 0.4f) : bMiss ? FLinearColor(0.5f, 0.45f, 0.4f) : FLinearColor(1.f, 0.95f, 0.85f);
+				Flash(At, Cc, (Kind == TEXT("orb") || Kind == TEXT("bolt")) ? 4.f : 2.4f, 0.4f, (Kind == TEXT("orb") || Kind == TEXT("bolt")) ? 35.f : 0.f);
+			}
+			// A miss on a scene object knocks it a little.
+			if (Kind != TEXT("rocket") && bMiss && !ToStr.IsEmpty() && ToStr != TEXT("a") && ToStr != TEXT("b"))
+				if (const TArray<int32>* Op = ObjectParts.Find(ToStr); Op && Op->Num() && SceneBase.IsValidIndex((*Op)[0]))
+				{
+					FVector Dir = SceneBase[(*Op)[0]].GetLocation() - From;
+					Dir.Z = 0.f;
+					Knocks.Add(ToStr, { PanelN, T1, FMath::Clamp((float)Num(Hit, TEXT("impulse"), 0.3) * 0.6f, 0.15f, 0.5f), Dir.GetSafeNormal() });
+				}
+			UE_LOG(LogTemp, Display, TEXT("FN7 duel box: %s %s %s at %.0f ms%s"), *Kind, *Id, bMiss ? TEXT("misses") : !Defl.IsEmpty() ? TEXT("is deflected") : TEXT("hits"), T1, Kind == TEXT("rocket") ? *FString::Printf(TEXT(" (%d hexes, %d objects knocked)"), AoeTiles.Num(), Knocks.Num()) : TEXT(""));
+		}
+	}
+}
+
+void AFNDuelBox::ApplyKnocks(int32 PanelN, double T)
+{
+	// Knocked objects jump, slide away from the blast and topple; they stay where they land for the rest of the duel.
+	using namespace FN7Box;
+	for (const TPair<FString, FKnock>& K : Knocks)
+	{
+		const TArray<int32>* Op = ObjectParts.Find(K.Key);
+		if (!Op) continue;
+		float P = 1.f;
+		if (PanelN == K.Value.Panel) P = (float)((T - K.Value.T1) / 600.0);
+		else if (PanelN < K.Value.Panel) P = -1.f;
+		if (P < 0.f) continue;
+		P = FMath::Clamp(P, 0.f, 1.f);
+		const float Imp = FMath::Clamp(K.Value.Impulse, 0.f, 1.f);
+		const FVector Slide = K.Value.Dir * Imp * 0.9f * 1.732f * S * EaseInOut(P);
+		const float Jump = Imp * 2.2f * S * FMath::Sin(P * PI);
+		const float Tilt = Imp * 75.f * EaseInOut(P);
+		FVector Pivot = FVector::ZeroVector;
+		for (int32 Idx : *Op) if (SceneBase.IsValidIndex(Idx)) Pivot += SceneBase[Idx].GetLocation();
+		Pivot /= FMath::Max(1, Op->Num());
+		Pivot.Z = FloorTop;
+		const FVector Ax = FVector::CrossProduct(FVector::UpVector, K.Value.Dir).GetSafeNormal();
+		const FQuat Q = Ax.IsNearlyZero() ? FQuat::Identity : FQuat(Ax, FMath::DegreesToRadians(Tilt));
+		for (int32 Idx : *Op)
+		{
+			if (!SceneBase.IsValidIndex(Idx) || !SceneParts.IsValidIndex(Idx) || !SceneParts[Idx]) continue;
+			const FTransform& B = SceneBase[Idx];
+			SceneParts[Idx]->SetRelativeLocationAndRotation(Pivot + Q.RotateVector(B.GetLocation() - Pivot) + Slide + FVector(0, 0, Jump), Q * B.GetRotation());
+		}
+	}
+}
+
+void AFNDuelBox::BuildGround(const TSharedPtr<FJsonObject>& Ground)
+{
+	// The earth underfoot (schema 17): the floor shows through as toy patches between the flagstones (the hazard
+	// objects themselves come with the scene's objects); lava and fire glow, a shaken floor trembles.
+	using namespace FN7Box;
+	for (UStaticMeshComponent* P : GroundPatches) if (P) P->DestroyComponent();
+	GroundPatches.Reset();
+	GroundFloor = Ground.IsValid() ? Str(Ground, TEXT("floor")) : FString();
+	if (GroundLight) GroundLight->SetIntensity(0.f);
+	if (GroundFloor.IsEmpty() || GroundFloor == TEXT("shaken")) return;
+	static const TMap<FString, FLinearColor> Floor = {
+		{ TEXT("lava"), FLinearColor(0.85f, 0.14f, 0.01f) * 1.3f }, { TEXT("burning"), FLinearColor(0.07f, 0.035f, 0.02f) },   // deep orange: brighter washes to yellow
+		{ TEXT("frozen"), FLinearColor(0.72f, 0.86f, 0.98f) }, { TEXT("flooded"), FLinearColor(0.08f, 0.25f, 0.6f) },
+		{ TEXT("rift"), FLinearColor(0.03f, 0.01f, 0.01f) }, { TEXT("cracked"), FLinearColor(0.06f, 0.055f, 0.05f) },
+		{ TEXT("snow"), FLinearColor(0.95f, 0.96f, 1.f) }, { TEXT("ash"), FLinearColor(0.22f, 0.21f, 0.2f) },
+		{ TEXT("ruins"), FLinearColor(0.3f, 0.24f, 0.17f) } };
+	const FLinearColor* Col = Floor.Find(GroundFloor);
+	if (!Col) return;
+	const uint32 Seed = GetTypeHash(GroundFloor);
+	for (int32 q = -StageRadius; q <= StageRadius; ++q)
+		for (int32 r = -StageRadius; r <= StageRadius; ++r)
+		{
+			if (FMath::Abs(q + r) > StageRadius) continue;
+			const float Hh = FMath::Frac(FMath::Sin((float)(q * 12.9898 + r * 78.233 + Seed % 97)) * 43758.5453f);
+			if (Hh > 0.33f) continue;
+			FVector C = HexLocal(q, r);
+			if (FMath::Abs(C.X) > W * 0.5f - RimT - S * 0.9f || FMath::Abs(C.Y) > D * 0.5f - RimT - S * 0.8f) continue;
+			C.Z = FloorTop + 0.05f;
+			const float Rr = S * 0.93f * (0.55f + 0.4f * Hh / 0.33f);
+			UStaticMeshComponent* P = Part(SceneRoot, HexMesh, C, FVector(Rr * 2.f, Rr * 2.f, 0.3f), *Col);
+			P->SetRelativeScale3D(FVector(Rr / 50.f, Rr / 50.f, 0.003f));
+			GroundPatches.Add(P);
+		}
+	if ((GroundFloor == TEXT("lava") || GroundFloor == TEXT("burning")) && !GroundLight)
+	{
+		GroundLight = NewObject<UPointLightComponent>(this);
+		GroundLight->SetupAttachment(Lift);
+		GroundLight->SetRelativeLocation(FVector(0.f, 0.f, FloorTop + 12.f));
+		GroundLight->SetAttenuationRadius(120.f);
+		GroundLight->SetLightColor(FLinearColor(1.f, 0.45f, 0.12f));
+		GroundLight->SetCastShadows(false);
+		GroundLight->RegisterComponent();
+	}
+	UE_LOG(LogTemp, Display, TEXT("FN7 duel box: the ground is %s (%d patches)"), *GroundFloor, GroundPatches.Num());
+}
+
+void AFNDuelBox::ClearWeapons()
+{
+	for (FHeld* H : { &HeldA, &HeldB })
+	{
+		for (FPropPart& P : H->Parts) if (P.C) P.C->DestroyComponent();
+		H->Parts.Reset(); H->Key.Reset(); H->Class.Reset(); H->Prop.Reset(); H->DrawnAt = -10.0;
+	}
+	for (TPair<FString, TArray<TObjectPtr<UStaticMeshComponent>>>& Sp : ShotParts) for (UStaticMeshComponent* C : Sp.Value) if (C) C->DestroyComponent();
+	ShotParts.Reset();
+	ShotsBurst.Reset();
+	DrawsSeen.Reset();
+	for (FFx& F : Fxs) { for (UStaticMeshComponent* C : F.Parts) if (C) C->DestroyComponent(); if (F.Light) F.Light->DestroyComponent(); }
+	Fxs.Reset();
+	for (UStaticMeshComponent* T : AoeTiles) if (T) T->DestroyComponent();
+	AoeTiles.Reset();
+	Knocks.Reset();
+	ObjectParts.Reset();
+	SceneBase.Reset();
 }
