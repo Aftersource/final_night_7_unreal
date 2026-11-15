@@ -15,6 +15,11 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Components/StaticMeshComponent.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "../../UI/FNMedia.h"
 
 namespace FNPeopleLifeImpl
 {
@@ -72,6 +77,7 @@ void AFNPeopleLife::EndPlay(const EEndPlayReason::Type Reason)
 void AFNPeopleLife::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 {
 	using namespace FNPeopleLifeImpl;
+	if (Type == TEXT("game.people") && D.IsValid()) { ReadPeople(D); return; }
 	if (Type != TEXT("round.outcome") || !D.IsValid()) return;
 	const TSharedPtr<FJsonObject>* Pub = nullptr;
 	const TArray<TSharedPtr<FJsonValue>>* Ev = nullptr;
@@ -97,6 +103,93 @@ void AFNPeopleLife::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 		Alarms.Add(A);
 	}
 	if (Alarms.Num() > 32) Alarms.RemoveAt(0, Alarms.Num() - 32);
+}
+
+void AFNPeopleLife::ReadPeople(const TSharedPtr<FJsonObject>& D)
+{
+	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+	if (!D->TryGetArrayField(TEXT("people"), Arr))
+	{
+		const TSharedPtr<FJsonObject>* R = nullptr;
+		if (!D->TryGetObjectField(TEXT("result"), R) || !R || !(*R)->TryGetArrayField(TEXT("people"), Arr)) return;
+	}
+	if (!Arr) return;
+	// the server's roles onto ours (the library has 16; the board draws 12)
+	static const TPair<const TCHAR*, uint8> Map[] = {
+		{ TEXT("fisher"), Fisherman }, { TEXT("sailor"), Fisherman }, { TEXT("farmer"), Farmer }, { TEXT("smith"), Smith },
+		{ TEXT("merchant"), Merchant }, { TEXT("trader"), Merchant }, { TEXT("guard"), Guard }, { TEXT("soldier"), Guard },
+		{ TEXT("warrior"), Warrior }, { TEXT("hunter"), Warrior }, { TEXT("priest"), Priest }, { TEXT("healer"), Priest },
+		{ TEXT("witch"), Witch }, { TEXT("noble"), Noble }, { TEXT("beauty"), Woman }, { TEXT("woman"), Woman },
+		{ TEXT("child"), Child }, { TEXT("kid"), Child }, { TEXT("elder"), Elder }, { TEXT("beggar"), Elder } };
+	int32 Added = 0;
+	for (const TSharedPtr<FJsonValue>& V : *Arr)
+	{
+		const TSharedPtr<FJsonObject> P = V.IsValid() ? V->AsObject() : nullptr;
+		if (!P.IsValid()) continue;
+		FString RoleS;
+		P->TryGetStringField(TEXT("role"), RoleS);
+		RoleS = RoleS.ToLower();
+		const TSharedPtr<FJsonObject>* Sp = nullptr;
+		if (RoleS.IsEmpty() || !P->TryGetObjectField(TEXT("sprite"), Sp) || !Sp) continue;
+		FString Hash, Url, Status;
+		(*Sp)->TryGetStringField(TEXT("hash"), Hash);
+		(*Sp)->TryGetStringField(TEXT("url"), Url);
+		(*Sp)->TryGetStringField(TEXT("status"), Status);
+		if (Hash.IsEmpty() || Url.IsEmpty() || (!Status.IsEmpty() && Status != TEXT("ready") && Status != TEXT("done"))) continue;
+		int32 RoleIdx = -1;
+		for (const TPair<const TCHAR*, uint8>& M : Map) if (RoleIdx < 0 && RoleS.Contains(M.Key)) RoleIdx = M.Value;
+		if (RoleIdx < 0) continue;
+		TArray<FString>& L = RoleSprites.FindOrAdd((uint8)RoleIdx);
+		if (!L.Contains(Hash)) { L.Add(Hash); SpriteUrl.Add(Hash, Url); ++Added; FetchSprite(Hash); }
+	}
+	if (Added > 0) UE_LOG(LogTemp, Display, TEXT("FNPeople: %d new people pictures from game.people (%d roles have pictures)"), Added, RoleSprites.Num());
+}
+
+void AFNPeopleLife::FetchSprite(const FString& Hash)
+{
+	if (SpriteTex.Contains(Hash) || SpriteLoading.Contains(Hash)) return;
+	TArray<uint8> Png;
+	if (FN7Media::LoadCached(Hash, Png))
+	{
+		if (UTexture2D* T = FN7Media::TextureFromPng(Png)) SpriteTex.Add(Hash, T);
+		return;
+	}
+	UFNNetClient* N = Net.Get();
+	const FString* Url = SpriteUrl.Find(Hash);
+	if (!N || !Url) return;
+	SpriteLoading.Add(Hash);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(N->MediaUrl(*Url));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetTimeout(30.f);
+	TWeakObjectPtr<AFNPeopleLife> Wk(this);
+	const FString H = Hash;
+	Req->OnProcessRequestComplete().BindLambda([Wk, H](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	{
+		if (!Wk.IsValid()) return;
+		Wk->SpriteLoading.Remove(H);
+		if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) return;
+		const TArray<uint8> Data = Resp->GetContent();
+		if (UTexture2D* T = FN7Media::TextureFromPng(Data)) { FN7Media::SaveCached(H, Data); Wk->SpriteTex.Add(H, T); }
+	});
+	Req->ProcessRequest();
+}
+
+UStaticMeshComponent* AFNPeopleLife::CardAt(int32 Index)
+{
+	while (CardPool.Num() <= Index)
+	{
+		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+		C->SetupAttachment(RootComponent);
+		C->SetMobility(EComponentMobility::Movable);
+		C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		C->SetCastShadow(false);
+		C->SetVisibility(false);
+		C->RegisterComponent();
+		CardPool.Add(C);
+	}
+	return CardPool[Index];
 }
 
 UInstancedStaticMeshComponent* AFNPeopleLife::Set(int32 Mesh, const FColor& C)
@@ -196,9 +289,26 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 	{
 		if (Hover) Hover->SetVisibility(false);
 		for (UInstancedStaticMeshComponent* I : Keep) if (I->GetInstanceCount() > 0) I->ClearInstances();
+		for (UStaticMeshComponent* Cd : CardPool) if (Cd && Cd->IsVisible()) Cd->SetVisibility(false);
 		return;
 	}
 	const float D = FMath::Max(FVector::Dist2D(C0, C1), 0.5f);
+	// the people pictures for the place under the board (asked again when the board moves, at most every 8 s)
+	SinceAsk += Dt;
+	if (UFNNetClient* Nq = Net.Get())
+	{
+		const FString Cell = St->BoardCellKey(Q0, R0);
+		if (SinceAsk > 8.f && (Cell != AskedCell || RoleSprites.Num() < 6))
+		{
+			SinceAsk = 0.f;
+			AskedCell = Cell;
+			TSharedPtr<FJsonObject> A = MakeShared<FJsonObject>();
+			A->SetStringField(TEXT("cell"), Cell);
+			A->SetNumberField(TEXT("limit"), 300);
+			Nq->Query(TEXT("game.people"), A);
+		}
+	}
+	int32 CardsUsed = 0;
 
 	// who lives here: one person per spot, the same person whenever this hexagon is on the board
 	TMap<FIntPoint, FVector> HomeW;
@@ -383,6 +493,37 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 		if (P.React == 1 && bWalk) Lift = FMath::Abs(FMath::Sin(A * 2.2f)) * G * 0.08f;   // running
 		const FVector Base = Hw + FVector(P.Off.X * D, P.Off.Y * D, Lift);
 		const int32 V = (int32)(Dice(P.Home.X, P.Home.Y, 12) * 4.f);
+		// a picture of this kind of person from the server's library: a standing card turned to the camera
+		if (const TArray<FString>* Looks = RoleSprites.Find(P.Role))
+		{
+			const FString& Hash = (*Looks)[FMath::Min((int32)(Dice(P.Home.X, P.Home.Y, 21) * Looks->Num()), Looks->Num() - 1)];
+			if (const TObjectPtr<UTexture2D>* Tx = SpriteTex.Find(Hash))
+			{
+				UStaticMeshComponent* Card = CardAt(CardsUsed++);
+				UMaterialInstanceDynamic* M = SpriteMat.FindRef(Hash);
+				if (!M)
+				{
+					static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
+					M = UMaterialInstanceDynamic::Create(Unlit, this);
+					M->SetTextureParameterValue(TEXT("SlateUI"), Tx->Get());
+					SpriteMat.Add(Hash, M);
+				}
+				if (Card->GetMaterial(0) != M) Card->SetMaterial(0, M);
+				const float Ch = H * 1.35f, Cw = Ch * 0.62f;
+				const FVector CardAtW = Base + FVector::UpVector * Ch * 0.5f;
+				Card->SetWorldLocation(CardAtW);
+				Card->SetWorldRotation(FRotator(0.f, (Cam - CardAtW).GetSafeNormal2D().Rotation().Yaw + 90.f, 0.f));
+				Card->SetWorldScale3D(FVector(Cw, Ch * 0.02f, Ch) / 100.f);
+				Card->SetVisibility(true);
+				FVector2D Spx;
+				if (PC && PC->ProjectWorldLocationToScreen(CardAtW + FVector::UpVector * Ch * 0.3f, Spx))
+				{
+					const float Dpx = FVector2D::Distance(Spx, Mouse);
+					if (Dpx < HoverBest) { HoverBest = Dpx; Hovered = &P; HoverAt = CardAtW + FVector::UpVector * Ch * 0.3f; }
+				}
+				continue;
+			}
+		}
 		const FColor Body = RoleCol(P.Role, V);
 		const FColor SkinC = P.Role == Witch ? FColor(150, 175, 110) : Skin[V];
 		const bool bDress = P.bFemale || P.Role == Priest || P.Role == Noble || P.Role == Witch;
@@ -481,6 +622,7 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 			if (Dpx < HoverBest) { HoverBest = Dpx; Hovered = &P; HoverAt = Head; }
 		}
 	}
+	for (int32 c = CardsUsed; c < CardPool.Num(); ++c) if (CardPool[c] && CardPool[c]->IsVisible()) CardPool[c]->SetVisibility(false);
 	for (TPair<UInstancedStaticMeshComponent*, TArray<FTransform>>& It : Frame)
 	{
 		UInstancedStaticMeshComponent* I = It.Key;
