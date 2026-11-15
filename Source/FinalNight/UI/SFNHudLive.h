@@ -109,6 +109,7 @@ private:
 	void DuelTyping(const FString& Text);
 	void TrySendDuelKeys();
 	void RestoreDuels(const TSharedPtr<FJsonObject>& Present);
+	FString NetProblem;    // the client can't reach the server: shown as a centred card until it answers
 	void OpenDuelBox();    // the challenge box on the table (FNDuelBox): rises, opens, plays the panels
 	void CloseDuelBox();
 	EActiveTimerReturnType TickDuelFast(double, float);
