@@ -96,6 +96,10 @@ main 1c71497 (mac/pan-smooth 3905e99). Every future change, Benito's side and th
 3. Nothing else touches the board under a moving hand: earth playback holds its answers until release
    (AFNStudio::IsBoardPanning), no rebuild storms, no coast or fling on the board.
 4. The system mouse pointer; no drawn cursor.
+5. The land under the pointer stays under the pointer: no camera motion during a grab (the player controller's lean
+   toward the mouse holds still while AFNStudio::IsHandHolding()), and the grab plane is the pressed hex's height
+   (HexAtScreen's top). Chris noted that when the mouse hovers over a tower, the tower
+   needs to be on the mouse when it moves. Measured: the pressed hex stays within 3 px of the pointer.
 
 Any change that adds a rebuild, a re-normalisation or a face switch during a drag breaks it again. Changes that touch
 input, pan, zoom or the board rebuild path get a 60-second live drag-and-zoom test in Chris's editor at her real fps
