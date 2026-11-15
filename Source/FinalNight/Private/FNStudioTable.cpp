@@ -152,6 +152,21 @@ void AFNStudio::BuildTable()
 	const FVector3d C0 = LatLonToVec(PickLat, PickLon);
 	int32 Face; double U, W;
 	VecToFaceUV(C0, Face, U, W);
+	// FN7 (Mac session, view-fix go-ahead): while the hand pans, the board stays on the cube face it was on (its plane
+	// runs on past the face's edge), so crossing a seam never swaps the lattice under the hand (Chris asked that this hold while dragging
+	// around it's glitching, snapping around"; her drags crossed the seam at ~42N). Released by a zoom or a centring.
+	if (bReliefHold && TableFace >= 0 && Face != TableFace)
+	{
+		const FVector3d N = FaceUVToVec(TableFace, 0.0, 0.0);   // the held face's normal
+		const double D = FVector3d::DotProduct(C0, N);
+		if (D > 0.25)
+		{
+			const FVector3d Ue = FaceUVToVec(TableFace, 1.0, 0.0) - N, We = FaceUVToVec(TableFace, 0.0, 1.0) - N;
+			Face = TableFace;
+			U = FVector3d::DotProduct(C0, Ue) / D;
+			W = FVector3d::DotProduct(C0, We) / D;
+		}
+	}
 	MapLevel = FMath::Clamp(MapLevel, 0, FNTableScene::NumLevels - 1);
 	PickRadiusM = FNTableScene::LevelR(MapLevel);
 	const double Cx = U * RadiusM, Cy = W * RadiusM, R = PickRadiusM;
