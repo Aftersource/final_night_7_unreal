@@ -95,8 +95,21 @@ private:
 	float BeatLen = 6.f;
 
 	// Strikes (a cast's moment) and fault labels.
-	struct FFlash { TObjectPtr<UStaticMeshComponent> Beam; TObjectPtr<UPointLightComponent> Light; TObjectPtr<UTextRenderComponent> Label; double At = 0.0; FVector Where = FVector::ZeroVector; FString Kind; };
+	struct FFlash { TObjectPtr<UStaticMeshComponent> Beam; TObjectPtr<UStaticMeshComponent> Ring; TObjectPtr<UPointLightComponent> Light; TObjectPtr<UTextRenderComponent> Label; double At = 0.0; FVector Where = FVector::ZeroVector; FString Kind; bool bMega = false; };
 	TArray<FFlash> Flashes;
+	// The Populous-style earth-heave: the earth itself should move, not the camera. A quake's hexes jolt up and down in
+	// a wave out from the epicentre and settle; raise / sink land jolt smaller. The real tiles move (SetHexOverride, one
+	// RebuildBoard a frame while it runs); the view stays still, and nothing heaves under a held hand or a zoom.
+	struct FHeave { double Lat = 0.0, Lon = 0.0, Start = 0.0; float Amp = 0.f, RadiusKm = 0.f, Dur = 0.f; };
+	struct FHeaveHex { FString Key; double Lat = 0.0, Lon = 0.0; float Def = 0.f; };
+	TArray<FHeave> Heaves;
+	TMap<FString, FHeaveHex> HeaveHexes;
+	FString HeaveBoard;
+	TMap<FString, float> Committed;          // the earth's committed height per key (cm above the default top; NaN = state only)
+	TMap<FString, uint8> CommittedState;
+	void StartHeave(double Lat, double Lon, float AmpCm, float RadiusKm, float Dur);
+	void TickHeave(double Now, AFNStudio* St);
+	void EndHeave(AFNStudio* St, bool bRebuild);
 
 	AFNStudio* FindStudio();
 	void AskBoard(bool bFull);
