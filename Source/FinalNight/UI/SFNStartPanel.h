@@ -125,6 +125,18 @@ private:
 	FSlateColor LInk() const;
 	FSlateColor LDim() const;
 	FSlateColor LAccent() const;
+	// The account screens on the same tablet (ACCOUNTS.md §13): WELCOME before the lobby when the server offers
+	// accounts and this computer has no session; the lobby's strip shows who is signed in (the main menu, step 5).
+	enum class EPage : uint8 { Lobby = 0, Welcome = 1 };
+	EPage Page = EPage::Lobby;
+	TSharedPtr<class SFNWelcomePage> Welcome;
+	bool bLogoutAsk = false;
+	bool bLinking = false;
+	FString AccountNote;
+	TSharedRef<SWidget> MakeAccountStrip();
+	void OnBooted(bool bSignedIn);
+	int32 PageLook() const;
+	float PageWidth() const;
 	void Choose(uint8 Intent);
 	TSharedRef<SWidget> MakeChoices();
 
