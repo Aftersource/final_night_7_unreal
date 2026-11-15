@@ -36,6 +36,7 @@
 #include "FNTableGods.h"
 #include "FNDuelStage.h"
 #include "FNDuelBox.h"
+#include "FNStarBackdrop.h"
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
 #include "FNWood.h"
@@ -3084,6 +3085,9 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 	// Until we're in a room, ask the server every 10 s whether it can be reached (a judge with no key or no internet
 	// sees why at once, not a normal-looking table that never connects).
 	if (!bInRoom && FPlatformTime::Seconds() - LastServerCheck > 10.0) CheckServer();
+	// The star world around the table (AFNStarBackdrop), once the studio has built the room.
+	if (!StarSky.IsValid())
+		if (AFNStudio* St = FindStudio()) StarSky = AFNStarBackdrop::Ensure(St->GetWorld());
 	for (auto It = NewItems.CreateIterator(); It; ++It) if (FPlatformTime::Seconds() - It.Value().At > 6.5) { It.RemoveCurrent(); Publish(); break; }
 	TickDuelView();   // a challenge's queued glide (once you stop typing / dragging) and the glide back after it
 	if (bVictory && VictoryFadeAt > 0.0 && FPlatformTime::Seconds() - VictoryFadeAt > 1.25) { bVictory = false; VictoryFadeAt = 0.0; }
