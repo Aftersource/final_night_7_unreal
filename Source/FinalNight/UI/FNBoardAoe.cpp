@@ -434,24 +434,28 @@ bool AFNStudio::BoardHexLatLon(int32 Q, int32 R, double& OutLat, double& OutLon)
 	return true;
 }
 
-bool AFNStudio::TablePointAt(const FVector2D& ViewportPixel, FVector& OutLocal) const
+bool AFNStudio::TablePointAt(const FVector2D& ViewportPixel, FVector& OutLocal, float PlaneZ) const
 {
-	// Where the cursor's ray meets the table plane (a little above the ground: the hand holds the land's surface).
+	// Where the cursor's ray meets the plane at the grabbed land's height (studio-local Z), so that land stays exactly
+	// under the pointer as it moves (Chris asked that a tower under the mouse stays on the mouse as it moves).
 	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	FVector O, D;
 	if (!PC || !PC->DeprojectScreenPositionToWorld(ViewportPixel.X, ViewportPixel.Y, O, D)) return false;
 	O = GetActorTransform().InverseTransformPosition(O);
 	D = GetActorTransform().InverseTransformVectorNoScale(D);
 	if (D.Z > -1e-3f) return false;
-	const float Z = FN7Board::ActionC.Z + 4.f;
-	OutLocal = O + D * ((Z - O.Z) / D.Z);
+	OutLocal = O + D * ((PlaneZ - O.Z) / D.Z);
 	return true;
 }
 
 bool AFNStudio::BeginBoardPan(const FVector2D& ViewportPixel)
 {
+	// The height of the land under the pointer (the hex top the ray meets), so what is grabbed is what stays under it.
+	double GLa, GLo, GHex;
+	FVector GTop;
+	PanPlaneZ = HexAtScreen(ViewportPixel, GLa, GLo, GTop, GHex) ? (float)GetActorTransform().InverseTransformPosition(GTop).Z : FN7Board::ActionC.Z + 4.f;
 	FVector Hit;
-	if (!MapPivot || TableK <= 0.0 || !TablePointAt(ViewportPixel, Hit)) return false;
+	if (!MapPivot || TableK <= 0.0 || !TablePointAt(ViewportPixel, Hit, PanPlaneZ)) return false;
 	CatchHand();
 	// Any zoom or slide in flight ends where it is going: the hand holds the board as it now stands.
 	ZoomAnimT = -1.f;
@@ -493,7 +497,7 @@ void AFNStudio::CommitBoardPan(const FVector& Offset)
 void AFNStudio::PanBoardTo(const FVector2D& ViewportPixel)
 {
 	FVector Hit;
-	if (!bBoardPan || !MapPivot || !TablePointAt(ViewportPixel, Hit)) return;
+	if (!bBoardPan || !MapPivot || !TablePointAt(ViewportPixel, Hit, PanPlaneZ)) return;
 	FVector Off = Hit - PanFromHit;
 	Off.Z = 0.f;
 	MapPivot->SetRelativeLocation(Off);   // the land slides with the hand, this frame (re-centred every 1.5 hexes, seamlessly)

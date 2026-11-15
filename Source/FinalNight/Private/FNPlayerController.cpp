@@ -91,10 +91,16 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 			Vel = (Vel - Omega * Temp) * E;
 			return Goal + (Change + Temp) * E;
 		};
-		const FRotator Goal = Root->IsTyping() ? FRotator::ZeroRotator : Target;
-		const double SmoothTime = 1.6;
-		Lean.Pitch = Damp(Lean.Pitch, Goal.Pitch, LeanVel.Pitch, SmoothTime, DeltaTime);
-		Lean.Yaw = Damp(Lean.Yaw, Goal.Yaw, LeanVel.Yaw, SmoothTime, DeltaTime);
+		// FN7 (Mac session, view-fix go-ahead): while the hand holds the board or the globe the lean holds still (it turned
+		// the view under the grab, so the grabbed land slid off the pointer: Chris, "the tower had better be on my mouse").
+		if (Studio->IsHandHolding()) LeanVel = FRotator::ZeroRotator;   // held: no lean change at all this frame
+		else
+		{
+			const FRotator Goal = Root->IsTyping() ? FRotator::ZeroRotator : Target;
+			const double SmoothTime = 1.6;
+			Lean.Pitch = Damp(Lean.Pitch, Goal.Pitch, LeanVel.Pitch, SmoothTime, DeltaTime);
+			Lean.Yaw = Damp(Lean.Yaw, Goal.Yaw, LeanVel.Yaw, SmoothTime, DeltaTime);
+		}
 	}
 	SetControlRotation(BaseRot + Lean + Studio->GetShake());
 
@@ -103,7 +109,9 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 	Root->SetHovered(Id);
 	if (WasInputKeyJustPressed(EKeys::LeftMouseButton) && !Root->IsTyping())
 	{
-		Studio->PlaySfx(EFNSfx::Click, Id != NAME_None ? 1.f : 0.5f);
+		// FN7 (Mac session, 2026-11-15, Chris asked about the clicking noises in the game and where they come from): a click only on a
+		// real clickable prop, never on a press over nothing or on the globe (that press is a grab of the planet).
+		if (Id != NAME_None && Id != AFNStudio::Globe) Studio->PlaySfx(EFNSfx::Click, 1.f);
 		// FN7 rule (Chris, 2026-11-14, asked that the view stop warping around; Mac session with the backend's go-ahead): a single
 		// click NEVER moves the board view: no click-to-zoom on the map (MapClick) and no centring on a clicked demigod
 		// marker (ClickDemigod -> CenterMapOn). View changes: the wheel, right-click (out), RESET VIEW / R / Home.
