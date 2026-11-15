@@ -64,6 +64,8 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> SceneParts;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> SkyBands;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Trim;   // gilt edging, frames, plaques: blue (yours) / red (watched)
+	UPROPERTY() TObjectPtr<class UPointLightComponent> TeamLight;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Stars;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PortraitA;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PortraitB;

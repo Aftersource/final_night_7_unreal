@@ -144,6 +144,8 @@ UStaticMeshComponent* AFNDuelBox::Part(USceneComponent* Parent, const TCHAR* Mes
 		C->SetMaterial(0, M);
 	}
 	C->RegisterComponent();
+	// The gilt trim is the team colour: blue for a duel of yours, red for one you watch (Chris).
+	if (Color.Equals(FN7Box::Gilt) || Color.Equals(FN7Box::GiltDark)) Trim.Add(C);
 	return C;
 }
 
@@ -299,6 +301,13 @@ void AFNDuelBox::Build()
 	L->SetLightColor(FLinearColor(1.f, 0.85f, 0.65f));
 	L->SetCastShadows(false);
 	L->RegisterComponent();
+	TeamLight = NewObject<UPointLightComponent>(this);
+	TeamLight->SetupAttachment(Lift);
+	TeamLight->SetRelativeLocation(FVector(0.f, 30.f, LidH * 0.75f));
+	TeamLight->SetIntensity(10.f);
+	TeamLight->SetAttenuationRadius(240.f);
+	TeamLight->SetCastShadows(false);
+	TeamLight->RegisterComponent();
 
 	// The mannequins and their clips (DUEL_UNREAL.md step A assets).
 	for (const FString& C : AFNDuelStage::ClipNames())
@@ -438,6 +447,14 @@ void AFNDuelBox::Open(const TSharedPtr<FFNDuelSession>& InSession, AFNStudio* St
 		ShownHpB = InSession->HpB;
 		bCamInit = false;
 	}
+	// Blue when it's your duel, red when you're watching: unmistakable in the wide shot (Chris).
+	{
+		const bool bYours = !InSession->MySide.IsEmpty();
+		const FLinearColor Team = bYours ? FLinearColor(0.12f, 0.38f, 1.f) : FLinearColor(1.f, 0.1f, 0.06f);
+		for (UStaticMeshComponent* T : Trim)
+			if (UMaterialInstanceDynamic* M = T ? Cast<UMaterialInstanceDynamic>(T->GetMaterial(0)) : nullptr) M->SetVectorParameterValue(TEXT("Color"), Team);
+		if (TeamLight) TeamLight->SetLightColor(Team);
+	}
 	if (bNew || InSession->Scene.Get() != ShownScene)
 	{
 		ShownScene = InSession->Scene.Get();
@@ -506,6 +523,7 @@ void AFNDuelBox::PoseFighter(USkeletalMeshComponent* M, int32& ShownClip, const 
 {
 	if (!M) return;
 	int32 Idx = AFNDuelStage::ClipNames().IndexOfByKey(ClipName);
+	if (!Clips.IsValidIndex(Idx) || !Clips[Idx]) Idx = AFNDuelStage::ClipNames().IndexOfByKey(AFNDuelStage::ClipFallback(ClipName));
 	if (!Clips.IsValidIndex(Idx) || !Clips[Idx]) Idx = AFNDuelStage::ClipNames().IndexOfByKey(FString(TEXT("idle_guard")));
 	UAnimSequence* A = Clips.IsValidIndex(Idx) ? Clips[Idx].Get() : nullptr;
 	if (Idx != ShownClip && A)

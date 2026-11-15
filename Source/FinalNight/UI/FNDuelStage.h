@@ -27,6 +27,8 @@ public:
 	static AFNDuelStage* Get(UWorld* World, bool bCreate);
 	/** The server's clip vocabulary (assets /Game/Duel/Mannequin/Anims/A_<clip>). */
 	static const TArray<FString>& ClipNames();
+	/** The clip to play when a panel names one we don't have (the server's fallback table); idle_guard otherwise. */
+	static FString ClipFallback(const FString& Clip);
 	/** The skins, in the order the name hash picks them: wood, obsidian, gold, dragonscale, butterfly. */
 	static const TArray<FString>& SkinNames();
 	/** The skin a demigod wears when challenge.lock carries none: FNV-1a 32 of the name's UTF-8 bytes after ASCII-only
