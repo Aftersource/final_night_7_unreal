@@ -142,6 +142,7 @@ void UFNNetClient::Connect()
 	Socket->OnConnectionError().AddLambda([Weak, bNoKey](const FString& Err)
 	{
 		if (!Weak.IsValid()) return;
+		UE_LOG(LogFNNet, Warning, TEXT("Connection error: %s"), *Err);
 		Weak->bConnected = false;
 		// A build without an access key can never get in (the server refuses the handshake): say so in plain words
 		// instead of a raw socket error, so a player knows it's the build, not their network.
@@ -150,9 +151,11 @@ void UFNNetClient::Connect()
 			: FString::Printf(TEXT("Can't reach the game server (%s). Check your internet. Retrying..."), *Err));
 		Weak->ScheduleReconnect();
 	});
-	Socket->OnClosed().AddLambda([Weak](int32, const FString&, bool)
+	Socket->OnClosed().AddLambda([Weak](int32 Code, const FString& Reason, bool bClean)
 	{
 		if (!Weak.IsValid()) return;
+		// Why it closed (server restart / tunnel / idle timeout): the sync check needs the code to tell them apart.
+		UE_LOG(LogFNNet, Warning, TEXT("Socket closed: code %d, clean %d, reason '%s'"), Code, bClean ? 1 : 0, *Reason);
 		Weak->bConnected = false;
 		Weak->OnStatus.Broadcast(TEXT("Connection closed, reconnecting"));
 		Weak->ScheduleReconnect();
