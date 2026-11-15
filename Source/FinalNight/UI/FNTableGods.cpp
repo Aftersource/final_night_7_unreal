@@ -990,7 +990,7 @@ AFNTableGods* AFNTableGods::GetAny(UWorld* World)
 	return It ? *It : nullptr;
 }
 
-FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPixel, TFunction<bool(const FString&)> Prefer)
+FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPixel, TFunction<bool(const FString&)> Prefer, double ZoneScale, double* OutDistPx)
 {
 	AFNTableGods* T = GetAny(World);
 	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
@@ -1009,7 +1009,7 @@ FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPix
 			FVector2D P0, P1, PF;
 			if (!PC->ProjectWorldLocationToScreen(C, P0) || !PC->ProjectWorldLocationToScreen(C + Right * Half, P1)) continue;
 			// Easy to click (Chris): well past the card's edge, at least 22 px, and the foot of its pole too.
-			const double R = FMath::Max(FVector2D::Distance(P0, P1) * 1.7, 22.0);
+			const double R = FMath::Max(FVector2D::Distance(P0, P1) * 1.7, 22.0) * ZoneScale;
 			double D = FVector2D::Distance(P0, ViewportPixel);
 			if (PC->ProjectWorldLocationToScreen(F->GetActorLocation(), PF)) D = FMath::Min(D, FVector2D::Distance(PF, ViewportPixel) * 1.4);
 			const FString R0 = F->GetRef().IsEmpty() ? KV.Key : F->GetRef();
@@ -1019,6 +1019,7 @@ FString AFNTableGods::FigureAtScreen(UWorld* World, const FVector2D& ViewportPix
 	};
 	Test(T->OnBoard);
 	Test(T->Figures);
+	if (OutDistPx) *OutDistPx = BestPref.IsEmpty() ? BestD : BestPrefD;
 	return BestPref.IsEmpty() ? Best : BestPref;
 }
 

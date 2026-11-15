@@ -11,12 +11,17 @@ class UWorld;
  */
 namespace FN7Kit
 {
-	/** Within ReachPx of any demigod's diorama box (by its god's pedestal) or board piece: that demigod's own clicks win. */
-	FINALNIGHT_API bool IsOverAnyFigure(UWorld* World, const FVector2D& ViewportPixel, double ReachPx = 90.0);
+	/** A near miss on a demigod's diorama box or board piece: within 1.35x its own click zone (that zone is already 1.7x
+	 *  the card, at least 22 px), so its clicks win. Not a fixed pixel band: centring puts a demigod at the middle of the
+	 *  board, and a flat 90 px band there blocked every zoom at the centre (Benito's log, 2026-11-15). */
+	FINALNIGHT_API bool IsOverAnyFigure(UWorld* World, const FVector2D& ViewportPixel);
 	/** Over the kit's own UI: a power hex or the pouch, the open duel box (any click while it is up), or a HUD panel. */
 	FINALNIGHT_API bool IsOverKitUI(UWorld* World, const FVector2D& ViewportPixel);
 	/** Either of the two: no board gesture may start here. */
 	FINALNIGHT_API bool BlocksBoardGesture(UWorld* World, const FVector2D& ViewportPixel);
+	/** Which rule blocks a board gesture here, for the log ("" = none): "figure dg:3 at 31 px", "duel box up",
+	 *  "power hex 2", "pouch", "panel news". */
+	FINALNIGHT_API FString WhyBlocked(UWorld* World, const FVector2D& ViewportPixel);
 
 	/** The one place an empty-board double-click goes. The kit's input layer sees every double-click first: on a figure
 	 *  it runs the demigod's action and stops; on empty board (and not over kit UI) it calls this; so the two can never

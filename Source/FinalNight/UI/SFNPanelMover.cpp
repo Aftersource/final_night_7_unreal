@@ -172,6 +172,11 @@ FVector2D SFNPanelMover::Snap(const FVector2D& Wanted) const
 
 bool SFNPanelMover::IsOverAnyPanel(const FVector2D& P)
 {
+	return !PanelAt(P).IsEmpty();
+}
+
+FString SFNPanelMover::PanelAt(const FVector2D& P)
+{
 	for (const TWeakPtr<SFNPanelMover>& W : FN7Mover::All)
 	{
 		const TSharedPtr<SFNPanelMover> M = W.Pin();
@@ -179,9 +184,9 @@ bool SFNPanelMover::IsOverAnyPanel(const FVector2D& P)
 		const float S = M->LastGeometry.Scale > 0.f ? M->LastGeometry.Scale : 1.f;
 		const FSlateRect H = M->HomeRect();
 		const FSlateRect R(H.Left + M->Offset.X * S, H.Top + M->Offset.Y * S, H.Right + M->Offset.X * S, H.Bottom + M->Offset.Y * S);
-		if (R.GetSize().X > 1.f && R.ContainsPoint(P)) return true;
+		if (R.GetSize().X > 1.f && R.ContainsPoint(P)) return M->Id.IsEmpty() ? FString(TEXT("panel")) : M->Id;
 	}
-	return false;
+	return FString();
 }
 
 void SFNPanelMover::ResetAll()
