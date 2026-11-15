@@ -119,7 +119,49 @@
     "sha256": "4dea2c75ff4d672e1422768a69dd7177206ba920cbd65fc2a232611b75c10b54",
     "bytes": 14279560
    }
+  },
+  {
+   "step": 6,
+   "asset": "15 more clips (chosen from what players typed in duels: jumpkick, throw, block, flail...)",
+   "provider": "Meshy",
+   "operation": "animate (3 credits each)",
+   "credits": 45,
+   "made_at": "2026-11-14",
+   "clip_action_ids": {
+    "flying_kick": 94,
+    "roundhouse_kick": 207,
+    "high_kick": 215,
+    "leg_sweep": 213,
+    "elbow_strike": 212,
+    "uppercut": 194,
+    "jab": 191,
+    "punch_combo": 198,
+    "blade_spin": 91,
+    "axe_spin": 238,
+    "spin_rise": 100,
+    "mage_cast": 131,
+    "dodge_roll_back": 159,
+    "knee_strike": 211,
+    "sword_judgment": 102
+   },
+   "clip_fallbacks": {
+    "flying_kick": "kick",
+    "roundhouse_kick": "kick",
+    "high_kick": "kick",
+    "leg_sweep": "kick",
+    "knee_strike": "kick",
+    "elbow_strike": "strike_side",
+    "uppercut": "strike_side",
+    "jab": "strike_side",
+    "punch_combo": "combo_triple",
+    "blade_spin": "strike_slash",
+    "axe_spin": "heavy_hammer",
+    "spin_rise": "rise",
+    "mage_cast": "invoke",
+    "dodge_roll_back": "evade_roll",
+    "sword_judgment": "heavy_charged"
+   }
   }
  ],
- "total_credits": 174
+ "total_credits": 219
 }
