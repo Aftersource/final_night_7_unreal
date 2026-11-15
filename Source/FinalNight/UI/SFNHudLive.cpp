@@ -36,6 +36,8 @@
 #include "FNTableGods.h"
 #include "FNDuelStage.h"
 #include "FNDuelBox.h"
+#include "Styling/CoreStyle.h"
+#include "Components/TextRenderComponent.h"
 #include "FNWood.h"
 #include "FNMedia.h"
 #include "FNStyle.h"
@@ -168,6 +170,16 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 92.f, 0.f, 0.f))
 		[
 			MakeOutCard()
+		]
+		// The board's debug lines, under the title bar, in a typewriter font (Chris).
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(34.f, 60.f, 0.f, 0.f))
+		[
+			SNew(STextBlock)
+			.Visibility_Lambda([this]() { return BoardInfo.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+			.Font(FCoreStyle::GetDefaultFontStyle("Mono", 10))
+			.ColorAndOpacity(FLinearColor(0.88f, 0.85f, 0.76f, 0.9f))
+			.ShadowOffset(FVector2D(1.f, 1.f)).ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f))
+			.Text_Lambda([this]() { return FText::FromString(BoardInfo); })
 		]
 		// Can't reach the game: a centred onyx card over the table with the net client's plain words.
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
@@ -864,7 +876,8 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("challenge.lock")) { HandleChallengeLock(Pub); return; }
 		{
 			const FString Ev = FN7HudJson::Str(Pub, TEXT("event"));
-			if (Ev == TEXT("duel.scene") || Ev == TEXT("duel.panel") || Ev == TEXT("duel.typing") || Ev == TEXT("duel.blow")) { HandleDuelEvent(Pub); return; }
+			if (Ev == TEXT("duel.scene") || Ev == TEXT("duel.panel") || Ev == TEXT("duel.typing") || Ev == TEXT("duel.blow")
+				|| Ev == TEXT("duel.typing_script") || Ev == TEXT("challenge.end")) { HandleDuelEvent(Pub); return; }
 		}
 		// Time slowed: when it is you, the Slowed event carries the bill's terms (rules 0.7.0).
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("slowed") && (int32)FN7HudJson::Num(Pub, TEXT("by_seat"), -2) == MySeat && MySeat >= 0)
@@ -909,7 +922,8 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 			{
 				int32 Colon = INDEX_NONE;
 				const FString Key = Reason.FindChar(TEXT(':'), Colon) ? Reason.Left(Colon) : Reason;   // "too_far:<km>:<allowed>"
-				const FString* Why = ChallengeWhy.Find(Key);
+				const FString* Why = Reason == TEXT("busy:player") ? nullptr : ChallengeWhy.Find(Key);
+				if (Reason == TEXT("busy:player")) { static const FString OneAtATime(TEXT("One duel at a time: another of your demigods is already fighting.")); Why = &OneAtATime; }
 				UE_LOG(LogTemp, Display, TEXT("FN7 challenge refused: %s %s"), *PendingChallengeRef, *Reason);
 				PendingChallengeRef.Reset();
 				Toast(Why ? *Why : FString::Printf(TEXT("Challenge refused: %s"), *Reason));
@@ -1869,6 +1883,23 @@ void SFNHudLive::StartDuelSession(const TSharedPtr<FJsonObject>& Lock, bool bMin
 	}
 }
 
+void SFNHudLive::UpdateBoardInfo()
+{
+	// The board's debug lines (ZOOM n of 4, map size, lat/lon, terrain, people) are the studio's 3D text over the table:
+	// Chris wants them as debug text in a typewriter font under the title bar. Hide the 3D text, show its lines here.
+	UTextRenderComponent* T = BoardInfoComp.Get();
+	if (!T)
+		if (AFNStudio* St = FindStudio())
+		{
+			TInlineComponentArray<UTextRenderComponent*> Texts(St);
+			for (UTextRenderComponent* C : Texts)
+				if (C && C->Text.ToString().StartsWith(TEXT("ZOOM "))) { T = C; BoardInfoComp = C; break; }
+		}
+	if (!T) return;
+	if (T->IsVisible()) T->SetVisibility(false);
+	BoardInfo = T->Text.ToString();
+}
+
 void SFNHudLive::OpenDuelBox()
 {
 	if (!Duel.IsValid()) return;
@@ -1902,8 +1933,38 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 	const FString Ev = FN7HudJson::Str(Pub, TEXT("event"));
 	const FString DuelId = FN7HudJson::Str(Pub, TEXT("duel_id"));
 	const bool bOurs = Duel.IsValid() && Duel->DuelId == DuelId;
+	// An AI's typing script (schema 12): played as live masked typing in the top line, on the server's clock.
+	auto ReadScript = [this](const FString& Side, const TSharedPtr<FJsonObject>& Sc)
+	{
+		if (!Duel.IsValid() || !Sc.IsValid() || (Side != TEXT("a") && Side != TEXT("b"))) return;
+		FFNDuelSession::FSideLine& L = Duel->Line(Side);
+		L.ScriptText = FN7HudJson::Str(Sc, TEXT("text"));
+		L.ScriptStart = FN7HudJson::Num(Sc, TEXT("starts_at_ms"), 0.0);
+		const double Cps = FN7HudJson::Num(Sc, TEXT("cps"), 7.0);
+		L.ScriptKeyMs = FN7HudJson::Num(Sc, TEXT("key_ms"), Cps > 0.0 ? 1000.0 / Cps : 140.0);
+		L.ScriptEnd = FN7HudJson::Num(Sc, TEXT("ends_at_ms"), L.ScriptStart + L.ScriptKeyMs * L.ScriptText.Len());
+		L.ScriptPauses.Reset();
+		if (const TArray<TSharedPtr<FJsonValue>>* Ps = FN7HudJson::Arr(Sc, TEXT("pauses")))
+			for (const TSharedPtr<FJsonValue>& Pv : *Ps)
+				if (const TSharedPtr<FJsonObject> P = Pv.IsValid() ? Pv->AsObject() : nullptr)
+					L.ScriptPauses.Add(TPair<int32, double>((int32)FN7HudJson::Num(P, TEXT("after"), 0.0), FN7HudJson::Num(P, TEXT("ms"), 0.0)));
+		UE_LOG(LogTemp, Display, TEXT("FN7 duel typing script: %s side %s %d chars from %.0f"), *Duel->DuelId, *Side, L.ScriptText.Len(), L.ScriptStart);
+	};
 	if (bOurs && Ev == TEXT("duel.scene")) Duel->Scene = Pub;
-	else if (bOurs && Ev == TEXT("duel.panel")) Duel->Panels.Add((int32)FN7HudJson::Num(Pub, TEXT("n"), -1.0), Pub);
+	else if (bOurs && Ev == TEXT("duel.typing_script")) ReadScript(FN7HudJson::Str(Pub, TEXT("by")), Pub);
+	else if (bOurs && Ev == TEXT("duel.panel"))
+	{
+		Duel->Panels.Add((int32)FN7HudJson::Num(Pub, TEXT("n"), -1.0), Pub);
+		for (const TCHAR* Side : { TEXT("a"), TEXT("b") })
+			if (const TSharedPtr<FJsonObject> Sc = FN7HudJson::Obj(FN7HudJson::Obj(Pub, Side), TEXT("typing_script"))) ReadScript(Side, Sc);
+	}
+	else if (Ev == TEXT("challenge.end"))
+	{
+		// The provisional end in also[] (schema 12) is the end on screen; the full one at the next resolve is merged.
+		TSharedPtr<FJsonObject> Wrap = MakeShared<FJsonObject>();
+		Wrap->SetArrayField(TEXT("duels"), { MakeShared<FJsonValueObject>(Pub) });
+		HandleDuelsOutcome(Wrap);
+	}
 	else if (bOurs && Ev == TEXT("duel.typing"))
 	{
 		const FString Side = FN7HudJson::Str(Pub, TEXT("by"));
@@ -1940,7 +2001,7 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 			if (FN7HudJson::Flag(Bl, TEXT("auto")) && !Text.IsEmpty() && Side != Duel->MySide)
 			{
 				FFNDuelSession::FSideLine& L = Duel->Line(Side);
-				L.bTypeOut = true;
+				L.bTypeOut = !L.HasScript();   // a script already showed it being typed
 				L.Sent = Text;
 				L.SentAt = FPlatformTime::Seconds();
 			}
@@ -1949,7 +2010,7 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 			{
 				FFNDuelSession::FSideLine& L = Duel->Line(Side);
 				// Nobody saw it typed (an AI's line, or keys that never came): it types itself out, *****p.
-				L.bTypeOut = Side != Duel->MySide && (L.FrameAt <= 0.0 || FPlatformTime::Seconds() - L.FrameAt > 4.0);
+				L.bTypeOut = Side != Duel->MySide && !L.HasScript() && (L.FrameAt <= 0.0 || FPlatformTime::Seconds() - L.FrameAt > 4.0);
 				L.Sent = Text;
 				L.SentAt = FPlatformTime::Seconds();
 				L.Len = 0;
@@ -2015,7 +2076,8 @@ void SFNHudLive::TrySendDuelKeys()
 EActiveTimerReturnType SFNHudLive::TickDuelFast(double, float)
 {
 	if (!Duel.IsValid()) { bDuelTimer = false; return EActiveTimerReturnType::Stop; }
-	if (Duel->bOver && FPlatformTime::Seconds() - Duel->OverAt > 5.0) { CloseDuelBox(); Duel.Reset(); bDuelTimer = false; return EActiveTimerReturnType::Stop; }
+	// A quarter of the old 5 s hold until there are victory dances (Chris).
+	if (Duel->bOver && FPlatformTime::Seconds() - Duel->OverAt > 1.25) { CloseDuelBox(); Duel.Reset(); bDuelTimer = false; return EActiveTimerReturnType::Stop; }
 	UFNNetClient* N = Net.Get();
 	if (N && !Duel->MySide.IsEmpty() && !Duel->bOver)
 	{
@@ -2028,6 +2090,13 @@ EActiveTimerReturnType SFNHudLive::TickDuelFast(double, float)
 			Duel->Ticked.Add(P.Key);
 			N->DuelTick(Round, Duel->DuelId);
 			UE_LOG(LogTemp, Display, TEXT("FN7 duel tick: %s panel %d"), *Duel->DuelId, P.Key);
+		}
+		// One tick at the deadline closes the duel on the server (keys can't; schema 12).
+		if (Duel->DeadlineMs > 0.0 && !Duel->bDeadlineTicked && NowMs >= Duel->DeadlineMs + 30.0 && NowMs < Duel->DeadlineMs + 5000.0)
+		{
+			Duel->bDeadlineTicked = true;
+			N->DuelTick(Round, Duel->DuelId);
+			UE_LOG(LogTemp, Display, TEXT("FN7 duel tick: %s at the deadline"), *Duel->DuelId);
 		}
 		TrySendDuelKeys();   // a keystroke the bucket held back
 		// Your duel keeps the keyboard in your line the whole time (the input should simply be set to have focus),
@@ -2260,6 +2329,8 @@ void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
 			const TSharedPtr<FJsonObject> O = V.IsValid() ? V->AsObject() : nullptr;
 			if (!O.IsValid()) continue;
 			const FString DuelId = FN7HudJson::Str(O, TEXT("duel_id"));
+			if (!DuelId.IsEmpty() && EndedDuels.Contains(DuelId)) continue;   // the provisional end already showed it
+			if (!DuelId.IsEmpty()) EndedDuels.Add(DuelId);
 			const FString Ar = FN7HudJson::Str(O, TEXT("a")), Br = FN7HudJson::Str(O, TEXT("b"));
 			FString An = FN7HudJson::Str(O, TEXT("a_name")), Bn = FN7HudJson::Str(O, TEXT("b_name"));
 			if (An.IsEmpty()) An = NameOf(Ar);
@@ -2306,6 +2377,7 @@ void SFNHudLive::NewMatch(const FString& Id)
 	UE_LOG(LogTemp, Display, TEXT("FN7 match: %s -> %s (summon state reset)"), MatchId.IsEmpty() ? TEXT("none") : *MatchId, *Id);
 	MatchId = Id;
 	Duels.Reset();
+	EndedDuels.Reset();
 	if (Duel.IsValid()) CloseDuelBox();
 	Duel.Reset();
 	bWiped = false;
@@ -2804,6 +2876,7 @@ FText SFNHudLive::GetTimer() const
 
 EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 {
+	UpdateBoardInfo();
 	TickDuelView();   // a challenge's queued glide (once you stop typing / dragging) and the glide back after it
 	if (bVictory && VictoryFadeAt > 0.0 && FPlatformTime::Seconds() - VictoryFadeAt > 1.25) { bVictory = false; VictoryFadeAt = 0.0; }
 	// Every 10 s, the real frame rate into the log ("FN7 fps"), so a PIE session's speed can be read afterwards.

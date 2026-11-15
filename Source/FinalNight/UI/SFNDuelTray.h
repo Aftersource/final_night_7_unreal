@@ -30,12 +30,25 @@ struct FFNDuelSession
 		FString Sent;            // the line just sent (duel.blow): revealed letter by letter, then cleared
 		double SentAt = 0.0;
 		bool bTypeOut = false;   // nobody saw it typed (an AI's line): it types itself out, *****p
+		// An AI's typing script (duel.typing_script, server clock): character k shows at Start + k*KeyMs + the pauses
+		// before it; played as live masked typing.
+		FString ScriptText;
+		double ScriptStart = 0.0, ScriptKeyMs = 0.0, ScriptEnd = 0.0;
+		TArray<TPair<int32, double>> ScriptPauses;   // (after, ms)
+		bool HasScript() const { return !ScriptText.IsEmpty(); }
+		double ScriptCharAt(int32 K) const
+		{
+			double T = ScriptStart + K * ScriptKeyMs;
+			for (const TPair<int32, double>& P : ScriptPauses) if (P.Key < K) T += P.Value;
+			return T;
+		}
 	};
 	FSideLine LineA, LineB;
 	FSideLine& Line(const FString& Side) { return Side == TEXT("b") ? LineB : LineA; }
 
 	TArray<FString> Log;     // the latest blows, newest last
 	bool bOver = false;
+	bool bDeadlineTicked = false;   // the tick at deadline_ms + 30 (closes the duel on the server)
 	bool bSending = false;   // your line waits for a token (the bucket was empty): never dropped
 	FString Result;
 	double OverAt = 0.0;
@@ -90,6 +103,7 @@ private:
 	FText StatusText(const FString& Side) const;
 	FString CaptionNow() const;
 	FString TopSide() const;
+	TAttribute<FSlateColor> TeamLine() const;
 	FString BottomSide() const;
 	bool IsMine() const;
 };

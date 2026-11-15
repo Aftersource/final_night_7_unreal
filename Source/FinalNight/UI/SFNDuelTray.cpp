@@ -45,12 +45,12 @@ namespace FN7Tray
 	static const FLinearColor Gilt(0.62f, 0.43f, 0.15f, 0.95f);
 	static const FLinearColor Night(0.045f, 0.03f, 0.02f, 0.9f);
 
-	/** A dark carved plate with a thin gilt line, the box's colours. */
-	static TSharedRef<SWidget> Plate(const TSharedRef<SWidget>& Content, float Width)
+	/** A dark carved plate with a thin line in the team colour (blue: your duel; red: one you watch). */
+	static TSharedRef<SWidget> Plate(const TSharedRef<SWidget>& Content, float Width, TAttribute<FSlateColor> Line)
 	{
 		return SNew(SBox).WidthOverride(Width)
 		[
-			SNew(SBorder).BorderImage(Solid()).BorderBackgroundColor(Gilt).Padding(2.f)
+			SNew(SBorder).BorderImage(Solid()).BorderBackgroundColor(Line).Padding(2.f)
 			[
 				SNew(SBorder).BorderImage(Solid()).BorderBackgroundColor(Night).Padding(FMargin(22.f, 12.f))
 				[
@@ -59,6 +59,16 @@ namespace FN7Tray
 			]
 		];
 	}
+}
+
+TAttribute<FSlateColor> SFNDuelTray::TeamLine() const
+{
+	return TAttribute<FSlateColor>::CreateLambda([this]()
+	{
+		const TSharedPtr<FFNDuelSession> S = Session.Get();
+		const bool bYours = S.IsValid() && !S->MySide.IsEmpty();
+		return FSlateColor(bYours ? FLinearColor(0.15f, 0.42f, 1.f, 0.95f) : FLinearColor(0.95f, 0.14f, 0.08f, 0.95f));
+	});
 }
 
 FString SFNDuelTray::TopSide() const
@@ -118,7 +128,7 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock).Font(Type::Font(11, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.75f, 0.7f, 0.62f))
 					.Text_Lambda([this]() { return StatusText(TopSide()); })
-				], 820.f)
+				], 820.f, TeamLine())
 		]
 		// The caption over the box: the panel's line (who hit whom, and the wild reason it worked).
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0.f, 0.f, 0.f, 250.f))
@@ -176,6 +186,7 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 8.f, 0.f, 0.f)
 				[
 					SNew(SHorizontalBox)
+					.Visibility_Lambda([this]() { const TSharedPtr<FFNDuelSession> S = Session.Get(); return (S.IsValid() && !S->MySide.IsEmpty()) ? EVisibility::Visible : EVisibility::Collapsed; })   // watched: no typing window
 					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 					[
 						SNew(SBox).HeightOverride(8.f)
@@ -195,7 +206,7 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 					SNew(STextBlock).Font(Type::Font(12, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.85f, 0.82f, 0.76f))
 					.WrapTextAt(770.f)
 					.Text_Lambda([this]() { return LogText(); })
-				], 820.f)
+				], 820.f, TeamLine())
 		]
 	];
 }
@@ -279,6 +290,21 @@ FText SFNDuelTray::SideText(const FString& Side) const
 		if (MyText.IsEmpty()) return FText::FromString(TEXT("..."));
 		return FText::FromString(Masked(MyText.Len(), Now - MyTypedAt < OwnFlash ? MyText.Right(1) : FString()));
 	}
+	// An AI's typing script, played on the server's clock: the characters so far as stars, the newest readable a moment.
+	if (L.HasScript())
+	{
+		const double NowMs = ServerNowMs.Get();
+		if (NowMs >= L.ScriptStart && NowMs < L.ScriptEnd + 1500.0)
+		{
+			int32 Typed = 0;
+			while (Typed < L.ScriptText.Len() && L.ScriptCharAt(Typed) <= NowMs) ++Typed;
+			if (Typed > 0)
+			{
+				const bool bFresh = NowMs - L.ScriptCharAt(Typed - 1) < TypeHold * 1000.0;
+				return FText::FromString(Masked(Typed, bFresh ? L.ScriptText.Mid(Typed - 1, 1) : FString()));
+			}
+		}
+	}
 	if (L.Len <= 0) return FText::FromString(TEXT("..."));
 	return FText::FromString(Masked(L.Len, Now - L.FrameAt < TailFlash ? L.Tail : FString()));
 }
@@ -292,6 +318,7 @@ FText SFNDuelTray::StatusText(const FString& Side) const
 	const double Now = FPlatformTime::Seconds();
 	if (!L.Sent.IsEmpty() && Now - L.SentAt < 2.5) return LOCTEXT("TrayStruck", "strikes!");
 	if (L.Len > 0 && Now - L.FrameAt < 1.5) return LOCTEXT("TrayTyping", "typing...");
+	if (L.HasScript() && ServerNowMs.Get() >= L.ScriptStart && ServerNowMs.Get() < L.ScriptEnd) return LOCTEXT("TrayTyping", "typing...");
 	if (L.Len > 0 && L.FrameAt > 0.0 && Now - L.FrameAt > 10.0) return LOCTEXT("TrayGone", "gone quiet");
 	return LOCTEXT("TrayWatch", "read their move as they type it");
 }

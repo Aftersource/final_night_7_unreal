@@ -95,6 +95,7 @@ private:
 	// by duel_id, until its challenge.end. bMine: one of your demigods fights in it.
 	struct FDuelInfo { FString A, B, AName, BName; bool bMine = false; float HpA = 0.f, HpB = 0.f; int32 Blows = 0; };
 	TMap<FString, FDuelInfo> Duels;
+	TSet<FString> EndedDuels;   // shown once: the provisional end, then the full one merged
 	void HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock, bool bRestore = false);
 	// The duel you play or watch, and its tray (DUEL_UNREAL.md D, the input half: Chris, "the challenge thing entirely end
 	// to end").
@@ -109,7 +110,10 @@ private:
 	void DuelTyping(const FString& Text);
 	void TrySendDuelKeys();
 	void RestoreDuels(const TSharedPtr<FJsonObject>& Present);
-	FString NetProblem;    // the client can't reach the server: shown as a centred card until it answers
+	FString NetProblem;
+	FString BoardInfo;     // the studio's board debug lines, shown under the title bar
+	TWeakObjectPtr<class UTextRenderComponent> BoardInfoComp;
+	void UpdateBoardInfo();    // the client can't reach the server: shown as a centred card until it answers
 	void OpenDuelBox();    // the challenge box on the table (FNDuelBox): rises, opens, plays the panels
 	void CloseDuelBox();
 	EActiveTimerReturnType TickDuelFast(double, float);

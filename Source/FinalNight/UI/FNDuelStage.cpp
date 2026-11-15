@@ -36,14 +36,38 @@ AFNDuelStage* AFNDuelStage::Get(UWorld* World, bool bCreate)
 
 const TArray<FString>& AFNDuelStage::ClipNames()
 {
+	// The lab's 35, the 15 strikes and the 14 weapon moves on the same rig (Content/Duel/Mannequin/Anims, 64 clips).
 	static const TArray<FString> Names = {
-		TEXT("airborne_hit"), TEXT("block"), TEXT("block_cross"), TEXT("bow"), TEXT("combo_triple"), TEXT("command"),
-		TEXT("counter"), TEXT("defeat"), TEXT("downed"), TEXT("evade_roll"), TEXT("evade_spin"), TEXT("evade_stand"),
-		TEXT("grapple_throw_down"), TEXT("ground_slam"), TEXT("heavy_charged"), TEXT("heavy_hammer"), TEXT("idle_guard"),
-		TEXT("invoke"), TEXT("jump_attack"), TEXT("kick"), TEXT("kneel"), TEXT("lunge"), TEXT("parry_back"),
-		TEXT("parry_high"), TEXT("rise"), TEXT("run"), TEXT("shield_push"), TEXT("stagger_back"), TEXT("stagger_waist"),
-		TEXT("strike_side"), TEXT("strike_slash"), TEXT("taunt"), TEXT("throw_shoulder"), TEXT("victory"), TEXT("walk") };
+		TEXT("airborne_hit"), TEXT("axe_spin"), TEXT("blade_spin"), TEXT("block"), TEXT("block_cross"), TEXT("bow"),
+		TEXT("bow_aim_walk"), TEXT("bow_draw_shoot"), TEXT("bow_quick_shot"), TEXT("combo_triple"), TEXT("command"), TEXT("counter"),
+		TEXT("defeat"), TEXT("dodge_roll_back"), TEXT("downed"), TEXT("draw_from_nowhere"), TEXT("elbow_strike"), TEXT("evade_roll"),
+		TEXT("evade_spin"), TEXT("evade_stand"), TEXT("flying_kick"), TEXT("grapple_throw_down"), TEXT("ground_slam"), TEXT("gun_quick_draw"),
+		TEXT("gun_reload"), TEXT("gun_roll_fire"), TEXT("gun_run_shoot"), TEXT("gun_side_shot"), TEXT("heavy_charged"), TEXT("heavy_hammer"),
+		TEXT("high_kick"), TEXT("idle_guard"), TEXT("invoke"), TEXT("jab"), TEXT("jump_attack"), TEXT("kick"),
+		TEXT("knee_strike"), TEXT("kneel"), TEXT("launcher_fire"), TEXT("leg_sweep"), TEXT("lunge"), TEXT("mage_cast"),
+		TEXT("parry_back"), TEXT("parry_high"), TEXT("punch_combo"), TEXT("rise"), TEXT("roundhouse_kick"), TEXT("run"),
+		TEXT("shield_push"), TEXT("spin_rise"), TEXT("stagger_back"), TEXT("stagger_waist"), TEXT("strike_side"), TEXT("strike_slash"),
+		TEXT("sword_judgment"), TEXT("taunt"), TEXT("throw_object"), TEXT("throw_shoulder"), TEXT("twohand_chop"), TEXT("twohand_reap"),
+		TEXT("twohand_stance"), TEXT("uppercut"), TEXT("victory"), TEXT("walk") };
 	return Names;
+}
+
+FString AFNDuelStage::ClipFallback(const FString& Clip)
+{
+	// The server's clip_fallbacks (production_assets/meshy/mannequin/provenance.json, step 6), plus the weapon moves.
+	static const TMap<FString, FString> F = {
+		{ TEXT("flying_kick"), TEXT("kick") }, { TEXT("roundhouse_kick"), TEXT("kick") }, { TEXT("high_kick"), TEXT("kick") },
+		{ TEXT("leg_sweep"), TEXT("kick") }, { TEXT("knee_strike"), TEXT("kick") }, { TEXT("elbow_strike"), TEXT("strike_side") },
+		{ TEXT("uppercut"), TEXT("strike_side") }, { TEXT("jab"), TEXT("strike_side") }, { TEXT("punch_combo"), TEXT("combo_triple") },
+		{ TEXT("blade_spin"), TEXT("strike_slash") }, { TEXT("axe_spin"), TEXT("heavy_hammer") }, { TEXT("spin_rise"), TEXT("rise") },
+		{ TEXT("mage_cast"), TEXT("invoke") }, { TEXT("dodge_roll_back"), TEXT("evade_roll") }, { TEXT("sword_judgment"), TEXT("heavy_charged") },
+		{ TEXT("bow_draw_shoot"), TEXT("invoke") }, { TEXT("bow_quick_shot"), TEXT("invoke") }, { TEXT("bow_aim_walk"), TEXT("walk") },
+		{ TEXT("gun_side_shot"), TEXT("strike_side") }, { TEXT("gun_run_shoot"), TEXT("run") }, { TEXT("gun_quick_draw"), TEXT("command") },
+		{ TEXT("gun_roll_fire"), TEXT("evade_roll") }, { TEXT("gun_reload"), TEXT("idle_guard") }, { TEXT("launcher_fire"), TEXT("heavy_charged") },
+		{ TEXT("twohand_chop"), TEXT("heavy_hammer") }, { TEXT("twohand_reap"), TEXT("strike_slash") }, { TEXT("twohand_stance"), TEXT("idle_guard") },
+		{ TEXT("throw_object"), TEXT("throw_shoulder") }, { TEXT("draw_from_nowhere"), TEXT("command") } };
+	const FString* V = F.Find(Clip);
+	return V ? *V : FString(TEXT("idle_guard"));
 }
 
 const TArray<FString>& AFNDuelStage::SkinNames()
