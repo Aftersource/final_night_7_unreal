@@ -10,7 +10,7 @@ class UFNNetClient;
 class UTexture2D;
 
 /**
- * Disasters leave the world changed (Benito noted that forests burn down to nothing, buildings are destroyed, and floods; damage persists and
+ * Disasters leave the world changed (Benito described forests burning to nothing, buildings destroyed, and floods; damage persists and
  * heals slowly"). Every fire / flood / battle-or-storm event the server reports (round.outcome public.events[] with an
  * "at") leaves a damage zone on the Earth. On whatever part of the board you look at, at every zoom, the hexagons inside
  * a zone change: fire -> the forest burns (flames while fresh, then black stumps on ash); flood -> water stands over the

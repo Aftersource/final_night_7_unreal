@@ -9,7 +9,7 @@ class UFNNetClient;
 class SWidget;
 
 /**
- * The turn, made visible (Benito said he does not understand the turn system, including when he is supposed to Will). One quiet strip
+ * The turn, made visible (Benito said he does not understand the turn system, including when the player is supposed to spend will). One quiet strip
  * at the top centre of the screen:
  *   BEAT 53 / 60      YOUR MOVE  0:09   + a bar that runs out with the beat
  *   the one thing that matters to you this beat (worked out here from the state: fallen, outside Time's circle, weak,

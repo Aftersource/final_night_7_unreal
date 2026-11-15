@@ -11,7 +11,7 @@ class UTextRenderComponent;
 class UTexture2D;
 
 /**
- * Token play (Benito described typed actions acted out with tokens): the server's round.outcome public.scenes[] (Chris, schema
+ * Token play (Benito wants typed actions acted out with tokens): the server's round.outcome public.scenes[] (Chris, schema
  * 18) for YOUR demigods play on the board at people level: the camera drops to the scene's place, game tokens walk the
  * steps' cells, the house's roof lifts when one enters, captions float over whoever talks, the d20 tumbles at its
  * moment (AFNStudio::RollDice) and the outcome is written over the place; then the view goes back exactly where you were.
