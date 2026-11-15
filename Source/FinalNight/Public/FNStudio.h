@@ -58,6 +58,9 @@ enum class EFNSfx : uint8 { Click, Boom, Chime, Snuff, Quill, Impact, Swarm, Roa
 /** What the earth simulator says a board hex is right now (the scenery hides or swaps its trees on anything but Normal). */
 enum class EFNHexState : uint8 { Normal, Burning, Flooded, Lava, Ash, NewLand };
 
+/** Where the board would stand a person at people zoom (world position, its hexagon, 0 country / 1 village / 2 city). */
+struct FFNPeopleSpot { FVector Pos = FVector::ZeroVector; FIntPoint Hex = FIntPoint::ZeroValue; uint8 Place = 0; };
+
 UCLASS()
 class FINALNIGHT_API AFNStudio : public AActor
 {
@@ -130,6 +133,10 @@ public:
 	bool BoardHexLatLon(int32 Q, int32 R, double& OutLat, double& OutLon) const;
 	/** The exact top of a board tile (cm, as BuildTable stacks it; with or without the earth's override) and its centre. */
 	bool BoardHexTop(int32 Q, int32 R, bool bWithEarth, float& OutTopCm, FVector& OutWorld) const;
+	/** Benito asked why random people are just standing there: the board's static people (beige pole + head) are off;
+	 *  Features/FNPeopleLife draws living ones at these spots instead. Spots and house centres are world positions now. */
+	bool bShowStaticPeople = false;
+	bool GetPeopleSpots(TArray<FFNPeopleSpot>& OutPeople, TArray<FVector>& OutHouses) const;
 	double BoardCmPerMeter() const { return TableK; }
 	bool IsBoardPanning() const { return bBoardPan; }
 	/** The hand holds the board or the globe: nothing else may move the view (the camera's lean freezes). */
@@ -281,6 +288,8 @@ private:
 	void UpdateTable(float Dt);
 	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> HexSets;   // biome x shade x fog level
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PeopleSet;
+	TArray<FFNPeopleSpot> PeopleSpots;   // filled by BuildTable at people zoom (in the sets' space)
+	TArray<FVector> HouseSpots;          // house centres at people/houses zoom (same space)
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> TownSet;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> HeadSet;    // heads on the people
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> RoofSet;    // roofs on the houses
