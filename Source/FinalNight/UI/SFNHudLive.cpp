@@ -38,6 +38,7 @@
 #include "FNDuelBox.h"
 #include "FN7KitHitTest.h"
 #include "FNStarBackdrop.h"
+#include "FNEarthPlay.h"
 
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
@@ -773,6 +774,21 @@ void SFNHudLive::HandleStatus(const FString& Status)
 void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 {
 	NetProblem.Reset();   // the server answered
+	// The earth simulator on the table (AFNEarthPlay): each beat's field and phenomena, the board's records, a cast's strike.
+	if (T == TEXT("round.outcome") || T == TEXT("game.earth") || T == TEXT("phase.event"))
+		if (AFNStudio* St = FindStudio())
+			if (AFNEarthPlay* E = AFNEarthPlay::Get(St->GetWorld(), true))
+			{
+				E->Bind(Net.Get());
+				const TSharedPtr<FJsonObject>* Pub = nullptr;
+				if (T == TEXT("game.earth")) E->OnReply(D);
+				else if (D.IsValid() && D->TryGetObjectField(TEXT("public"), Pub) && Pub->IsValid())
+				{
+					const TSharedPtr<FJsonObject>* Earth = nullptr;
+					if (T == TEXT("round.outcome") && (*Pub)->TryGetObjectField(TEXT("earth"), Earth)) E->OnOutcome(*Earth);
+					if (T == TEXT("phase.event") && FN7HudJson::Str(*Pub, TEXT("event")) == TEXT("streak")) E->OnStreak(*Pub);
+				}
+			}
 	// JOIN = TAKE A SEAT: joined as a viewer (the house is replaying, or between seats), ask for a seat once. The net's
 	// bWatchOnly (WATCH) and bSeatAsked (the shared once-only guard; the root resets it at match.ended) decide.
 	if (T == TEXT("room.snapshot") || T == TEXT("match.snapshot") || T == TEXT("room.updated"))

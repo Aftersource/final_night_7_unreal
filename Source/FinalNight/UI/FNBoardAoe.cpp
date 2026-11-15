@@ -62,7 +62,7 @@ bool AFNStudio::HexAtScreen(const FVector2D& ViewportPixel, double& OutLat, doub
 		C = HexToPlane(Q, R, TableS);
 		const FVector3d V = PlaneToVec(TableFace, C.X, C.Y);
 		VecToLatLon(V, La, Lo);
-		Top = FN7Board::GroundTop(ElevationM(V, TableS, La, Lo), TableLo, TableRange);
+		Top = BoardHeightAtHex(Q, R, FN7Board::GroundTop(ElevationM(V, TableS, La, Lo), TableLo, TableRange));   // the earth's overrides too
 	}
 	if (Hit.X * Hit.X + Hit.Y * Hit.Y > FN7Board::ActionR * FN7Board::ActionR) return false;
 
@@ -130,7 +130,7 @@ void AFNStudio::ShowAreaOfEffect(bool bShow, const FVector2D& ViewportPixel, dou
 			const FVector3d V = PlaneToVec(TableFace, P.X, P.Y);
 			double PLa, PLo;
 			VecToLatLon(V, PLa, PLo);
-			const float Top = FN7Board::GroundTop(ElevationM(V, TableS, PLa, PLo), TableLo, TableRange);
+			const float Top = BoardHeightAtHex(Q0 + Dq, R0 + Dr, FN7Board::GroundTop(ElevationM(V, TableS, PLa, PLo), TableLo, TableRange));
 			const FVector Pos = FN7Board::ActionC + FVector((float)((P.X - TableCx) * TableK), (float)(-(P.Y - TableCy) * TableK), Top + (bCentre ? 0.9f : 0.45f));
 			const float Thick = bCentre ? 1.6f : 0.7f;
 			UInstancedStaticMeshComponent* Set = bCentre ? Target : Area;
@@ -151,7 +151,9 @@ bool AFNStudio::BoardPointFor(double Lat, double Lon, FVector& OutWorld) const
 	if (Face != TableFace) return false;
 	const double Px = U * RadiusM, Py = W * RadiusM;
 	if (FVector2D::Distance(FVector2D(Px, Py), FVector2D(TableCx, TableCy)) > PickRadiusM) return false;
-	const float Top = FN7Board::GroundTop(ElevationM(V, TableS, Lat, Lon), TableLo, TableRange);
+	int32 HQ, HR;
+	PlaneToHex(Px, Py, TableS, HQ, HR);
+	const float Top = BoardHeightAtHex(HQ, HR, FN7Board::GroundTop(ElevationM(V, TableS, Lat, Lon), TableLo, TableRange));   // risen / sunk by the earth
 	FVector Local = FN7Board::ActionC + FVector((float)((Px - TableCx) * TableK), (float)(-(Py - TableCy) * TableK), Top);
 	if (MapPivot) Local = MapPivot->GetRelativeTransform().TransformPosition(Local);   // ride the zoom animation
 	OutWorld = GetActorTransform().TransformPosition(Local);
@@ -414,6 +416,22 @@ namespace FN7View
 {
 	struct FAnim { float T = -1.f, Dur = 0.45f, S0 = 1.f; FVector From = FVector::ZeroVector, To = FVector::ZeroVector; };
 	static TMap<TWeakObjectPtr<AFNStudio>, FAnim> Anims;
+}
+
+bool AFNStudio::BoardCentreHex(int32& OutQ, int32& OutR) const
+{
+	if (TableFace < 0 || TableK <= 0.0) return false;
+	FNPlanet::PlaneToHex(TableCx, TableCy, TableS, OutQ, OutR);
+	return true;
+}
+
+bool AFNStudio::BoardHexLatLon(int32 Q, int32 R, double& OutLat, double& OutLon) const
+{
+	using namespace FNPlanet;
+	if (TableFace < 0 || TableK <= 0.0) return false;
+	const FVector2D P = HexToPlane(Q, R, TableS);
+	VecToLatLon(PlaneToVec(TableFace, P.X, P.Y), OutLat, OutLon);
+	return true;
 }
 
 bool AFNStudio::TablePointAt(const FVector2D& ViewportPixel, FVector& OutLocal) const

@@ -124,6 +124,13 @@ public:
 	bool IsSameBoardSpot(double Lat, double Lon, int32 Level) const;
 	/** FN7 god's hand (Mac session, UI/FNBoardAoe.cpp): drag the board and the land slides with the cursor; it re-centres
 	 *  (rebuilds) every two hexes, seamlessly, and the globe turns along. */
+	/** FN7 earth playback (Mac session, UI/FNEarthPlay.cpp): the board's centre hex, a hex's place on the planet and the
+	 *  table's scale (cm per planet metre). */
+	bool BoardCentreHex(int32& OutQ, int32& OutR) const;
+	bool BoardHexLatLon(int32 Q, int32 R, double& OutLat, double& OutLon) const;
+	/** The exact top of a board tile (cm, as BuildTable stacks it; with or without the earth's override) and its centre. */
+	bool BoardHexTop(int32 Q, int32 R, bool bWithEarth, float& OutTopCm, FVector& OutWorld) const;
+	double BoardCmPerMeter() const { return TableK; }
 	bool BeginBoardPan(const FVector2D& ViewportPixel);
 	void PanBoardTo(const FVector2D& ViewportPixel);
 	void EndBoardPan();
