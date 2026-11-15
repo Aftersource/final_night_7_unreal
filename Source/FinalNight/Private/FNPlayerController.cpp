@@ -91,10 +91,16 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 			Vel = (Vel - Omega * Temp) * E;
 			return Goal + (Change + Temp) * E;
 		};
-		const FRotator Goal = Root->IsTyping() ? FRotator::ZeroRotator : Target;
-		const double SmoothTime = 1.6;
-		Lean.Pitch = Damp(Lean.Pitch, Goal.Pitch, LeanVel.Pitch, SmoothTime, DeltaTime);
-		Lean.Yaw = Damp(Lean.Yaw, Goal.Yaw, LeanVel.Yaw, SmoothTime, DeltaTime);
+		// FN7 (Mac session, view-fix go-ahead): while the hand holds the board or the globe the lean holds still (it turned
+		// the view under the grab, so the grabbed land slid off the pointer: Chris, "the tower had better be on my mouse").
+		if (Studio->IsHandHolding()) LeanVel = FRotator::ZeroRotator;   // held: no lean change at all this frame
+		else
+		{
+			const FRotator Goal = Root->IsTyping() ? FRotator::ZeroRotator : Target;
+			const double SmoothTime = 1.6;
+			Lean.Pitch = Damp(Lean.Pitch, Goal.Pitch, LeanVel.Pitch, SmoothTime, DeltaTime);
+			Lean.Yaw = Damp(Lean.Yaw, Goal.Yaw, LeanVel.Yaw, SmoothTime, DeltaTime);
+		}
 	}
 	SetControlRotation(BaseRot + Lean + Studio->GetShake());
 

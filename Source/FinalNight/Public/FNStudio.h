@@ -132,6 +132,8 @@ public:
 	bool BoardHexTop(int32 Q, int32 R, bool bWithEarth, float& OutTopCm, FVector& OutWorld) const;
 	double BoardCmPerMeter() const { return TableK; }
 	bool IsBoardPanning() const { return bBoardPan; }
+	/** The hand holds the board or the globe: nothing else may move the view (the camera's lean freezes). */
+	bool IsHandHolding() const { return bBoardPan || bGlobeGrab; }
 	bool BeginBoardPan(const FVector2D& ViewportPixel);
 	void PanBoardTo(const FVector2D& ViewportPixel);
 	void EndBoardPan();
@@ -329,7 +331,8 @@ private:
 	bool TickHand(float Dt);
 	void SettleGlobe(bool bFinal);
 	FVector PanFromHit = FVector::ZeroVector;   // studio-local table point the hand took hold of
-	bool TablePointAt(const FVector2D& ViewportPixel, FVector& OutLocal) const;
+	float PanPlaneZ = 0.f;                      // its height (studio-local): the grab tracks the land at that height
+	bool TablePointAt(const FVector2D& ViewportPixel, FVector& OutLocal, float PlaneZ) const;
 	void CommitBoardPan(const FVector& Offset);
 	double PickLat = 46.5, PickLon = 9.0, PickRadiusM = 300000.0;
 	// the scene now on the table (set by BuildTable): cube face, centre on that face's plane (m), cm per m, hex size, relief range
