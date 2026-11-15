@@ -807,23 +807,25 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 	ShownAtB = Pb.At;
 	PoseFighter(FighterA, ClipA, Pa.Clip, Pa.ClipT, Pa.bLoop, Pa.At, Pb.At);
 	PoseFighter(FighterB, ClipB, Pb.Clip, Pb.ClipT, Pb.bLoop, Pb.At, Pa.At);
-	// The portrait cards ride beside the mannequins at head height, on the far side from the foe, turned to the camera
-	// (over the heads they sat under the HUD's banners, and the space over the heads is the floating rules').
+	// The portrait cards are set into the top of the box, with each player's portrait embedded into it.
+	// the top of the box so that if a player moves their mouse around as a viewer they'll see it and if they're active
+	// they can glimpse it while seeing the action"): two small plaques standing on the far rim, A on the left, B on the
+	// right, turned to the camera; the fighters themselves carry no cards.
 	{
 		const FVector CamLocal = Camera ? Lift->GetComponentTransform().InverseTransformPosition(Camera->GetActorLocation()) : FVector(0.f, -300.f, 100.f);
-		auto Place = [&CamLocal](UStaticMeshComponent* Card, UStaticMeshComponent* Frame, const FVector& Over, const FVector& Foe)
+		// the far rim is the one away from the camera
+		const float FarY = CamLocal.Y < 0.f ? D * 0.5f - RimT * 0.5f : -(D * 0.5f - RimT * 0.5f);
+		auto Place = [&CamLocal, FarY](UStaticMeshComponent* Card, UStaticMeshComponent* Frame, float X)
 		{
 			if (!Card || !Card->IsVisible()) return;
-			FVector Out = (Over - Foe).GetSafeNormal2D();
-			if (Out.IsNearlyZero()) Out = FVector(1.f, 0.f, 0.f);
-			const FVector P = Over + Out * 11.f + FVector(0.f, 0.f, 22.f);
+			const FVector P(X, FarY, SlabH + RimH + 8.5f);
 			const FVector To = CamLocal - P;
 			const FRotator R(0.f, FMath::RadiansToDegrees(FMath::Atan2(To.Y, To.X)) - 90.f, 0.f);
 			Card->SetRelativeLocationAndRotation(P, R);
 			Frame->SetRelativeLocationAndRotation(P - R.RotateVector(FVector(0.f, 0.25f, 0.f)), R);
 		};
-		Place(CardA, CardFrameA, Pa.At, Pb.At);
-		Place(CardB, CardFrameB, Pb.At, Pa.At);
+		Place(CardA, CardFrameA, -W * 0.3f);
+		Place(CardB, CardFrameB, W * 0.3f);
 	}
 
 	// Weapons in hand: each seg of an armed fighter carries its prop (none = empty hands). A hammer-space draw

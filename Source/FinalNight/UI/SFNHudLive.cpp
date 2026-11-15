@@ -2963,6 +2963,29 @@ void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
 				Duel->HpB = Hp(O, TEXT("b"), Duel->HpB);
 				if (!Deed.IsEmpty()) Duel->AddLog(Deed);
 				if (Tray.IsValid()) Tray->ClearInput();
+				// Watching a duel nobody of yours fights (the other players' actions were not visible; play by
+				// play"): an AI-vs-AI duel strikes no blows live (no duellist's client drives it), so its whole blow log
+				// comes in this end; play it into the tray one blow at a time (each blow's sound, rules line and the
+				// box's strike), and keep the box open until the last one has played.
+				const TArray<TSharedPtr<FJsonValue>>* Log = FN7HudJson::Arr(O, TEXT("log"));
+				if (Duel->MySide.IsEmpty() && Duel->Blows.Num() == 0 && Log && Log->Num() > 0)
+				{
+					const float Step = 1.2f;
+					int32 k = 0;
+					TWeakPtr<SFNHudLive> WeakSelf = StaticCastSharedRef<SFNHudLive>(AsShared());
+					for (const TSharedPtr<FJsonValue>& Ev : *Log)
+					{
+						const TSharedPtr<FJsonObject> E = Ev.IsValid() ? Ev->AsObject() : nullptr;
+						if (!E.IsValid() || FN7HudJson::Str(E, TEXT("event")) != TEXT("duel.blow")) continue;
+						FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7DuelReplay"), 0.6f + Step * k++, [WeakSelf, E, DuelId](float)
+						{
+							if (const TSharedPtr<SFNHudLive> Self = WeakSelf.Pin()) if (Self->Duel.IsValid() && Self->Duel->DuelId == DuelId) Self->HandleDuelEvent(E);
+							return false;
+						});
+					}
+					Duel->OverAt = FPlatformTime::Seconds() + 0.6 + Step * k + 1.5;   // the box closes 1.25 s after this
+					UE_LOG(LogTemp, Display, TEXT("FN7 duel watch: %s replays its %d blows in the tray"), *DuelId, k);
+				}
 			}
 			if (bGlidePending && GlideDuel == DuelId) bGlidePending = false;
 			if (bHaveSavedView && ViewDuel == DuelId) RestoreAt = FPlatformTime::Seconds() + 3.0;   // after the result banner
