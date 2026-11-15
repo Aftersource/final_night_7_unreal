@@ -8,7 +8,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Widgets/SWeakWidget.h"
 #include "InputCoreTypes.h"
-#include "../UI/FNTableGods.h"   // the kit owns the demigods' extended click box (FigureNear)
+#include "../UI/FNTableGods.h"
+#include "../UI/FN7KitHitTest.h"   // the kit owns the gesture rule (near-miss on a rival figure, kit UI, duel box)
 
 void AFNPlayerController::BeginPlay()
 {
@@ -121,7 +122,7 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 		if (bDouble && Id == NAME_None && !Root->WantsEmptyClick())
 		{
 			const FString Near = DemigodUnderCursor();
-			if (!Near.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked: over %s"), *Near); }
+			if (!Near.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked by %s"), *Near); }
 			else if (Studio->MapClick(true)) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: in at %.0f, %.0f"), Mouse.X, Mouse.Y); }
 		}
 	}
@@ -130,8 +131,8 @@ void AFNPlayerController::PlayerTick(float DeltaTime)
 		if (WasInputKeyJustPressed(EKeys::RightMouseButton))
 		{
 			// RIGHT-CLICK = one level out, unless the cursor is in a demigod's extended click box (then nothing happens).
-			const FString Near = DemigodUnderCursor();
-			if (!Near.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked: over %s"), *Near); }
+			const FString Near = RightClickBlockedBy();
+			if (!Near.IsEmpty()) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: blocked by %s"), *Near); }
 			else if (Studio->MapClick(false)) { UE_LOG(LogTemp, Display, TEXT("FN7 zoom: out")); }
 		}
 		if (WasInputKeyJustPressed(EKeys::Home)) Studio->MapHome();
@@ -142,5 +143,19 @@ FString AFNPlayerController::DemigodUnderCursor() const
 {
 	FVector2D Mouse;
 	if (!GetMousePosition(Mouse.X, Mouse.Y)) return FString();
-	return AFNTableGods::FigureNear(GetWorld(), Mouse, 160.0);   // the same reach the kit's wheel uses
+	// The kit's own rule, the same one its double-click uses: a near miss on a RIVAL's figure, a power hex, the pouch, the
+	// open duel box or a HUD panel blocks; empty board (or near your own demigod) doesn't. "" = not blocked.
+	return FN7Kit::WhyBlocked(GetWorld(), Mouse);
+}
+
+FString AFNPlayerController::RightClickBlockedBy() const
+{
+	// Chris's right-click rule: never inside ANY demigod's extended click zone (yours too), the kit's own near-miss zone
+	// (FigureAtScreen with the same 1.35x scale as FN7Kit), plus the kit's UI rules (power hex, pouch, duel box, panel).
+	FVector2D Mouse;
+	if (!GetMousePosition(Mouse.X, Mouse.Y)) return FString();
+	double D = 0.0;
+	const FString Fig = AFNTableGods::FigureAtScreen(GetWorld(), Mouse, nullptr, 1.35, &D);
+	if (!Fig.IsEmpty()) return FString::Printf(TEXT("figure %s (any) at %.0f px"), *Fig, D);
+	return FN7Kit::IsOverKitUI(GetWorld(), Mouse) ? FN7Kit::WhyBlocked(GetWorld(), Mouse) : FString();
 }
