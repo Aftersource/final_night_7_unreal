@@ -161,7 +161,47 @@
     "dodge_roll_back": "evade_roll",
     "sword_judgment": "heavy_charged"
    }
+  },
+  {
+   "step": 7,
+   "asset": "14 weapon-class clips (Chris: one handed, two handed, bows, rifle, rocket launcher, hammer-space)",
+   "provider": "Meshy",
+   "operation": "animate (3 credits each)",
+   "credits": 42,
+   "made_at": "2026-11-14",
+   "clip_action_ids": {
+    "bow_draw_shoot": 224,
+    "bow_quick_shot": 226,
+    "bow_aim_walk": 228,
+    "gun_side_shot": 104,
+    "gun_run_shoot": 98,
+    "gun_quick_draw": 232,
+    "gun_roll_fire": 235,
+    "gun_reload": 170,
+    "launcher_fire": 222,
+    "twohand_chop": 237,
+    "twohand_reap": 99,
+    "twohand_stance": 85,
+    "throw_object": 239,
+    "draw_from_nowhere": 236
+   },
+   "clip_fallbacks": {
+    "bow_draw_shoot": "strike_slash",
+    "bow_quick_shot": "strike_slash",
+    "bow_aim_walk": "walk",
+    "gun_side_shot": "strike_side",
+    "gun_run_shoot": "strike_side",
+    "gun_quick_draw": "strike_side",
+    "gun_roll_fire": "evade_roll",
+    "gun_reload": "idle_guard",
+    "launcher_fire": "heavy_charged",
+    "twohand_chop": "heavy_hammer",
+    "twohand_reap": "heavy_hammer",
+    "twohand_stance": "idle_guard",
+    "throw_object": "throw_shoulder",
+    "draw_from_nowhere": "taunt"
+   }
   }
  ],
- "total_credits": 219
+ "total_credits": 261
 }
