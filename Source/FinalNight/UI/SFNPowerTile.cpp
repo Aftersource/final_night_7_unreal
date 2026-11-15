@@ -142,6 +142,47 @@ TArray<TArray<FVector2f>> SFNPowerIcon::Strokes(const FString& InSlug)
 		S.Add(Circle(20.f, 12.5f, 1.7f, 12));
 		S.Add(Circle(9.5f, 19.5f, 1.7f, 12));
 	}
+	// The Will's four hot buttons (Chris, 2026-11-15: an ankh, a notched bow, a meal, and a scene of armies).
+	else if (K == TEXT("ankh"))
+	{
+		TArray<FVector2f> Loop;
+		for (int32 i = 0; i <= 20; ++i) { const float A = 2.f * PI * i / 20.f; Loop.Add(V(12.f + 3.6f * FMath::Sin(A), 6.6f - 4.4f * FMath::Cos(A))); }
+		S.Add(Loop);
+		S.Add(Poly({ V(4.5f, 12.5f), V(19.5f, 12.5f) }));
+		S.Add(Poly({ V(12, 11), V(12, 22) }));
+	}
+	else if (K == TEXT("bow"))
+	{
+		TArray<FVector2f> Arc;
+		for (int32 i = 0; i <= 14; ++i) { const float T = (float)i / 14.f, Y = 2.f + 20.f * T; Arc.Add(V(8.f + 9.f * FMath::Sin(PI * T), Y)); }
+		S.Add(Arc);
+		S.Add(Poly({ V(8, 2), V(4.5f, 12), V(8, 22) }));                    // the string, drawn back
+		S.Add(Poly({ V(4.5f, 12), V(22, 12) }));                            // the arrow, notched
+		S.Add(Poly({ V(19, 9.5f), V(22, 12), V(19, 14.5f) }));
+		S.Add(Poly({ V(6.5f, 10), V(4.5f, 12), V(6.5f, 14) }));             // fletching
+	}
+	else if (K == TEXT("meal"))
+	{
+		TArray<FVector2f> Dome, Plate;
+		for (int32 i = 0; i <= 14; ++i) { const float A = PI * i / 14.f; Dome.Add(V(12.f - 8.f * FMath::Cos(A), 16.f - 8.5f * FMath::Sin(A))); }
+		S.Add(Dome);
+		for (int32 i = 0; i <= 20; ++i) { const float A = 2.f * PI * i / 20.f; Plate.Add(V(12.f + 10.f * FMath::Cos(A), 18.f + 2.2f * FMath::Sin(A))); }
+		S.Add(Plate);
+		S.Add(Circle(12.f, 6.6f, 1.2f, 10));                                // the lid's knob
+		S.Add(Poly({ V(7, 5), V(7.9f, 3.5f), V(7, 2) }));                   // steam
+		S.Add(Poly({ V(17, 5), V(17.9f, 3.5f), V(17, 2) }));
+	}
+	else if (K == TEXT("armies"))
+	{
+		for (int32 k = 0; k < 3; ++k)
+		{
+			const float X = 4.f + 8.f * k, Top = k == 1 ? 3.f : 6.f;
+			S.Add(Poly({ V(X, 22), V(X, Top) }));                           // a spear
+			S.Add(Poly({ V(X, Top), V(X + 4.5f, Top + 1.6f), V(X, Top + 3.2f) }));   // its banner
+			S.Add(Circle(X, 18.f, 2.2f, 10));                               // a shield
+		}
+		S.Add(Poly({ V(1, 22), V(23, 22) }));
+	}
 	else
 	{
 		S.Add(Poly({ V(12, 2), V(14, 10), V(22, 12), V(14, 14), V(12, 22), V(10, 14), V(2, 12), V(10, 10), V(12, 2) }));
@@ -160,7 +201,7 @@ int32 SFNPowerIcon::OnPaint(const FPaintArgs&, const FGeometry& G, const FSlateR
 	const FLinearColor Tint = Color.Get() * Style.GetColorAndOpacityTint();
 	const FLinearColor Lip(1.f, 0.96f, 0.86f, 0.45f * Tint.A);   // the carved lip: a light line just below each stroke
 
-	for (const TArray<FVector2f>& Stroke : Strokes(Slug))
+	for (const TArray<FVector2f>& Stroke : Strokes(Slug.Get()))
 	{
 		TArray<FVector2f> Pts, LipPts;
 		Pts.Reserve(Stroke.Num());

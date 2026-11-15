@@ -99,6 +99,8 @@ struct FFNHudModel
 	TArray<FText> WillChipLabels;
 	TArray<FString> WillChipFills;
 	FText WillChipHint;
+	/** The WILL's hot buttons (icons, no text): which icon, its line (real names and places), its tooltip. */
+	TArray<FString> WillHotSlugs, WillHotFills, WillHotTips;
 };
 
 DECLARE_DELEGATE_OneParam(FOnFNHudSend, const FString& /*Text*/);
@@ -206,6 +208,8 @@ private:
 	EActiveTimerReturnType StartNewsRoll(double, float);
 	double NextNewsRollAt = 0.0;   // at most one roll cycle every 8 s (news comes in bursts)
 	bool bWillOpen = false;       // the WILL scroll: a slim rolled strip until clicked (or Enter), rolled up after SEND
+	double HotSendAt = 0.0;       // a hot button's line goes by itself at this time (5 s: the speed-typers' window)
+	FString HotText, HotSlug;     // what it put in the box (any edit stops the auto-send)
 	TSharedPtr<FSlateBrush> AuraFrameBrush;
 	FLinearColor AuraFrameColor = FLinearColor::Transparent;
 	const FSlateBrush* AuraFrame();
