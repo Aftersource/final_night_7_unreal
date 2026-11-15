@@ -77,18 +77,13 @@ void AFNEventGlide::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 		const TSharedPtr<FJsonObject> E = Val.IsValid() ? Val->AsObject() : nullptr;
 		const TArray<TSharedPtr<FJsonValue>>* At = nullptr;
 		if (!E.IsValid() || !E->TryGetArrayField(TEXT("at"), At) || !At || At->Num() < 2) continue;
-		// every string in the event, refs quoted (as the keys are)
-		FString Json;
-		TFunction<void(const TSharedPtr<FJsonValue>&)> Walk = [&](const TSharedPtr<FJsonValue>& X)
-		{
-			if (!X.IsValid()) return;
-			if (X->Type == EJson::String) Json += TEXT("\"") + X->AsString() + TEXT("\" ");
-			else if (X->Type == EJson::Array) for (const TSharedPtr<FJsonValue>& Y : X->AsArray()) Walk(Y);
-			else if (X->Type == EJson::Object) for (const TPair<FString, TSharedPtr<FJsonValue>>& Y : X->AsObject()->Values) Walk(Y.Value);
-		};
-		Walk(Val);
-		bool bMine = false;
-		for (const FString& K : MineKeys) bMine |= Json.Contains(K);
+		// Yours = YOUR demigod did it: the event's first ref is its doer (CLIENT_API round.outcome events[].refs: "Vex
+		// casts flood" -> ["dg:2"]; a target, when there is one, comes after it). A rival's cast on your demigod
+		// ("Oko's Left Hand casts storm clouds on <you>'s Left Hand") is theirs and never moves your view (Mac review
+		// 2026-11-15: matching any string in the event glided the view to rivals' casts on you).
+		const TArray<TSharedPtr<FJsonValue>>* Refs = nullptr;
+		const bool bMine = E->TryGetArrayField(TEXT("refs"), Refs) && Refs && Refs->Num() > 0 && (*Refs)[0].IsValid()
+			&& (*Refs)[0]->Type == EJson::String && MineKeys.Contains(TEXT("\"") + (*Refs)[0]->AsString() + TEXT("\""));
 		if (!bMine) continue;
 		FGo G;
 		G.Lon = (*At)[0]->AsNumber(); G.Lat = (*At)[1]->AsNumber();
