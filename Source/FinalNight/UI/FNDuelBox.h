@@ -85,6 +85,7 @@ private:
 	UPROPERTY() TObjectPtr<UTextRenderComponent> NameB;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> DrawerText;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> Burst;
+	UPROPERTY() TObjectPtr<UTextRenderComponent> RuleText;   // a blow's rules floating over its striker (~1.2 s)
 	UPROPERTY() TObjectPtr<USkeletalMeshComponent> FighterA;
 	UPROPERTY() TObjectPtr<USkeletalMeshComponent> FighterB;
 	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> Clips;
@@ -97,6 +98,9 @@ private:
 	float ShownHpA = 10.f, ShownHpB = 10.f;
 	float BurstLeft = 0.f, ShakeLeft = 0.f, ShakeAmp = 0.f;
 	FVector BurstAt = FVector::ZeroVector;
+	float RuleLeft = 0.f;
+	FVector RuleAt = FVector::ZeroVector;
+	bool bActionPanel = false;   // the panel fires or draws: "wide" frames the stage, not the lid
 	FString Caption;
 	FVector CamPos = FVector::ZeroVector, CamLook = FVector::ZeroVector;
 	bool bCamInit = false;

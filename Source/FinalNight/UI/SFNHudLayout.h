@@ -94,6 +94,10 @@ struct FFNHudModel
 	TArray<FFNHudSeat> Seats;
 	TArray<FFNHudNews> News;
 	TArray<FFNHudPower> Powers;
+	// Tappable will examples (players were unsure what to type): a chip's label, the line it fills (never sends).
+	TArray<FText> WillChipLabels;
+	TArray<FString> WillChipFills;
+	FText WillChipHint;
 };
 
 DECLARE_DELEGATE_OneParam(FOnFNHudSend, const FString& /*Text*/);
@@ -180,6 +184,7 @@ private:
 	float ChatFree = 400.f;                     // the chat's room this frame (layout px)
 	TWeakObjectPtr<class AFNTurnBar> TurnBar;   // Benito's top-centre turn bar: the big-moment banner goes below it
 	bool TurnBarShown() const;
+	TSharedRef<SWidget> MakeWillChips();
 	FString YouSignature, PowersSignature;   // rebuild those sections only when their content changes
 	FString MakeYouSignature() const;
 	bool bNewsCollapsed = false;

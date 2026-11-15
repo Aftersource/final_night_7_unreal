@@ -41,6 +41,7 @@
 #include "FNStarBackdrop.h"
 #include "FNEarthPlay.h"
 #include "SFNChat.h"
+#include "FNDuelRules.h"
 
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
@@ -1584,6 +1585,46 @@ void SFNHudLive::RequestPortrait(const FString& Hash, const FString& Url)
 
 void SFNHudLive::Publish()
 {
+	// The WILL's example lines, with your real names and places (they fill the box; you still edit and SEND).
+	{
+		Model.WillChipLabels.Reset();
+		Model.WillChipFills.Reset();
+		auto Add = [this](const FString& Fill, const FString& Label = FString()) { Model.WillChipFills.Add(Fill); Model.WillChipLabels.Add(FText::FromString(Label.IsEmpty() ? Fill : Label)); };
+		FString City = Model.Place.ToString(), Region;
+		if (City.Split(TEXT(", "), &City, &Region)) {} else Region = City;
+		if (City.IsEmpty()) City = TEXT("the harbour town");
+		if (Region.IsEmpty()) Region = City;
+		const FFNHudDemigod* Fallen = nullptr;
+		int32 Alive = 0;
+		double MyLa = 0.0, MyLo = 0.0;
+		bool bHavePos = false;
+		for (const FFNHudDemigod& D : Model.Mine)
+		{
+			if (D.bAlive) ++Alive; else if (!Fallen) Fallen = &D;
+			if (D.bAlive && !bHavePos) for (const FSeatInfo& Si : Seats) if (Si.Ref == D.Ref && Si.bHasPos) { MyLa = Si.Lat; MyLo = Si.Lon; bHavePos = true; }
+		}
+		// The nearest rival demigod (or any rival standing).
+		FString Rival;
+		double Best = 1e18;
+		for (const FSeatInfo& Si : Seats)
+		{
+			if (!Si.bAlive || MineRefs.Contains(Si.Ref) || Si.Name.IsEmpty()) continue;
+			const double D = bHavePos && Si.bHasPos ? FMath::Square(Si.Lat - MyLa) + FMath::Square((Si.Lon - MyLo) * FMath::Cos(FMath::DegreesToRadians(MyLa))) : 1e17;
+			if (D < Best) { Best = D; Rival = Si.Name; }
+		}
+		if (Rival.IsEmpty()) Rival = TEXT("the nearest rival");
+		auto HandOf = [](const FFNHudDemigod* D) { return D && D->Side == TEXT("left") ? FString(TEXT("Left Hand")) : FString(TEXT("Right Hand")); };
+		if (Model.Mine.Num() > 0 && Alive == 0)
+			Add(TEXT("Death, bring back my demigods"), TEXT("Both your demigods fell. Type: Death, bring back my demigods"));
+		Add(FString::Printf(TEXT("arm yourself with an obsidian blade in %s and hunt %s"), *City, *Rival));
+		Add(FString::Printf(TEXT("raise an army of 10,000 fishermen at the harbour of %s"), *City));
+		if (Fallen && Alive > 0) Add(FString::Printf(TEXT("Death, bring back my %s, I offer 2 bolts"), *HandOf(Fallen)));
+		else if (Alive > 0) Add(TEXT("Nature, heal my Right Hand"));
+		Add(FString::Printf(TEXT("r: march to %s and topple their shrine"), *Region));
+		Model.WillChipHint = Model.Mine.Num() > 0 && Alive == 0
+			? FText::FromString(TEXT("Death charges sparks; can't pay = a quest"))
+			: FText::FromString(TEXT("Name who, where and with what \u00B7 say how big \u00B7 pay a god in bolts \u00B7 r: = Right Hand"));
+	}
 	Model.Seats.Reset();
 	for (const FSeatInfo& S : Seats)
 	{
@@ -2055,7 +2096,10 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock, bool b
 	// Every duel, everyone's (flashes ... everyone centers on the fight ... the clash banner ... the globe
 	// has spun there as well"): the flash and the banner at once, the glide as soon as you aren't typing or dragging.
 	FlashStart = FPlatformTime::Seconds();
-	ShowBanner(LOCTEXT("Clash", "CLASH!"), FText::FromString(FString::Printf(TEXT("%s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.42f, 0.25f), 0.0, 5.0);
+	if (Info.bMine)
+		ShowBanner(LOCTEXT("YourDuel", "YOUR DUEL: TYPE!"), FText::FromString(FString::Printf(TEXT("each line is a blow  -  %s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.62f, 0.2f), 0.0, 6.0);
+	else
+		ShowBanner(LOCTEXT("Clash", "CLASH!"), FText::FromString(FString::Printf(TEXT("%s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.42f, 0.25f), 0.0, 5.0);
 	double La = 0.0, Lo = 0.0;
 	if (FN7LonLat(Lock, TEXT("at"), La, Lo))
 	{
@@ -2091,6 +2135,15 @@ void SFNHudLive::StartDuelSession(const TSharedPtr<FJsonObject>& Lock, bool bMin
 	S->MaxB = (float)FN7HudJson::Num(B, TEXT("max_health"), 10.0);
 	S->DeadlineMs = FN7HudJson::Num(Lock, TEXT("deadline_ms"), 0.0);
 	S->MySide = MineRefs.Contains(S->A) ? TEXT("a") : MineRefs.Contains(S->B) ? TEXT("b") : TEXT("");
+	if (!S->MySide.IsEmpty())
+	{
+		// The live wit meter's inputs (the server scores your fighter's held items and the foe's name, player and story).
+		const FString MyRef = S->MySide == TEXT("a") ? S->A : S->B, FoeRef = S->MySide == TEXT("a") ? S->B : S->A;
+		for (const FFNHudDemigod& D : Model.Mine) if (D.Ref == MyRef) S->WitItems = FN7DuelRules::LoreWords({ D.Gear });
+		TArray<FString> Foe = { S->MySide == TEXT("a") ? S->BName : S->AName };
+		for (const FSeatInfo& Si : Seats) if (Si.Ref == FoeRef) Foe.Add(Si.Player);
+		S->WitFoe = FN7DuelRules::LoreWords(Foe);
+	}
 	Duel = S;
 	KeysSentText.Reset();
 	KeysLatestText.Reset();
@@ -2376,8 +2429,9 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 			const double Dmg = FN7HudJson::Num(Bl, TEXT("damage"), 0.0);
 			FString Flavor = FN7HudJson::Str(Bl, TEXT("flavor"));
 			if (Flavor.Len() > 120) Flavor = Flavor.Left(117) + TEXT("...");
-			Duel->AddLog(FString::Printf(TEXT("%s%s: \"%s\"  d20 %d%s = %d vs %d: %s, %.1f dmg.  %s"), bCounter ? TEXT("counter, ") : TEXT(""), *ByName, *Text,
-				Roll, Mod ? *FString::Printf(TEXT(" %+d"), Mod) : TEXT(""), Total, Dc, *FN7HudJson::Str(Bl, TEXT("verdict")).Replace(TEXT("_"), TEXT(" ")).ToUpper(), Dmg, *Flavor));
+			// The line and its flavour, then (in its own colour) the rules that decided it (Benito: the rules were invisible).
+			(void)Roll; (void)Mod; (void)Total; (void)Dc; (void)Dmg;
+			Duel->AddLog(FString::Printf(TEXT("%s%s: \"%s\"  %s"), bCounter ? TEXT("counter, ") : TEXT(""), *ByName, *Text, *Flavor), FN7DuelRules::Breakdown(Bl), FN7DuelRules::Tone(Bl));
 			// An automatic counter (the AI's strikes come this way) clears nobody's typing, but its words still show on
 			// top: they type themselves out (the AI's typing should be visible).
 			if (FN7HudJson::Flag(Bl, TEXT("auto")) && !Text.IsEmpty() && Side != Duel->MySide)
@@ -2402,6 +2456,7 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 		UE_LOG(LogTemp, Display, TEXT("FN7 duel blow: %s n=%d by %s auto=%d %s %.1f dmg \"%s\""), *DuelId, (int32)FN7HudJson::Num(Pub, TEXT("n"), 0.0),
 			*FN7HudJson::Str(Pub, TEXT("by")), FN7HudJson::Flag(Pub, TEXT("auto")) ? 1 : 0, *FN7HudJson::Str(Pub, TEXT("verdict")),
 			FN7HudJson::Num(Pub, TEXT("damage"), 0.0), *FN7HudJson::Str(Pub, TEXT("text")).Left(40));
+		Duel->Blows.Add((int32)FN7HudJson::Num(Pub, TEXT("n"), (double)Duel->Blows.Num()), Pub);
 		LogBlow(Pub, false);
 		if (const TSharedPtr<FJsonObject> Counter = FN7HudJson::Obj(Pub, TEXT("counter"))) LogBlow(Counter, true);
 		const TSharedPtr<FJsonObject> HpAfter = FN7HudJson::Obj(Pub, TEXT("hp_after")).IsValid() ? FN7HudJson::Obj(Pub, TEXT("hp_after")) : FN7HudJson::Obj(Pub, TEXT("hp"));
@@ -2425,6 +2480,7 @@ void SFNHudLive::DuelSendLine(const FString& Line)
 	UFNNetClient* N = Net.Get();
 	if (!N || !Duel.IsValid() || Duel->MySide.IsEmpty() || Duel->bOver) return;
 	N->DuelLine(Round, Duel->DuelId, Line);   // a line is a blow: resolved at once by the server (duel.blow)
+	Duel->Said.Add(Line);                     // the wit meter flags a repeat as the server would
 	FFNDuelSession::FSideLine& L = Duel->Line(Duel->MySide);
 	L.Sent = Line;
 	L.SentAt = FPlatformTime::Seconds();
