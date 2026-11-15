@@ -296,6 +296,10 @@ void AFNStudio::BuildTable()
 		struct FAfter { TFunction<void()> F; bool bOn = true; ~FAfter() { if (bOn) F(); } } After{ [&]() { if (NM == NM0 && bNatureOk) Nature(); } };
 		// what stands on this hexagon: at most ONE thing (board-game rule). Same hexagon -> same answer, every visit.
 		if (NM >= FNTableScene::MaxMarks || Fog >= 2 || !FNTableScene::Livable(T.B)) continue;
+		{   // board life: burned / ruined / lava hexagons keep no houses or people (a flood leaves them standing, half sunk)
+			const EFNHexState Hs = HexStateAtHex(T.Q, T.Rr);
+			if (Hs == EFNHexState::Burning || Hs == EFNHexState::Ash || Hs == EFNHexState::Lava) continue;
+		}
 		const FVector Mid = FNTableScene::ActionC + FVector(T.X, T.Y, H);
 		const float Yaw = (float)FNTableScene::HexDice(T.Q, T.Rr, 40) * 90.f;
 		if (MapLevel == 0)        // PEOPLE: one character per hexagon; a house covers a hexagon and its 6 neighbours
