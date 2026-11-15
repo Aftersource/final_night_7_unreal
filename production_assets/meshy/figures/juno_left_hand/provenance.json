@@ -1,0 +1,85 @@
+{
+ "slug": "juno_left_hand",
+ "kind": "demigod",
+ "name": "Juno's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "d361ffc88de374dcbe434d1ddaba6b0bfb0f09de7487233834446763ef3c645f",
+   "file": {
+    "path": "figures/juno_left_hand/portrait.png",
+    "sha256": "648e18793448e3f65d651873bacbccefaeb97866b1fec5cc3bbdeee9798488f6",
+    "bytes": 1202255
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/juno_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a gaunt, angular demigod with a wild beard and storm-grey eyes, a long battered leather duster over a leather jerkin with shoulder armour and combat boots in copper and scarlet, an anchor wrapped in chain emblem on the chest, fully clothed and armoured, crouched low in a wide skater's stance, one hand holding a rune-etched skateboard up like a shield, the other arm swept back for balance, duster flaring. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1228,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 204
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7468
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/juno_left_hand/heroic.png",
+    "sha256": "d7ee2baf64375d15b5026f87c75d9b3ed94d6c5044313c7b5afd2f14473fc13f",
+    "bytes": 2253403
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/juno_left_hand/heroic.png",
+   "task_id": "01a1dd1f-5ddc-73c3-83b5-46df8fa8f8bf",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/juno_left_hand/juno_left_hand_statue.glb",
+     "sha256": "72d77f4074e199b2434cc24f38e73eb766bc0f68ccf4912e299db95bfe0e7d89",
+     "bytes": 36779336
+    },
+    {
+     "path": "figures/juno_left_hand/preview.png",
+     "sha256": "30bf904139ac065c293cdbec485d4f9f226911a58850c5bb6a1e5a182dacbe84",
+     "bytes": 149298
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

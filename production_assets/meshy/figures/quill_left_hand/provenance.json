@@ -1,0 +1,85 @@
+{
+ "slug": "quill_left_hand",
+ "kind": "demigod",
+ "name": "Quill's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "591ad7472766aeedb43ed34fda7bc467bd8b26cd8f55f04cc5392deae1ae5041",
+   "file": {
+    "path": "figures/quill_left_hand/portrait.png",
+    "sha256": "82a130b3ced09eb88c0ea8d36797d4f3c2f27dc4f3bccfdff1de51d02c38f7ef",
+    "bytes": 1417492
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/quill_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a wiry, long-limbed demigod with a wild beard and storm-grey eyes, a tattered royal cape over street clothes with a leather cuirass and bracers in silver and jet black, a clenched-fist emblem on the chest, fully clothed and armoured, mid-stride and turning to look back over the shoulder, one arm swinging a chain of glowing keys overhead like a flail, the cape flaring wide. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1226,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 202
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7466
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/quill_left_hand/heroic.png",
+    "sha256": "0a2d33068828670400f8d82fa8513a4cfe5c18884c622eded45631cb77a59f3a",
+    "bytes": 2276227
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/quill_left_hand/heroic.png",
+   "task_id": "01a1dd1d-9d5a-77d3-8dea-d84ee808835f",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/quill_left_hand/quill_left_hand_statue.glb",
+     "sha256": "7be588e17827aca7fa69e3541dcec4ebcc1a8aef7f8aeed6463b57fb200f62b4",
+     "bytes": 38073652
+    },
+    {
+     "path": "figures/quill_left_hand/preview.png",
+     "sha256": "abb42b102c8fc218173ec388bcf94cd118dcd39bd5eac584eec5d3241325661f",
+     "bytes": 153796
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

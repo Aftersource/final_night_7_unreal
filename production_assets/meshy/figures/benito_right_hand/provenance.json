@@ -1,0 +1,85 @@
+{
+ "slug": "benito_right_hand",
+ "kind": "demigod",
+ "name": "Benito's Right Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "d6c0b5644d6e7c77c1fc3558e09f9968d8f81b3e79854cfd9e67316435b3777c",
+   "file": {
+    "path": "figures/benito_right_hand/portrait.png",
+    "sha256": "52aadadce8d1c3c886de73c6fc4b5120bcd227d8fe8c3441399e97f1f7e6ad11",
+    "bytes": 1364228
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/benito_right_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a stocky, barrel-chested demigod with sharp cheekbones and glowing eyes, long flowing robes stitched with constellations over a chest plate and armoured bracers in sky blue and emerald, a coiled serpent emblem on the chest, fully clothed and armoured, standing with feet wide apart, one arm thrust out fanning a deck of oversized playing cards, the other hand raised high above the head, robes swirling around the legs. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1226,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 202
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7466
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/benito_right_hand/heroic.png",
+    "sha256": "e1f72aa42433183fb83923abe34567d6d41acdfa6b558f069b1539410d52626f",
+    "bytes": 2493566
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/benito_right_hand/heroic.png",
+   "task_id": "01a1dd1b-6e44-70ee-add8-b52b1841dbaa",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/benito_right_hand/benito_right_hand_statue.glb",
+     "sha256": "f727c1a9c3d5fd248c9c49acf3f2ca1f2da9e6a4d09306384f8e428d49285c02",
+     "bytes": 38934992
+    },
+    {
+     "path": "figures/benito_right_hand/preview.png",
+     "sha256": "b8aa871e008f9b7855e50d0308a62f879f668a6a49682d1647b8f403998f5c05",
+     "bytes": 129725
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

@@ -1,0 +1,85 @@
+{
+ "slug": "sable_left_hand",
+ "kind": "demigod",
+ "name": "Sable's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "6555442cedc21d3d518aa9018843613c2be1b39495d5d19323b4a13059e11261",
+   "file": {
+    "path": "figures/sable_left_hand/portrait.png",
+    "sha256": "c1157a4f5686105eecaddd86a7b4642b013b505277aff0619317a4d7bfbc923c",
+    "bytes": 1503881
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/sable_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a tall, willowy demigod with a round face and a broad gap-toothed grin, a tracksuit with long sleeves and trousers under a ceremonial breastplate in silver and lime, armoured shoulders and boots, a glowing clenched-fist emblem on the chest, fully clothed and armoured, standing tall with legs apart and both arms thrown up in a big victory V, a bone megaphone in one raised hand, laughing. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1225,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 201
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7465
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/sable_left_hand/heroic.png",
+    "sha256": "192e2d768048ab8928ea8b2729ab61ebab422617e113fdf9e7a7db33b5b09c48",
+    "bytes": 2432467
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/sable_left_hand/heroic.png",
+   "task_id": "01a1dd1d-9d5e-76cb-92c6-9f91790c9fd4",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/sable_left_hand/sable_left_hand_statue.glb",
+     "sha256": "3401d7442840540480b6ecca0e870fbd224ac3df639ca3ea619d5042ebb63b0c",
+     "bytes": 25427844
+    },
+    {
+     "path": "figures/sable_left_hand/preview.png",
+     "sha256": "becb21dc75c58999290a66fdceb9429f8ee6479e3834a5b94dcd22312ae9319f",
+     "bytes": 107713
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

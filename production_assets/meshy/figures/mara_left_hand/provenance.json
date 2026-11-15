@@ -1,0 +1,85 @@
+{
+ "slug": "mara_left_hand",
+ "kind": "demigod",
+ "name": "Mara's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "9a8a6c0a29b3f77f61bbc03b698697dc89eb1e3faee908d25f8f9a0f9fef4e4b",
+   "file": {
+    "path": "figures/mara_left_hand/portrait.png",
+    "sha256": "9dc78926f92ed5ccf2dde189c2d495064d658ec788cb3ec81eaee70c7d229752",
+    "bytes": 1498643
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/mara_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a compact, muscular demigod with a cracked porcelain half-mask and a laurel crown, a wrestling singlet under a scale breastplate with pauldrons, bracers and greaves in ivory and scarlet, a grinning skull emblem on the chest, fully clothed and armoured with no bare torso, charging forward mid-stride with a war banner on a broken spear gripped in both hands and levelled like a lance, the banner streaming behind. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1229,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 205
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7469
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/mara_left_hand/heroic.png",
+    "sha256": "d75351ee592f3088ba73763df391b7c1dd998435e502d90eccb8f9777b9564de",
+    "bytes": 2493429
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/mara_left_hand/heroic.png",
+   "task_id": "01a1dd1b-6e4e-7705-87a0-b2effae65129",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/mara_left_hand/mara_left_hand_statue.glb",
+     "sha256": "606b428e4ee5ff7cd0fe10543828f5d20f28fd98931425be8b8ff55493896044",
+     "bytes": 34098552
+    },
+    {
+     "path": "figures/mara_left_hand/preview.png",
+     "sha256": "635b11b691eabd13aea16f8a993ca1a59d2aa3ebbfd230d021587feb29c5f515",
+     "bytes": 140311
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

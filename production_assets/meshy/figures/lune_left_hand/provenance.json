@@ -1,0 +1,85 @@
+{
+ "slug": "lune_left_hand",
+ "kind": "demigod",
+ "name": "Lune's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "39818eb380362967ec4898e6eed83b09eb503cf6e8d65bf810d135b2ee8dca52",
+   "file": {
+    "path": "figures/lune_left_hand/portrait.png",
+    "sha256": "e446a7a9f2bc7c27704255e4f9d8d601d3e62d5049806a757fd3a6e52c87da6a",
+    "bytes": 1386795
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/lune_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a wiry, long-limbed demigod with sharp cheekbones and glowing eyes, a tracksuit with long sleeves and trousers under a ceremonial breastplate in teal and lime, armoured gauntlets and sneakers, a crossed key and sword emblem on the chest, fully clothed and armoured, dropped into a deep side lunge with one leg bent and the other stretched out, shouting into a bone megaphone held up to the mouth, the free arm flung out wide. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1234,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 210
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7474
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/lune_left_hand/heroic.png",
+    "sha256": "0056122893dd35e8a02eed100b240482ae1370f36c5ab3b1e494bcce3bec9255",
+    "bytes": 2195157
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/lune_left_hand/heroic.png",
+   "task_id": "01a1dd1d-9d8f-7560-9660-47c2ebac892f",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/lune_left_hand/lune_left_hand_statue.glb",
+     "sha256": "80dd8aa1b91ecf8d8f50308530d0c3038d02c72352ff7442a1f479d593669ef6",
+     "bytes": 24008948
+    },
+    {
+     "path": "figures/lune_left_hand/preview.png",
+     "sha256": "365330be6f4fb26dfec5f62bf8f1be3c4959baa066542f92947858fe8c8b909e",
+     "bytes": 140764
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

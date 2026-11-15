@@ -1,0 +1,85 @@
+{
+ "slug": "oko_left_hand",
+ "kind": "demigod",
+ "name": "Oko's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "e329564966847c91cc660f51a0662abbd8f4e00b88d82007624c6892a211c1b4",
+   "file": {
+    "path": "figures/oko_left_hand/portrait.png",
+    "sha256": "b7d056c0e3129a8dcae917bb6e99a1748b5adb3a4ef7b23cf3ae40c179ab7850",
+    "bytes": 1254417
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/oko_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a towering, broad-shouldered demigod with a pointed chin and mismatched eyes, a tuxedo with a torn sleeve, armoured shoulder plates and shin guards in cobalt and bronze, a winged hourglass emblem on the chest, fully clothed and armoured, standing tall and upright with one arm thrust straight up holding a glass jar of captured lightning aloft, the other hand gripping the lapel, coat tails flaring. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1223,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 199
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7463
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/oko_left_hand/heroic.png",
+    "sha256": "530928a87603259e7d918ddb368144b854b2463e03860dc76bf511bba16d0e7a",
+    "bytes": 2354071
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/oko_left_hand/heroic.png",
+   "task_id": "01a1dd1d-9d75-7292-8615-27de3d16a247",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/oko_left_hand/oko_left_hand_statue.glb",
+     "sha256": "a3ff824d0ca95f455a412f26ae839eefd40ea86f596a45193c929a4c4b9c0ccb",
+     "bytes": 23625776
+    },
+    {
+     "path": "figures/oko_left_hand/preview.png",
+     "sha256": "95a711aeb380e1f5d8c4d45f046b049789cb059035977869b0e1974403fb3924",
+     "bytes": 116540
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}

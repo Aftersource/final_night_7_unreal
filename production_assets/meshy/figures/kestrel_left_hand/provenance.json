@@ -1,0 +1,85 @@
+{
+ "slug": "kestrel_left_hand",
+ "kind": "demigod",
+ "name": "Bot Kestrel's Left Hand",
+ "lineage": [
+  {
+   "step": 1,
+   "asset": "portrait",
+   "provider": "fn7-media (OpenAI gpt-image-1-mini, /images/edits with style references)",
+   "source": "the live server's media cache",
+   "media_hash": "3947f0445e1f5720450cab832b1e9de71571774d75fd1f9382f1e51a44dd0276",
+   "file": {
+    "path": "figures/kestrel_left_hand/portrait.png",
+    "sha256": "f77c92e971855f253428cd0e84e9b6922fbb06ab0338ad06bc7ab7473176a59d",
+    "bytes": 1532718
+   }
+  },
+  {
+   "step": 2,
+   "asset": "heroic reference image",
+   "provider": "OpenAI",
+   "model": "gpt-image-1-mini",
+   "endpoint": "POST /v1/images/edits",
+   "size": "1024x1536",
+   "quality": "high",
+   "reference_images": [
+    "figures/kestrel_left_hand/portrait.png"
+   ],
+   "prompt": "A single full-body figure of this same character as a collectible hand-painted tabletop miniature statue in a HEROIC POSE: a round, sturdy demigod with long silver braids and a serene stare under a raised hood, ornate plate armour over a hooded robe in violet and bronze, a coiled serpent emblem on the chest, fully clothed and armoured, standing in a calm commanding pose with one arm extended high holding a fan of oversized playing cards, the other hand at the chest clutching the deck, robe sweeping around the feet. Whole body visible from head to toe with space around it, feet planted on the ground, limbs clearly separated from the body, strong readable silhouette, chunky stylized shapes, slightly large head and hands, dark-fantasy PS2-era look. Plain flat light grey background, soft even studio light, no cast shadow on the background, no base, no pedestal, no text, no other figures.",
+   "made_at": "2026-11-14",
+   "usage": {
+    "input_tokens": 1220,
+    "input_tokens_details": {
+     "image_tokens": 1024,
+     "text_tokens": 196
+    },
+    "output_tokens": 6240,
+    "output_tokens_details": {
+     "image_tokens": 6240,
+     "text_tokens": 0
+    },
+    "total_tokens": 7460
+   },
+   "cost_usd": 0.055,
+   "cost_note": "from the response usage: $0.052 per 1024x1536 high image + input image tokens at $2.50/M + input text tokens at $2/M (fn7-media generator.rs rates)",
+   "file": {
+    "path": "figures/kestrel_left_hand/heroic.png",
+    "sha256": "6c83de02bbcc4f32e5fba2568ed7ea6d9877ed6ee2c3f7b6032abc2dc454da93",
+    "bytes": 2492197
+   }
+  },
+  {
+   "step": 3,
+   "asset": "heroic statue (static textured mesh)",
+   "provider": "Meshy",
+   "cli": "meshy-cli 0.4.0",
+   "operation": "image-to-3d",
+   "params": {
+    "model_type": "standard",
+    "should_texture": true,
+    "enable_pbr": true,
+    "texture_resolution": "2k",
+    "target_formats": "glb,fbx"
+   },
+   "input": "figures/kestrel_left_hand/heroic.png",
+   "task_id": "01a1dd1f-5dfe-720b-9d85-2a91223170b0",
+   "status": "SUCCEEDED",
+   "credits": 30,
+   "made_at": "2026-11-14",
+   "files": [
+    {
+     "path": "figures/kestrel_left_hand/kestrel_left_hand_statue.glb",
+     "sha256": "9e6b4e7d104bfa931d6755fa40da1658b32c5fc654d422a4a203e89ba9e1aa25",
+     "bytes": 31507116
+    },
+    {
+     "path": "figures/kestrel_left_hand/preview.png",
+     "sha256": "72ba93b99cc151c3d75627cd3507815ce4d89622f38fbcf85a3df7881a6e09f1",
+     "bytes": 132252
+    }
+   ],
+   "fbx": "kept locally, not committed (size)"
+  }
+ ]
+}
