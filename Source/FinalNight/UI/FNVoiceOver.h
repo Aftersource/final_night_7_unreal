@@ -16,7 +16,9 @@
  */
 namespace FN7Voice
 {
-	enum class ELine : uint8 { Welcome, Intro, Clash, Victory, Defeat, DuelWon, DuelLost, Count };
+	enum class ELine : uint8 { Welcome, Intro, Clash, Victory, Defeat, DuelWon, DuelLost,
+		// batch 2 (doomcast, 2026-11-15)
+		TimeSlowed, OrdersCut, FinalWish, HeatDeathNear, DemigodFalls, YourDemigodFalls, RaisedByDeath, Challenged, Knockout, Count };
 	FINALNIGHT_API void Say(ELine Line);
 	/** Say it only the first time this run sees Key (a match id, a duel id, "welcome"). */
 	FINALNIGHT_API void SayOnce(ELine Line, const FString& Key);

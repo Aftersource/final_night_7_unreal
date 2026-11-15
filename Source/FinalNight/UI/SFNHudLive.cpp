@@ -1048,6 +1048,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		bInRoom = true;
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
+		if (FN7HudJson::Flag(Pub, TEXT("final_wish"))) FN7Voice::SayOnce(FN7Voice::ELine::FinalWish, MatchId);   // "Every order is a final wish."
 		Round = (int32)FN7HudJson::Num(D, TEXT("round"), Round);
 		Model.Beat = (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round);
 		HandleLooks(Pub);
@@ -1085,6 +1086,26 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	{
 		const TSharedPtr<FJsonObject> Pub = FN7HudJson::Obj(D, TEXT("public"));
 		ReadEntropy(FN7HudJson::Obj(Pub, TEXT("entropy")));
+		{
+			// Who fell this beat (names), yours or another's; and Death's raisings (dm_events[] demigod.raised).
+			bool bYours = false, bOther = false;
+			if (const TArray<TSharedPtr<FJsonValue>>* El = FN7HudJson::Arr(Pub, TEXT("eliminated")))
+				for (const TSharedPtr<FJsonValue>& V : *El)
+				{
+					const FString Nm = V.IsValid() && V->Type == EJson::String ? V->AsString() : (V.IsValid() && V->AsObject().IsValid() ? FN7HudJson::Str(V->AsObject(), TEXT("name")) : FString());
+					if (Nm.IsEmpty()) continue;
+					bool bMineName = false;
+					for (const FFNHudDemigod& Dm : Model.Mine) bMineName |= Dm.Name.ToString() == Nm;
+					(bMineName ? bYours : bOther) = true;
+				}
+			const FString BeatKey = FString::Printf(TEXT("%s:%d"), *MatchId, (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round));
+			if (bYours) FN7Voice::SayOnce(FN7Voice::ELine::YourDemigodFalls, BeatKey);
+			else if (bOther) FN7Voice::SayOnce(FN7Voice::ELine::DemigodFalls, BeatKey);
+			if (const TArray<TSharedPtr<FJsonValue>>* Dm = FN7HudJson::Arr(Pub, TEXT("dm_events")))
+				for (const TSharedPtr<FJsonValue>& V : *Dm)
+					if (V.IsValid() && V->AsObject().IsValid() && FN7HudJson::Str(V->AsObject(), TEXT("event")) == TEXT("demigod.raised"))
+						FN7Voice::SayOnce(FN7Voice::ELine::RaisedByDeath, BeatKey + FN7HudJson::Str(V->AsObject(), TEXT("demigod")));
+		}
 		HandleDuelsOutcome(Pub);   // duels_open[] (the live score) and duels[] (challenge.end)
 		HandleLooks(Pub);          // gear looks: look.changed (and its "ready" twin)
 		const FText BeatTag = FText::Format(LOCTEXT("BeatTag", "BEAT {0}"), (int32)FN7HudJson::Num(Pub, TEXT("beat"), Round));
@@ -1212,6 +1233,9 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 			if (Ev == TEXT("duel.scene") || Ev == TEXT("duel.panel") || Ev == TEXT("duel.typing") || Ev == TEXT("duel.blow")
 				|| Ev == TEXT("duel.typing_script") || Ev == TEXT("challenge.end")) { HandleDuelEvent(Pub); return; }
 		}
+		// Time's voice for everyone when someone slows time (batch 2: "The clock is held. Someone has an appointment.")
+		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("slowed"))
+			FN7Voice::SayOnce(FN7Voice::ELine::TimeSlowed, FString::Printf(TEXT("%s:%d:%d"), *MatchId, Round, (int32)FN7HudJson::Num(Pub, TEXT("by_seat"), -2)));
 		// Time slowed: when it is you, the Slowed event carries the bill's terms (rules 0.7.0).
 		if (FN7HudJson::Str(Pub, TEXT("event")) == TEXT("slowed") && (int32)FN7HudJson::Num(Pub, TEXT("by_seat"), -2) == MySeat && MySeat >= 0)
 		{
@@ -1274,7 +1298,11 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 				Toast(Why ? *Why : FString::Printf(TEXT("Summon refused: %s"), *Reason));
 				AddNews(LOCTEXT("Refused", "REFUSED"), Why ? *Why : Reason);
 			}
-			else AddNews(LOCTEXT("Refused", "REFUSED"), Reason == TEXT("cut") ? TEXT("Too slow: the window closed before your orders arrived.") : Reason);
+			else
+			{
+				AddNews(LOCTEXT("Refused", "REFUSED"), Reason == TEXT("cut") ? TEXT("Too slow: the window closed before your orders arrived.") : Reason);
+				if (Reason == TEXT("cut")) FN7Voice::Say(FN7Voice::ELine::OrdersCut);   // "Too late. Your orders missed the hour."
+			}
 		}
 	}
 	else if (T == TEXT("error"))
@@ -1557,6 +1585,12 @@ void SFNHudLive::ReadEntropy(const TSharedPtr<FJsonObject>& E)
 	if (!E.IsValid()) return;
 	Model.Entropy = FText::FromString(FString::Printf(TEXT("%s %d"), *FN7HudJson::Str(E, TEXT("key")).ToUpper(), FMath::RoundToInt(FN7HudJson::Num(E, TEXT("value")))));
 	if (AFNStudio* St = FindStudio()) St->SetEntropy01((float)FN7HudJson::Num(E, TEXT("value")) / 100.f);   // the bed swells with it
+	{
+		// Entropy laughs as the world nears its heat death (batch 2): once when it enters the 80 band.
+		const double Ev = FN7HudJson::Num(E, TEXT("value"), 0.0);
+		if (Ev >= 80.0 && LastEntropy >= 0.0 && LastEntropy < 80.0) FN7Voice::SayOnce(FN7Voice::ELine::HeatDeathNear, MatchId);
+		LastEntropy = Ev;
+	}
 }
 
 void SFNHudLive::ReadPowers(const TArray<TSharedPtr<FJsonValue>>& Powers)
@@ -2230,7 +2264,8 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock, bool b
 	// has spun there as well"): the flash and the banner at once, the glide as soon as you aren't typing or dragging.
 	FlashStart = FPlatformTime::Seconds();
 	if (AFNStudio* Sst = FindStudio()) FN7Sound::Play(Sst->GetWorld(), FN7Sound::ESnd::Clash, Info.bMine ? 0.6f : 0.35f);   // steel on steel
-	if (Info.bMine && !bRestore) FN7Voice::SayOnce(FN7Voice::ELine::Clash, DuelId);   // "CLASH! Will against will."
+	if (Info.bMine && !bRestore)
+		FN7Voice::SayOnce(MineRefs.Contains(Info.B) && !MineRefs.Contains(Info.A) ? FN7Voice::ELine::Challenged : FN7Voice::ELine::Clash, DuelId);   // the target: "You have been challenged. Type!"; the challenger: "CLASH!"
 	if (Info.bMine)
 		ShowBanner(LOCTEXT("YourDuel", "YOUR DUEL: TYPE!"), FText::FromString(FString::Printf(TEXT("each line is a blow  -  %s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.62f, 0.2f), 0.0, 6.0);
 	else
@@ -2937,6 +2972,7 @@ void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
 			const bool bKo = FN7HudJson::Flag(O, TEXT("ko"));
 			const FString Deed = FN7HudJson::Str(O, TEXT("deed"));
 			const bool bMine = MineRefs.Contains(Ar) || MineRefs.Contains(Br);
+			if (Reason == TEXT("ko")) FN7Voice::SayOnce(FN7Voice::ELine::Knockout, DuelId);   // "Knockout! The duel is over." (everyone)
 			const FString WinName = Winner == Ar ? An : Winner == Br ? Bn : FString();
 			const FString Line = !Deed.IsEmpty() ? Deed
 				: WinName.IsEmpty() ? FString::Printf(TEXT("%s and %s fight to a draw"), *An, *Bn)

@@ -23,7 +23,16 @@ namespace FN7VoiceImpl
 			TEXT("/Game/Audio/VO/VO_Victory.VO_Victory"),     // fn7_victory_god.wav
 			TEXT("/Game/Audio/VO/VO_Defeat.VO_Defeat"),       // fn7_defeat_god.wav
 			TEXT("/Game/Audio/VO/VO_DuelWon.VO_DuelWon"),     // fn7_duel_won_god.wav
-			TEXT("/Game/Audio/VO/VO_DuelLost.VO_DuelLost") }; // fn7_duel_lost_god.wav
+			TEXT("/Game/Audio/VO/VO_DuelLost.VO_DuelLost"),   // fn7_duel_lost_god.wav
+			TEXT("/Game/Audio/VO/VO_TimeSlowed.VO_TimeSlowed"),             // fn7_time_slowed_god.wav (Time)
+			TEXT("/Game/Audio/VO/VO_OrdersCut.VO_OrdersCut"),               // fn7_orders_cut_god.wav (Time)
+			TEXT("/Game/Audio/VO/VO_FinalWish.VO_FinalWish"),               // fn7_final_wish_god.wav
+			TEXT("/Game/Audio/VO/VO_HeatDeathNear.VO_HeatDeathNear"),       // fn7_heat_death_near_god.wav (Entropy)
+			TEXT("/Game/Audio/VO/VO_DemigodFalls.VO_DemigodFalls"),         // fn7_demigod_falls_god.wav
+			TEXT("/Game/Audio/VO/VO_YourDemigodFalls.VO_YourDemigodFalls"), // fn7_your_demigod_falls_god.wav
+			TEXT("/Game/Audio/VO/VO_RaisedByDeath.VO_RaisedByDeath"),       // fn7_raised_by_death_god.wav (Death)
+			TEXT("/Game/Audio/VO/VO_Challenged.VO_Challenged"),             // fn7_challenged_god.wav
+			TEXT("/Game/Audio/VO/VO_Knockout.VO_Knockout") };               // fn7_knockout_god.wav
 		return (int32)L < UE_ARRAY_COUNT(A) ? A[(int32)L] : nullptr;
 	}
 	static TWeakObjectPtr<UAudioComponent> Current;   // rooted while it speaks
@@ -93,7 +102,8 @@ namespace FN7VoiceImpl
 
 const TCHAR* FN7Voice::Name(ELine L)
 {
-	static const TCHAR* N[] = { TEXT("welcome"), TEXT("intro"), TEXT("clash"), TEXT("victory"), TEXT("defeat"), TEXT("duel won"), TEXT("duel lost") };
+	static const TCHAR* N[] = { TEXT("welcome"), TEXT("intro"), TEXT("clash"), TEXT("victory"), TEXT("defeat"), TEXT("duel won"), TEXT("duel lost"),
+		TEXT("time slowed"), TEXT("orders cut"), TEXT("final wish"), TEXT("heat death near"), TEXT("a demigod falls"), TEXT("your demigod falls"), TEXT("raised by death"), TEXT("challenged"), TEXT("knockout") };
 	return (int32)L < UE_ARRAY_COUNT(N) ? N[(int32)L] : TEXT("?");
 }
 
