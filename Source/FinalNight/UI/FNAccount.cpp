@@ -23,7 +23,7 @@ namespace FN7AccountState
 {
 	static FN7Account::FConfig Config;
 	static FN7Account::FAccount Me;
-	static FString Token;          // in memory once read; never logged
+	static FString SessionToken;          // in memory once read; never logged
 	static bool bTokenRead = false;
 	static int32 RetryAfter = 0;
 	// Google: the poll token stays in memory only.
@@ -40,13 +40,13 @@ namespace FN7AccountState
 		if (bTokenRead) return;
 		bTokenRead = true;
 		FString S;
-		if (FFileHelper::LoadFileToString(S, *TokenPath())) Token = S.TrimStartAndEnd();
-		UE_LOG(LogTemp, Display, TEXT("FN7 account: session file %s"), Token.IsEmpty() ? TEXT("none") : *FString::Printf(TEXT("read (%d chars)"), Token.Len()));
+		if (FFileHelper::LoadFileToString(S, *TokenPath())) SessionToken = S.TrimStartAndEnd();
+		UE_LOG(LogTemp, Display, TEXT("FN7 account: session file %s"), SessionToken.IsEmpty() ? TEXT("none") : *FString::Printf(TEXT("read (%d chars)"), SessionToken.Len()));
 	}
 
 	static void StoreToken(const FString& T)
 	{
-		Token = T;
+		SessionToken = T;
 		bTokenRead = true;
 		const FString Path = TokenPath();
 		IFileManager::Get().MakeDirectory(*FPaths::GetPath(Path), true);
@@ -61,7 +61,7 @@ namespace FN7AccountState
 
 	static void DropToken()
 	{
-		Token.Reset();
+		SessionToken.Reset();
 		bTokenRead = true;
 		IFileManager::Get().Delete(*TokenPath(), false, true, true);
 		Me = FN7Account::FAccount();
@@ -130,7 +130,7 @@ namespace FN7AccountState
 		Req->SetVerb(Verb);
 		Req->SetTimeout(15.f);
 		Req->SetHeader(TEXT("Accept"), TEXT("application/json"));
-		if (bAuth && !Token.IsEmpty()) Req->SetHeader(TEXT("Authorization"), TEXT("Bearer ") + Token);
+		if (bAuth && !SessionToken.IsEmpty()) Req->SetHeader(TEXT("Authorization"), TEXT("Bearer ") + SessionToken);
 		if (Body.IsValid())
 		{
 			Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
@@ -155,7 +155,7 @@ using namespace FN7AccountState;
 
 const FN7Account::FConfig& FN7Account::Config() { return FN7AccountState::Config; }
 const FN7Account::FAccount& FN7Account::Me() { return FN7AccountState::Me; }
-bool FN7Account::HasToken() { ReadToken(); return !Token.IsEmpty(); }
+bool FN7Account::HasToken() { ReadToken(); return !SessionToken.IsEmpty(); }
 bool FN7Account::IsSignedIn() { return HasToken() && FN7AccountState::Me.bValid; }
 int32 FN7Account::LastRetryAfter() { return RetryAfter; }
 
