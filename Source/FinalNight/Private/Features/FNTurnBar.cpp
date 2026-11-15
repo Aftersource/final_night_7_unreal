@@ -53,14 +53,14 @@ void AFNTurnBar::BeginPlay()
 	// left end is at 54 px). The HUD's own top-centre banner moves below this bar while it shows.
 	auto Font = [](int32 Size, const TCHAR* Style) { return FN7Style::Type::Font(Size, Style); };
 	Widget = SNew(SBox)
-		.HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 92.f, 0.f, 0.f))
+		.HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(26.f, 62.f, 0.f, 0.f))   // under the title, clear of the duel box at the top centre
 		.Visibility_Lambda([W]() { return W.IsValid() && W->IsShown() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 		[
 			SNew(SBorder)
 			.BorderImage(FN7Style::Brush::Panel())
 			.Padding(FMargin(18.f, 8.f))
 			[
-				SNew(SBox).MinDesiredWidth(560.f)
+				SNew(SBox).WidthOverride(380.f)   // narrow enough to end before the duel box at the top centre (it starts ~460 px in)
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
@@ -83,7 +83,7 @@ void AFNTurnBar::BeginPlay()
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 3.f, 0.f, 0.f)
 					[
-						SNew(STextBlock).Font(Font(11, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.7f, 0.72f, 0.8f))
+						SNew(STextBlock).Font(Font(11, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.7f, 0.72f, 0.8f)).AutoWrapText(true).Justification(ETextJustify::Center)
 						.Text_Lambda([W]() { return W.IsValid() ? W->LineGoal() : FText::GetEmpty(); })
 					]
 				]
@@ -137,8 +137,20 @@ void AFNTurnBar::ReadPublic(const TSharedPtr<FJsonObject>& P)
 
 void AFNTurnBar::ReadMine(const TSharedPtr<FJsonObject>& View)
 {
+	if (!View.IsValid()) return;
+	// the server's next-move hint + goal (state schema 18); ours stay as the fallback when absent
+	const TSharedPtr<FJsonObject>* Hint = nullptr;
+	if (View->TryGetObjectField(TEXT("hint"), Hint) && Hint)
+	{
+		const FString Tx = (*Hint)->GetStringField(TEXT("text")), Why = (*Hint)->GetStringField(TEXT("why"));
+		ServerHint = Why.IsEmpty() ? Tx : Tx + TEXT("  ") + Why;
+	}
+	const TSharedPtr<FJsonObject>* GoalO = nullptr;
+	FString GoalStr;
+	if (View->TryGetStringField(TEXT("goal"), GoalStr)) ServerGoal = GoalStr;
+	else if (View->TryGetObjectField(TEXT("goal"), GoalO) && GoalO) ServerGoal = (*GoalO)->GetStringField(TEXT("text"));
 	const TArray<TSharedPtr<FJsonValue>>* Hands = nullptr;
-	if (!View.IsValid() || !View->TryGetArrayField(TEXT("demigods"), Hands) || !Hands) return;
+	if (!View->TryGetArrayField(TEXT("demigods"), Hands) || !Hands) return;
 	for (TPair<FString, FDg>& It : Dgs) It.Value.bMine = false;
 	for (const TSharedPtr<FJsonValue>& V : *Hands)
 	{
@@ -165,6 +177,7 @@ void AFNTurnBar::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 	if (D->TryGetObjectField(TEXT("you"), O) && O && (*O)->TryGetObjectField(TEXT("private_state"), V) && V) ReadMine(*V);
 	if (D->TryGetObjectField(TEXT("private"), V) && V) ReadMine(*V);
 	if (D->TryGetObjectField(TEXT("state"), V) && V) ReadMine(*V);
+	if (Type == TEXT("game.me")) ReadMine(D);
 	const double Now = NowMs();
 	if (Type == TEXT("phase.changed"))
 	{
@@ -182,7 +195,7 @@ void AFNTurnBar::OnMessage(const FString& Type, TSharedPtr<FJsonObject> D)
 		if (DeadlineMs < Now) { BeatStartMs = Now; DeadlineMs = Now + BeatLenMs; }
 	}
 	else if (Type == TEXT("match.ended")) Beat = 0;
-	else if (Type == TEXT("match.started")) Dgs.Reset();
+	else if (Type == TEXT("match.started")) { Dgs.Reset(); ServerHint.Reset(); ServerGoal.Reset(); }
 }
 
 float AFNTurnBar::BeatLeft() const
@@ -212,6 +225,7 @@ FText AFNTurnBar::LineHint() const
 	bool bAnyMine = false;
 	for (const TPair<FString, FDg>& It : Dgs) bAnyMine |= It.Value.bMine;
 	if (!bAnyMine) return FText::FromString(TEXT("Watching. Take a seat to play."));
+	if (!ServerHint.IsEmpty()) return FText::FromString(ServerHint);
 	if (Mine.Num() == 0) return FText::FromString(TEXT("Both your demigods have fallen.  Write to DEATH in your WILL to bring one back."));
 	// 1) outside Time's circle: it gets hurt every beat
 	if (ArenaKm > 0)
@@ -237,6 +251,7 @@ FText AFNTurnBar::LineHint() const
 
 FText AFNTurnBar::LineGoal() const
 {
+	if (!ServerGoal.IsEmpty()) return FText::FromString(ServerGoal);
 	int32 MineAlive = 0;
 	for (const TPair<FString, FDg>& It : Dgs) if (It.Value.bMine && It.Value.bAlive) ++MineAlive;
 	const FString Left = BeatsTotal > 0 ? FString::Printf(TEXT("   |   %d beats to go"), FMath::Max(0, BeatsTotal - Beat)) : FString();
