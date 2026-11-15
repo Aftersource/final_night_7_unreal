@@ -656,7 +656,8 @@ void AFNStudio::UpdateTable(float Dt)
 		PickPin->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		for (int32 i = 0; i < 12; ++i)
 		{
-			UStaticMeshComponent* M = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("BeamRay%d"), i)), FVector::ZeroVector, FVector(0.003f), FLinearColor(0.3f, 0.75f, 0.95f));
+			// fainter and thinner than before (audit 7: "light, not poles"); Chris's projector design is kept
+			UStaticMeshComponent* M = Shape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), FName(*FString::Printf(TEXT("BeamRay%d"), i)), FVector::ZeroVector, FVector(0.0012f), FLinearColor(0.16f, 0.4f, 0.52f));
 			M->SetCollisionEnabled(ECollisionEnabled::NoCollision); M->SetCastShadow(false);
 			BeamRays.Add(M);
 		}
@@ -765,7 +766,35 @@ void AFNStudio::UpdateTable(float Dt)
 		const FVector D = Foot - Apex;
 		BeamRays[i]->SetRelativeLocation((Apex + Foot) * 0.5f);
 		BeamRays[i]->SetRelativeRotation(FRotationMatrix::MakeFromZ(D.GetSafeNormal()).Rotator());
-		BeamRays[i]->SetRelativeScale3D(FVector(0.003f, 0.003f, D.Size() / 100.f));
+		BeamRays[i]->SetRelativeScale3D(FVector(0.0012f, 0.0012f, D.Size() / 100.f));
+	}
+	// hover a ray: one line saying what the light is (no input change: it only reads the mouse)
+	if (!BeamHint && BeamRays.Num() > 0)
+	{
+		BeamHint = Text(TEXT("BeamHint"), FVector::ZeroVector, FRotator::ZeroRotator, 2.6f, FColor(190, 235, 255), TEXT("The globe projects the place you chose onto the table"));
+		BeamHint->SetVisibility(false);
+	}
+	if (BeamHint)
+	{
+		bool bHover = false;
+		FVector HintAt = FVector::ZeroVector;
+		APlayerController* BeamPC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+		float BMx = 0.f, BMy = 0.f;
+		if (BeamPC && BeamPC->GetMousePosition(BMx, BMy))
+			for (int32 i = 0; i < BeamRays.Num() && !bHover; ++i)
+				for (float F = 0.2f; F < 0.95f && !bHover; F += 0.15f)
+				{
+					const FVector Wp = GetActorTransform().TransformPosition(FMath::Lerp(Apex, BeamRays[i]->GetRelativeLocation() * 2.f - Apex, F));
+					FVector2D BeamSp;
+					if (BeamPC->ProjectWorldLocationToScreen(Wp, BeamSp) && FVector2D::Distance(BeamSp, FVector2D(BMx, BMy)) < 10.f) { bHover = true; HintAt = Wp; }
+				}
+		BeamHint->SetVisibility(bHover);
+		if (bHover && BeamPC && BeamPC->PlayerCameraManager)
+		{
+			const FVector BeamCam = BeamPC->PlayerCameraManager->GetCameraLocation();
+			BeamHint->SetWorldLocation(HintAt + FVector(0.f, 0.f, 4.f));
+			BeamHint->SetWorldRotation((BeamCam - HintAt).GetSafeNormal2D().Rotation());
+		}
 	}
 	if (Projector)
 	{
