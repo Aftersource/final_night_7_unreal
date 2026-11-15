@@ -531,13 +531,13 @@ void AFNDemigodFigure::UpdateFigure(const FString& Name, const FString& Skin, co
 	{
 		const FBoxSphereBounds B = Mesh->GetBounds();
 		const float Scale = FMath::Min(Height / FMath::Max(1.f, (float)B.BoxExtent.Z * 2.f), Footprint / FMath::Max(1.f, 2.f * (float)FMath::Max(B.BoxExtent.X, B.BoxExtent.Y)));
-		AFNTableGods* Owner = AFNTableGods::GetAny(GetWorld());
+		AFNTableGods* FigOwner = AFNTableGods::GetAny(GetWorld());   // not "Owner": that is AActor::Owner (MSVC C4458 on Win64)
 		if (StatueMesh && StatueOwner.IsValid() && StatueId.IsValid()) StatueOwner->RemoveStatue(StatueMesh, StatueId);
 		StatueMesh = Mesh;
-		StatueOwner = Owner;
+		StatueOwner = FigOwner;
 		StatueRel = FTransform(FRotator::ZeroRotator, FVector(0.f, 0.f, PlinthTop + ((float)B.BoxExtent.Z - (float)B.Origin.Z) * Scale), FVector(Scale));
 		StatueShown = FTransform(FRotator::ZeroRotator, GetActorTransform().TransformPosition(StatueRel.GetLocation()), StatueRel.GetScale3D() * GetActorScale3D());
-		StatueId = Owner ? Owner->AddStatue(Mesh, StatueShown) : FPrimitiveInstanceId();
+		StatueId = FigOwner ? FigOwner->AddStatue(Mesh, StatueShown) : FPrimitiveInstanceId();
 		FigureH = (float)B.BoxExtent.Z * 2.f * Scale;
 		if (Mini) { Mini->DestroyComponent(); Mini = nullptr; }
 	}
