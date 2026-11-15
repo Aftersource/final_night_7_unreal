@@ -29,6 +29,7 @@ struct FFNDuelSession
 		int32 Seq = -1;
 		FString Sent;            // the line just sent (duel.blow): revealed letter by letter, then cleared
 		double SentAt = 0.0;
+		bool bTypeOut = false;   // nobody saw it typed (an AI's line): it types itself out, *****p
 	};
 	FSideLine LineA, LineB;
 	FSideLine& Line(const FString& Side) { return Side == TEXT("b") ? LineB : LineA; }
@@ -46,9 +47,11 @@ DECLARE_DELEGATE_OneParam(FOnFNDuelSend, const FString& /*Line*/);
 DECLARE_DELEGATE_OneParam(FOnFNDuelTyping, const FString& /*CurrentText*/);
 
 /**
- * The duel tray (DUEL_UNREAL.md section 2, "the Archon part"): both fighters' lines masked as they type (stars, the
- * newest letters readable for an instant), the health bars, range and initiative, the typing window bar with its lock
- * marker, the countdown, the latest blows, and, for the two duellists only, the line you type (Enter strikes).
+ * The duel's screen frame around the box (top is the opponent's text, bottom is your words, Enter to submit):
+ * TOP your opponent's line as they type it (stars, the newest letters readable for an instant; an AI's line types
+ * itself out when it strikes), their name and health; the panel's caption over the box; BOTTOM your own line, masked
+ * the same way, the box you type in (the two duellists only; Enter strikes), the typing window bar with its lock
+ * marker, the countdown and the latest blow. A watcher sees side b on top, side a below, and types nothing.
  */
 class FINALNIGHT_API SFNDuelTray : public SCompoundWidget
 {
@@ -56,6 +59,7 @@ public:
 	SLATE_BEGIN_ARGS(SFNDuelTray) {}
 		SLATE_ATTRIBUTE(TSharedPtr<FFNDuelSession>, Session)
 		SLATE_ATTRIBUTE(double, ServerNowMs)
+		SLATE_ATTRIBUTE(FString, Caption)
 		SLATE_EVENT(FOnFNDuelSend, OnSend)
 		SLATE_EVENT(FOnFNDuelTyping, OnTyping)
 	SLATE_END_ARGS()
@@ -70,6 +74,7 @@ public:
 private:
 	TAttribute<TSharedPtr<FFNDuelSession>> Session;
 	TAttribute<double> ServerNowMs;
+	TAttribute<FString> CaptionText;
 	FOnFNDuelSend OnSend;
 	FOnFNDuelTyping OnTyping;
 	TSharedPtr<SEditableTextBox> Input;
@@ -82,6 +87,9 @@ private:
 	TOptional<float> WindowFrac() const;
 	FText WindowText() const;
 	FText LogText() const;
-	FText MidText() const;
+	FText StatusText(const FString& Side) const;
+	FString CaptionNow() const;
+	FString TopSide() const;
+	FString BottomSide() const;
 	bool IsMine() const;
 };

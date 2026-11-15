@@ -35,6 +35,7 @@
 #include "FNPowerRing.h"
 #include "FNTableGods.h"
 #include "FNDuelStage.h"
+#include "FNDuelBox.h"
 #include "FNWood.h"
 #include "FNMedia.h"
 #include "FNStyle.h"
@@ -169,11 +170,17 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			MakeOutCard()
 		]
 		// The duel tray: bottom centre while a duel runs (yours to type in, or one you watch).
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0.f, 0.f, 0.f, 64.f))
+		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)
 		[
 			SAssignNew(Tray, SFNDuelTray)
-			.Visibility_Lambda([this]() { return Duel.IsValid() ? EVisibility::Visible : EVisibility::Collapsed; })
+			.Visibility_Lambda([this]() { return Duel.IsValid() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
 			.Session_Lambda([this]() { return Duel; })
+			.Caption_Lambda([this]()
+			{
+				AFNStudio* St = FindStudio();
+				const AFNDuelBox* B = St ? AFNDuelBox::Get(St->GetWorld(), false) : nullptr;
+				return (B && Duel.IsValid() && B->DuelId() == Duel->DuelId) ? B->CurrentCaption() : FString();
+			})
 			.ServerNowMs_Lambda([this]() { UFNNetClient* N = Net.Get(); return N ? N->NowServerMs() : 0.0; })
 			.OnSend_Lambda([this](const FString& Line) { DuelSendLine(Line); })
 			.OnTyping_Lambda([this](const FString& Text) { DuelTyping(Text); })
@@ -1765,6 +1772,7 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock, bool b
 	if (const TArray<TSharedPtr<FJsonValue>>* Also = FN7HudJson::Arr(Lock, TEXT("also")))   // duel.scene, duel.panel 0
 		for (const TSharedPtr<FJsonValue>& V : *Also)
 			if (const TSharedPtr<FJsonObject> E = V.IsValid() ? V->AsObject() : nullptr) HandleDuelEvent(E);
+	OpenDuelBox();          // after also[]: the scene is in
 	if (bRestore) return;   // a reconnect redraws the duel, it doesn't re-announce it
 	if (!PendingChallengeRef.IsEmpty() && Info.B == PendingChallengeRef) PendingChallengeRef.Reset();   // ours: no refusal is coming
 	// The AI teleported beside its rival first: the red pulse and the warp-in, as for any summon.
@@ -1833,6 +1841,25 @@ void SFNHudLive::StartDuelSession(const TSharedPtr<FJsonObject>& Lock, bool bMin
 	}
 }
 
+void SFNHudLive::OpenDuelBox()
+{
+	if (!Duel.IsValid()) return;
+	AFNStudio* St = FindStudio();
+	AFNDuelBox* Box = St ? AFNDuelBox::Get(St->GetWorld(), true) : nullptr;
+	if (!Box) return;
+	// Yours always takes the camera; another's when you're not in the middle of something.
+	const bool bTake = !Duel->MySide.IsEmpty() || !IsBusyForGlide();
+	TWeakObjectPtr<UFNNetClient> WN = Net;
+	Box->Open(Duel, St, bTake, [WN]() { UFNNetClient* N = WN.Get(); return N ? N->NowServerMs() : 0.0; });
+	Box->SetPortraits(MediaTexture(LoadedArt(Duel->A, false)), MediaTexture(LoadedArt(Duel->B, false)));
+}
+
+void SFNHudLive::CloseDuelBox()
+{
+	AFNStudio* St = FindStudio();
+	if (AFNDuelBox* Box = St ? AFNDuelBox::Get(St->GetWorld(), false) : nullptr) Box->Close();
+}
+
 void SFNHudLive::StoreDuelPanels(const FString& DuelId, const TArray<TSharedPtr<FJsonValue>>* Panels)
 {
 	if (!Panels || !Duel.IsValid() || Duel->DuelId != DuelId) return;
@@ -1880,10 +1907,21 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 			if (Flavor.Len() > 120) Flavor = Flavor.Left(117) + TEXT("...");
 			Duel->AddLog(FString::Printf(TEXT("%s%s: \"%s\"  d20 %d%s = %d vs %d: %s, %.1f dmg.  %s"), bCounter ? TEXT("counter, ") : TEXT(""), *ByName, *Text,
 				Roll, Mod ? *FString::Printf(TEXT(" %+d"), Mod) : TEXT(""), Total, Dc, *FN7HudJson::Str(Bl, TEXT("verdict")).Replace(TEXT("_"), TEXT(" ")).ToUpper(), Dmg, *Flavor));
-			// A typed line clears its side's typing (an automatic counter clears nothing).
+			// An automatic counter (the AI's strikes come this way) clears nobody's typing, but its words still show on
+			// top: they type themselves out (the AI's typing should be visible).
+			if (FN7HudJson::Flag(Bl, TEXT("auto")) && !Text.IsEmpty() && Side != Duel->MySide)
+			{
+				FFNDuelSession::FSideLine& L = Duel->Line(Side);
+				L.bTypeOut = true;
+				L.Sent = Text;
+				L.SentAt = FPlatformTime::Seconds();
+			}
+			// A typed line clears its side's typing.
 			if (!FN7HudJson::Flag(Bl, TEXT("auto")) && !Text.IsEmpty())
 			{
 				FFNDuelSession::FSideLine& L = Duel->Line(Side);
+				// Nobody saw it typed (an AI's line, or keys that never came): it types itself out, *****p.
+				L.bTypeOut = Side != Duel->MySide && (L.FrameAt <= 0.0 || FPlatformTime::Seconds() - L.FrameAt > 4.0);
 				L.Sent = Text;
 				L.SentAt = FPlatformTime::Seconds();
 				L.Len = 0;
@@ -1946,7 +1984,7 @@ void SFNHudLive::TrySendDuelKeys()
 EActiveTimerReturnType SFNHudLive::TickDuelFast(double, float)
 {
 	if (!Duel.IsValid()) { bDuelTimer = false; return EActiveTimerReturnType::Stop; }
-	if (Duel->bOver && FPlatformTime::Seconds() - Duel->OverAt > 5.0) { Duel.Reset(); bDuelTimer = false; return EActiveTimerReturnType::Stop; }
+	if (Duel->bOver && FPlatformTime::Seconds() - Duel->OverAt > 5.0) { CloseDuelBox(); Duel.Reset(); bDuelTimer = false; return EActiveTimerReturnType::Stop; }
 	UFNNetClient* N = Net.Get();
 	if (N && !Duel->MySide.IsEmpty() && !Duel->bOver)
 	{
@@ -1999,6 +2037,7 @@ void SFNHudLive::RestoreDuels(const TSharedPtr<FJsonObject>& Present)
 					Copy->RemoveField(TEXT("also"));
 					HandleDuelEvent(Copy);
 				}
+		OpenDuelBox();   // the scene and the panels so far: the box seeks to the present
 		UE_LOG(LogTemp, Display, TEXT("FN7 duel restored: %s (%d panels)"), *DuelId, Duel->Panels.Num());
 	}
 }
@@ -2233,6 +2272,7 @@ void SFNHudLive::NewMatch(const FString& Id)
 	UE_LOG(LogTemp, Display, TEXT("FN7 match: %s -> %s (summon state reset)"), MatchId.IsEmpty() ? TEXT("none") : *MatchId, *Id);
 	MatchId = Id;
 	Duels.Reset();
+	if (Duel.IsValid()) CloseDuelBox();
 	Duel.Reset();
 	bWiped = false;
 	MineRefs.Reset();

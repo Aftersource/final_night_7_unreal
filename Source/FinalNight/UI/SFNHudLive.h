@@ -109,6 +109,8 @@ private:
 	void DuelTyping(const FString& Text);
 	void TrySendDuelKeys();
 	void RestoreDuels(const TSharedPtr<FJsonObject>& Present);
+	void OpenDuelBox();    // the challenge box on the table (FNDuelBox): rises, opens, plays the panels
+	void CloseDuelBox();
 	EActiveTimerReturnType TickDuelFast(double, float);
 	void HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub);
 	// Every challenge moves every view (everyone centers on the fight): flash, banner, glide. The glide waits
