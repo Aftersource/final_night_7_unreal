@@ -24,6 +24,7 @@ struct FFNTableDemigod
 	double Lat = 0.0, Lon = 0.0;
 	UTexture2D* Diorama = nullptr;      // the generated diorama_image
 	UTexture2D* DioramaGrey = nullptr;  // the same, desaturated, for the fallen
+	FString Skin;                       // the server's mannequin skin (wood, obsidian, gold, dragonscale, butterfly)
 };
 
 /** One player (a god) at the table: its seat, name, aura and its demigods. */
@@ -94,6 +95,7 @@ class FINALNIGHT_API AFNDemigodFigure : public AActor, public IFNStoryDecorable
 public:
 	AFNDemigodFigure();
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	void SetDemigod(const FFNTableDemigod& D, const FLinearColor& Aura, bool bOwnerAlive);
 	const FString& GetRef() const { return Ref; }
 	virtual void ApplyStory(const TSharedPtr<FJsonObject>& Story) override;
@@ -126,6 +128,19 @@ private:
 	bool bAlive = true;
 	float Tip = 0.f;
 	float Time = 0.f;
+	// Its statue on the plinth (Content/Figures/<name slug>/SM_<slug>), else a duel mannequin in its skin (the AI
+	// players need to have mannequins please actually do it properly"); the diorama card floats above its head.
+	UPROPERTY() TObjectPtr<UStaticMesh> StatueMesh;
+	FPrimitiveInstanceId StatueId;
+	FTransform StatueRel = FTransform::Identity;   // its place on the plinth (actor space, without rotation)
+	FTransform StatueShown;                        // the world transform last sent to the clone set
+	TWeakObjectPtr<AFNTableGods> StatueOwner;
+	UPROPERTY() TObjectPtr<class USkeletalMeshComponent> Mini;
+	int32 MiniFrames = 0;                          // the mannequin poses for a few frames, then stops ticking
+	FString FigureFor;
+	float FigureH = 0.f;
+	float FigureYaw = 0.f;
+	void UpdateFigure(const FString& Name, const FString& Skin, const FString& InSide);
 	UStaticMeshComponent* Part(USceneComponent* Parent, const TCHAR* Mesh, const FVector& Loc, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color);
 };
 
@@ -140,6 +155,12 @@ class FINALNIGHT_API AFNTableGods : public AActor
 {
 	GENERATED_BODY()
 public:
+	/** The demigods' statues as clones: one instanced mesh per statue, an instance per figure (stable ids, moved only
+	 *  when the figure moves, removed when it goes) instead of a component each (use proper mesh clones and
+	 *  cleanup to deal with the many objects"). World-space transforms. */
+	FPrimitiveInstanceId AddStatue(UStaticMesh* Mesh, const FTransform& World);
+	void MoveStatue(UStaticMesh* Mesh, FPrimitiveInstanceId Id, const FTransform& World);
+	void RemoveStatue(UStaticMesh* Mesh, FPrimitiveInstanceId Id);
 	AFNTableGods();
 	virtual void Tick(float DeltaSeconds) override;
 	static AFNTableGods* Get(AFNStudio* Studio, bool bCreate);
@@ -187,6 +208,7 @@ public:
 	static constexpr float SummonLandDelay = 2.1f;
 
 private:
+	UPROPERTY() TMap<TObjectPtr<UStaticMesh>, TObjectPtr<class UInstancedStaticMeshComponent>> StatueSets;
 	TWeakObjectPtr<AFNStudio> Studio;
 	UPROPERTY() TMap<int32, TObjectPtr<AFNGodPedestal>> Pedestals;   // by slot
 	UPROPERTY() TMap<FString, TObjectPtr<AFNDemigodFigure>> Figures;  // by ref

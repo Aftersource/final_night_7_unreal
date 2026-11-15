@@ -1,4 +1,8 @@
 #include "FNTableGods.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Animation/AnimSequence.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PointLightComponent.h"
@@ -421,6 +425,7 @@ void AFNDemigodFigure::SetDemigod(const FFNTableDemigod& D, const FLinearColor& 
 	Ref = D.Ref;
 	Side = D.Side;
 	Aura = InAura;
+	UpdateFigure(D.Name, D.Skin, D.Side);
 	bAlive = D.bAlive && bOwnerAlive;
 	const FLinearColor Frame = bAlive ? Aura : GodGrey;
 	GodSetColor(Matte, Frame);
@@ -453,6 +458,119 @@ void AFNDemigodFigure::SetDemigod(const FFNTableDemigod& D, const FLinearColor& 
 			Image->SetMaterial(0, M);
 		}
 	}
+}
+
+namespace FN7Figures
+{
+	static constexpr float Height = 24.f, Footprint = 18.f, PlinthTop = 4.2f;   // cm, on the 26 cm hex plinth
+	static FString DemigodSlug(const FString& Name)
+	{
+		// "Chris's Left Hand" -> chris_left_hand, "Bot Kestrel's Left Hand" -> kestrel_left_hand (production_assets/meshy/figures).
+		FString N = Name.ToLower().Replace(TEXT("'s "), TEXT(" ")).Replace(TEXT("\u2019s "), TEXT(" "));
+		N.RemoveFromStart(TEXT("bot "));
+		FString Out;
+		for (TCHAR Ch : N) Out.AppendChar(FChar::IsAlnum(Ch) ? Ch : TEXT('_'));
+		while (Out.ReplaceInline(TEXT("__"), TEXT("_")) > 0) {}
+		Out.RemoveFromStart(TEXT("_"));
+		Out.RemoveFromEnd(TEXT("_"));
+		return Out;
+	}
+}
+
+void AFNDemigodFigure::EndPlay(const EEndPlayReason::Type Reason)
+{
+	// Cleanup: its clone leaves the statue set with it.
+	if (StatueMesh && StatueOwner.IsValid() && StatueId.IsValid()) StatueOwner->RemoveStatue(StatueMesh, StatueId);
+	StatueId = FPrimitiveInstanceId();
+	Super::EndPlay(Reason);
+}
+
+FPrimitiveInstanceId AFNTableGods::AddStatue(UStaticMesh* Mesh, const FTransform& World)
+{
+	if (!Mesh) return FPrimitiveInstanceId();
+	TObjectPtr<UInstancedStaticMeshComponent>& Set = StatueSets.FindOrAdd(Mesh);
+	if (!Set)
+	{
+		Set = NewObject<UInstancedStaticMeshComponent>(this);
+		Set->SetupAttachment(RootComponent);
+		Set->SetUsingAbsoluteLocation(true);
+		Set->SetUsingAbsoluteRotation(true);
+		Set->SetUsingAbsoluteScale(true);
+		Set->SetMobility(EComponentMobility::Movable);
+		Set->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Set->SetCastShadow(false);
+		Set->SetStaticMesh(Mesh);
+		Set->RegisterComponent();
+		UE_LOG(LogTemp, Display, TEXT("FN7 figure: clone set for %s"), *Mesh->GetName());
+	}
+	return Set->AddInstanceById(World, true);
+}
+
+void AFNTableGods::MoveStatue(UStaticMesh* Mesh, FPrimitiveInstanceId Id, const FTransform& World)
+{
+	if (const TObjectPtr<UInstancedStaticMeshComponent>* Set = StatueSets.Find(Mesh))
+		if (*Set) (*Set)->UpdateInstanceTransformById(Id, World, true, true);
+}
+
+void AFNTableGods::RemoveStatue(UStaticMesh* Mesh, FPrimitiveInstanceId Id)
+{
+	if (const TObjectPtr<UInstancedStaticMeshComponent>* Set = StatueSets.Find(Mesh))
+		if (*Set) (*Set)->RemoveInstanceById(Id);
+}
+
+void AFNDemigodFigure::UpdateFigure(const FString& Name, const FString& Skin, const FString& InSide)
+{
+	using namespace FN7Figures;
+	const FString Key = Name + TEXT("|") + Skin;
+	if (Key == FigureFor) return;
+	FigureFor = Key;
+	const FString Slug = DemigodSlug(Name);
+	const FString Path = FString::Printf(TEXT("/Game/Figures/%s/SM_%s.SM_%s"), *Slug, *Slug, *Slug);
+	UStaticMesh* Mesh = Slug.IsEmpty() ? nullptr : Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet));
+	if (Mesh)
+	{
+		const FBoxSphereBounds B = Mesh->GetBounds();
+		const float Scale = FMath::Min(Height / FMath::Max(1.f, (float)B.BoxExtent.Z * 2.f), Footprint / FMath::Max(1.f, 2.f * (float)FMath::Max(B.BoxExtent.X, B.BoxExtent.Y)));
+		AFNTableGods* Owner = AFNTableGods::GetAny(GetWorld());
+		if (StatueMesh && StatueOwner.IsValid() && StatueId.IsValid()) StatueOwner->RemoveStatue(StatueMesh, StatueId);
+		StatueMesh = Mesh;
+		StatueOwner = Owner;
+		StatueRel = FTransform(FRotator::ZeroRotator, FVector(0.f, 0.f, PlinthTop + ((float)B.BoxExtent.Z - (float)B.Origin.Z) * Scale), FVector(Scale));
+		StatueShown = FTransform(FRotator::ZeroRotator, GetActorTransform().TransformPosition(StatueRel.GetLocation()), StatueRel.GetScale3D() * GetActorScale3D());
+		StatueId = Owner ? Owner->AddStatue(Mesh, StatueShown) : FPrimitiveInstanceId();
+		FigureH = (float)B.BoxExtent.Z * 2.f * Scale;
+		if (Mini) { Mini->DestroyComponent(); Mini = nullptr; }
+	}
+	else
+	{
+		// No statue (the AI Right Hands): the duel mannequin in its skin, standing guard.
+		if (!Mini)
+		{
+			Mini = NewObject<USkeletalMeshComponent>(this);
+			Mini->SetupAttachment(RootComponent);
+			Mini->SetUsingAbsoluteRotation(true);
+			Mini->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Mini->RegisterComponent();
+			Mini->SetSkeletalMesh(LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Duel/Mannequin/SK_DuelMannequin.SK_DuelMannequin")));
+			Mini->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+			if (UAnimSequence* Idle = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/Duel/Mannequin/Anims/A_idle_guard.A_idle_guard"))) Mini->PlayAnimation(Idle, true);
+		}
+		const FString UseSkin = !Skin.IsEmpty() ? Skin : (InSide == TEXT("right") ? FString(TEXT("obsidian")) : FString(TEXT("wood")));
+		const FString Mi = FString::Printf(TEXT("/Game/Duel/Skins/MI_Skin_%s.MI_Skin_%s"), *UseSkin, *UseSkin);
+		if (UMaterialInterface* M = Cast<UMaterialInterface>(StaticLoadObject(UMaterialInterface::StaticClass(), nullptr, *Mi, nullptr, LOAD_NoWarn | LOAD_Quiet)))
+			for (int32 i = 0; i < Mini->GetNumMaterials(); ++i) Mini->SetMaterial(i, M);
+		const float Scale = Height / 180.f;   // the mannequin stands ~1.8 m
+		Mini->SetRelativeScale3D(FVector(Scale));
+		Mini->SetRelativeLocation(FVector(0.f, 0.f, PlinthTop));
+		Mini->SetVisibility(true);
+		Mini->SetComponentTickEnabled(true);
+		MiniFrames = 0;
+		FigureH = Height;
+		if (StatueMesh && StatueOwner.IsValid() && StatueId.IsValid()) StatueOwner->RemoveStatue(StatueMesh, StatueId);
+		StatueMesh = nullptr;
+		StatueId = FPrimitiveInstanceId();
+	}
+	UE_LOG(LogTemp, Display, TEXT("FN7 figure: %s -> %s"), *Name, Mesh ? *FString::Printf(TEXT("statue %s"), *Slug) : *FString::Printf(TEXT("mannequin (%s)"), Skin.IsEmpty() ? TEXT("side default") : *Skin));
 }
 
 void AFNDemigodFigure::ApplyStory(const TSharedPtr<FJsonObject>& Story)
@@ -510,8 +628,35 @@ void AFNDemigodFigure::Tick(float Dt)
 	// peaks in front of it never cover it (portraits should not be in front of buildings). Nothing stands in front of it:
 	// no pole. The poles should not be in front.
 	const float Raise = bOnBoard ? 40.f : 0.f;
-	Card->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(4.2f + 17.f + Raise, 4.2f + 0.8f, Tip) + 9.f * HeldT + 1.2f * HeldT * FMath::Sin(Time * 6.f)));
-	Card->SetRelativeScale3D(FVector(1.f + 0.18f * HeldT));
+	// With a figure on the plinth the card floats over its head, smaller (the statue is the piece; the card its portrait).
+	const float Over = FigureH > 0.f ? FigureH + 6.f : 0.f;
+	const float CardS = FigureH > 0.f ? 0.62f : 1.f;
+	Card->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(4.2f + 17.f * CardS + Over + Raise, 4.2f + 0.8f, Tip) + 9.f * HeldT + 1.2f * HeldT * FMath::Sin(Time * 6.f)));
+	Card->SetRelativeScale3D(FVector(CardS * (1.f + 0.18f * HeldT)));
+	// The figure faces the camera (turning gently), and lies down when the demigod falls.
+	{
+		const float WantYaw = ToH.IsNearlyZero() ? FigureYaw : ToH.Rotation().Yaw - 90.f;
+		FigureYaw = FMath::RadiansToDegrees(FMath::UnwindRadians(FMath::DegreesToRadians(FigureYaw)));
+		FigureYaw += FMath::FindDeltaAngleDegrees(FigureYaw, WantYaw) * FMath::Clamp(Dt * 4.f, 0.f, 1.f);
+		const FRotator R(0.f, FigureYaw, -85.f * Tip);
+		if (StatueMesh && StatueOwner.IsValid() && StatueId.IsValid())
+		{
+			// The clone moves only when the figure does (turning to the camera, summoned, ridden by the board's pan).
+			const FTransform W = IsHidden() ? FTransform(R, GetActorLocation(), FVector::ZeroVector)
+				: FTransform(R, GetActorTransform().TransformPosition(StatueRel.GetLocation()), StatueRel.GetScale3D() * GetActorScale3D());
+			if (!W.Equals(StatueShown, 0.01))
+			{
+				StatueShown = W;
+				StatueOwner->MoveStatue(StatueMesh, StatueId, W);
+			}
+		}
+		if (Mini && Mini->IsVisible())
+		{
+			Mini->SetWorldRotation(R);
+			// Posed (idle guard), then frozen: a few frames of animation to settle the pose, no ticking after that.
+			if (MiniFrames < 4 && ++MiniFrames == 4) { Mini->bPauseAnims = true; Mini->SetComponentTickEnabled(false); }
+		}
+	}
 	if (Matte && HeldT > 0.001f) GodSetColor(Matte, (bAlive ? Aura : GodGrey) * (1.f + 1.5f * HeldT));
 	GodFaceCamera(NotchText, Cam);
 }
