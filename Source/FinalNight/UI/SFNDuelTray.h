@@ -103,6 +103,8 @@ private:
 	FText StatusText(const FString& Side) const;
 	FString CaptionNow() const;
 	FString TopSide() const;
+	bool IsWatching() const;
+	FText WatchTitle() const;
 	TAttribute<FSlateColor> TeamLine() const;
 	FString BottomSide() const;
 	bool IsMine() const;

@@ -71,6 +71,19 @@ TAttribute<FSlateColor> SFNDuelTray::TeamLine() const
 	});
 }
 
+bool SFNDuelTray::IsWatching() const
+{
+	const TSharedPtr<FFNDuelSession> S = Session.Get();
+	return S.IsValid() && S->MySide.IsEmpty();
+}
+
+FText SFNDuelTray::WatchTitle() const
+{
+	const TSharedPtr<FFNDuelSession> S = Session.Get();
+	if (!S.IsValid()) return FText::GetEmpty();
+	return FText::FromString(FString::Printf(TEXT("WATCHING:  %s  vs  %s"), *S->AName.ToUpper(), *S->BName.ToUpper()));
+}
+
 FString SFNDuelTray::TopSide() const
 {
 	const TSharedPtr<FFNDuelSession> S = Session.Get();
@@ -114,20 +127,44 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SOverlay)
-		// TOP: your opponent's line as they type it (stars, the newest letters readable for an instant).
+		// TOP: your opponent's line as they type it (stars, the newest letters readable for an instant). Watching someone
+		// else's duel: "WATCHING: A vs B" and both lines, read-only, stacked (Chris saw a watched line read as an input).
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 56.f, 0.f, 0.f))
 		[
 			Plate(SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[ HeaderRow(true) ]
-				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 8.f, 0.f, 0.f)
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 6.f)
 				[
-					SNew(STextBlock).Font(Type::Font(34, TEXT("Bold"))).ColorAndOpacity(Gold)
+					SNew(STextBlock).Font(Type::Font(15, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.45f, 0.38f))
+					.Visibility_Lambda([this]() { return IsWatching() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+					.Text_Lambda([this]() { return WatchTitle(); })
+				]
+				+ SVerticalBox::Slot().AutoHeight()[ HeaderRow(true) ]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 6.f, 0.f, 0.f)
+				[
+					SNew(STextBlock).Font_Lambda([this]() { return Type::Font(IsWatching() ? 24 : 34, TEXT("Bold")); }).ColorAndOpacity(Gold)
 					.Text_Lambda([this]() { return SideText(TopSide()); })
 				]
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 				[
 					SNew(STextBlock).Font(Type::Font(11, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.75f, 0.7f, 0.62f))
 					.Text_Lambda([this]() { return StatusText(TopSide()); })
+				]
+				// The other fighter, when you're only watching.
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 0.f)
+				[
+					SNew(SVerticalBox)
+					.Visibility_Lambda([this]() { return IsWatching() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+					+ SVerticalBox::Slot().AutoHeight()[ HeaderRow(false) ]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 6.f, 0.f, 0.f)
+					[
+						SNew(STextBlock).Font(Type::Font(24, TEXT("Bold"))).ColorAndOpacity(Gold)
+						.Text_Lambda([this]() { return SideText(BottomSide()); })
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+					[
+						SNew(STextBlock).Font(Type::Font(11, TEXT("Regular"))).ColorAndOpacity(FLinearColor(0.75f, 0.7f, 0.62f))
+						.Text_Lambda([this]() { return StatusText(BottomSide()); })
+					]
 				], 820.f, TeamLine())
 		]
 		// The caption over the box: the panel's line (who hit whom, and the wild reason it worked).
@@ -147,9 +184,12 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 				]
 			]
 		]
-		// BOTTOM: you (your line, masked like theirs; Enter strikes), the typing window and the latest blow.
+		// BOTTOM: you (your line, masked like theirs; Enter strikes), the typing window and the latest blow. Only in a duel
+		// of yours: a watcher has nothing to type.
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0.f, 0.f, 0.f, 18.f))
 		[
+			SNew(SBox).Visibility_Lambda([this]() { return IsWatching() ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible; })
+			[
 			Plate(SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight()[ HeaderRow(false) ]
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 6.f, 0.f, 4.f)
@@ -207,6 +247,7 @@ void SFNDuelTray::Construct(const FArguments& InArgs)
 					.WrapTextAt(770.f)
 					.Text_Lambda([this]() { return LogText(); })
 				], 820.f, TeamLine())
+			]
 		]
 	];
 }
@@ -317,9 +358,10 @@ FText SFNDuelTray::StatusText(const FString& Side) const
 	const FFNDuelSession::FSideLine& L = Side == TEXT("b") ? S->LineB : S->LineA;
 	const double Now = FPlatformTime::Seconds();
 	if (!L.Sent.IsEmpty() && Now - L.SentAt < 2.5) return LOCTEXT("TrayStruck", "strikes!");
-	if (L.Len > 0 && Now - L.FrameAt < 1.5) return LOCTEXT("TrayTyping", "typing...");
+	if (L.Len > 0 && Now - L.FrameAt < 1.5) return IsWatching() ? LOCTEXT("TrayIsTyping", "is typing...") : LOCTEXT("TrayTyping", "typing...");
 	if (L.HasScript() && ServerNowMs.Get() >= L.ScriptStart && ServerNowMs.Get() < L.ScriptEnd) return LOCTEXT("TrayTyping", "typing...");
 	if (L.Len > 0 && L.FrameAt > 0.0 && Now - L.FrameAt > 10.0) return LOCTEXT("TrayGone", "gone quiet");
+	if (IsWatching()) return FText::GetEmpty();
 	return LOCTEXT("TrayWatch", "read their move as they type it");
 }
 
