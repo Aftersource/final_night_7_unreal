@@ -109,6 +109,7 @@ void SFNHudLayout::Construct(const FArguments& InArgs)
 	OnTakeSeat = InArgs._OnTakeSeat;
 	OnLobby = InArgs._OnLobby;
 	OnResetView = InArgs._OnResetView;
+	OnTree = InArgs._OnTree;
 	OnHowToPlay = InArgs._OnHowToPlay;
 	OnCardDrag = InArgs._OnCardDrag;
 	OnCardDoubleClick = InArgs._OnCardDoubleClick;
@@ -434,6 +435,10 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
 		[
 			StoneButton(LOCTEXT("HowPill", "?"), LOCTEXT("HowTip", "How to play"), [this]() { OnHowToPlay.ExecuteIfBound(); })
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::M, 0.f)
+		[
+			StoneButton(LOCTEXT("TreePill", "TREE"), LOCTEXT("TreeTip", "The tree of consequence: exactly how the game remembers, from the world down to a 3 m hex"), [this]() { OnTree.ExecuteIfBound(); })
 		];
 	auto Add = [&Row](TSharedRef<SWidget> W)
 	{

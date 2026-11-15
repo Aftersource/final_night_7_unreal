@@ -134,6 +134,8 @@ public:
 		/** RESET VIEW in the header (R / Home do the same). */
 		SLATE_EVENT(FOnFNHudResetView, OnResetView)
 		SLATE_EVENT(FOnFNHudResetView, OnHowToPlay)
+		/** TREE: the tree of consequence overlay (how the memory works). */
+		SLATE_EVENT(FOnFNHudResetView, OnTree)
 		/** Dragging one of your two demigod cards summons it. */
 		SLATE_EVENT(FOnFNHudCardDrag, OnCardDrag)
 		/** Double-clicking one of your demigod cards zooms the board to it. */
@@ -172,6 +174,7 @@ private:
 	FOnFNHudLobby OnLobby;
 	FOnFNHudResetView OnResetView;
 	FOnFNHudResetView OnHowToPlay;
+	FOnFNHudResetView OnTree;
 	FOnFNHudCardDrag OnCardDrag;
 	FOnFNHudCardDouble OnCardDoubleClick;
 	bool bTypingSignalled = false;

@@ -43,6 +43,7 @@
 #include "FNEarthPlay.h"
 #include "SFNChat.h"
 #include "FNDuelRules.h"
+#include "SFNMemoryTree.h"
 
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
@@ -193,6 +194,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnLobby_Lambda([this]() { SetLobbyOpen(true); })
 			.OnResetView_Lambda([this]() { ResetView(); })
 			.OnHowToPlay_Lambda([this]() { bHowTo = true; })
+			.OnTree_Lambda([this]() { OpenTree(); })
 			.OnCardDoubleClick_Lambda([this](const FString& Ref) { OnDemigodDoubleClick(Ref); })
 			.OnCardDrag_Lambda([this](const FString& Ref, const FVector2D& Screen) -> TSharedPtr<FDragDropOperation>
 			{
@@ -522,6 +524,13 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.OnBack_Lambda([this]() { SetLobbyOpen(false); })
 			.Visibility_Lambda([this]() { return (!bInRoom || bLobbyOpen || (StartPanel.IsValid() && StartPanel->IsHosting())) ? EVisibility::Visible : EVisibility::Collapsed; })   // hosting: the code and START stay up
 		]
+		// The tree of consequence (TREE in the header): over the game, Esc or CLOSE shuts it.
+		+ SOverlay::Slot()
+		[
+			SAssignNew(MemTree, SFNMemoryTree)
+			.Visibility_Lambda([this]() { return bTreeOpen ? EVisibility::Visible : EVisibility::Collapsed; })
+			.OnClose_Lambda([this]() { bTreeOpen = false; UE_LOG(LogTemp, Display, TEXT("FN7 tree: closed")); })
+		]
 		// The power being dragged, floating over everything (never takes input).
 		+ SOverlay::Slot()
 		[
@@ -678,6 +687,26 @@ void SFNHudLive::ResetView()
 	SFNPanelMover::ResetAll();
 	AddNews(LOCTEXT("ViewTag", "VIEW"), TEXT("Back to the start: the board on your demigod, the camera at your seat, the panels home."));
 	Publish();
+}
+
+void SFNHudLive::OpenTree()
+{
+	// The memory around you: your selected demigod (or your first standing one), else the busiest region (the default).
+	bTreeOpen = true;
+	TreeAskedBeat = Model.Beat;
+	FString Focus = SelectedRef;
+	if (Focus.IsEmpty() || !MineRefs.Contains(Focus))
+		for (const FSeatInfo& S : Seats) if (MineRefs.Contains(S.Ref) && S.bAlive) { Focus = S.Ref; break; }
+	if (MemTree.IsValid()) MemTree->SetWaiting(TEXT("Asking the server for the memory..."));
+	if (UFNNetClient* N = Net.Get())
+	{
+		TSharedPtr<FJsonObject> A = MakeShared<FJsonObject>();
+		if (!Focus.IsEmpty()) A->SetStringField(TEXT("focus"), Focus);
+		A->SetNumberField(TEXT("per_node"), 6);
+		N->Query(TEXT("game.memory_tree"), A);
+	}
+	if (MemTree.IsValid()) FSlateApplication::Get().SetKeyboardFocus(MemTree, EFocusCause::SetDirectly);
+	UE_LOG(LogTemp, Display, TEXT("FN7 tree: open (focus %s)"), Focus.IsEmpty() ? TEXT("the busiest region") : *Focus);
 }
 
 void SFNHudLive::SetLobbyOpen(bool bOpen)
@@ -846,6 +875,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 	}
 	// The earth simulator on the table (AFNEarthPlay): each beat's field and phenomena, the board's records, a cast's strike.
 	// Earth time travel: the field at a beat, a join / reconnect / fork at the present, a new match.
+	if (T == TEXT("game.memory_tree") && D.IsValid() && MemTree.IsValid()) MemTree->SetData(D);
 	if (T == TEXT("game.duel_odds") && D.IsValid() && bConfirmOpen && FN7HudJson::Str(D, TEXT("demigod")) == ConfirmMine && FN7HudJson::Str(D, TEXT("target")) == ConfirmTarget)
 	{
 		// "Duel Vex's Right Hand: 35%  (you 7 hp · they hurt)  ·  if you don't type: 0%"
@@ -3429,6 +3459,7 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 			SelectedUntil = 0.0;
 			if (AFNTableGods* Tg = AFNTableGods::GetAny(FindStudio() ? FindStudio()->GetWorld() : nullptr)) Tg->SetFigureHeld(SelectedRef, false);
 		}
+		if (bTreeOpen && Model.Beat > 0 && Model.Beat != TreeAskedBeat) OpenTree();   // the tree follows the beats while it is open
 		if (BannerAt > 0.0 && Now >= BannerAt)
 		{
 			BannerAt = 0.0;
