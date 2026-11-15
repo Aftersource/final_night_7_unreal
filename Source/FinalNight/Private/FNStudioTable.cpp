@@ -580,7 +580,10 @@ void AFNStudio::ZoomMapAt(double Px, double Py, int32 Step)
 	bUserPicked = true;
 	// the zoom flows: the new level starts at the size the old view showed it and eases to full size around the anchor
 	ZoomAnchor = FNTableScene::ActionC + FVector((float)((Px - TableCx) * TableK), (float)(-(Py - TableCy) * TableK), 0.f);
-	ZoomAnimS0 = FMath::Clamp((float)F, 0.03f, 2.5f);   // zooming out starts big, but not room-sized
+	// FN7 (Mac session, view-fix go-ahead): a level step is 10-100x, and starting the new level at its true size made it
+	// grow out of a speck at the cursor (Chris said popping in from the centre looks wrong). The visible zoom of a step
+	// is ~1.8x either way: the new level starts nearly filling the board and settles; the old one swells and sinks.
+	ZoomAnimS0 = F < 1.0 ? FMath::Max((float)F, 0.55f) : FMath::Min((float)F, 1.8f);
 	ZoomAnimT = 0.f;
 	BeginZoomGhost();   // FN7 (Mac session, view-fix go-ahead): the old level stays on screen through the switch (UI/FNBoardAoe.cpp)
 	NoteRebuild(TEXT("ZoomMapAt"));
@@ -716,7 +719,7 @@ void AFNStudio::UpdateTable(float Dt)
 		const float Sc = FMath::Exp(FMath::Loge(ZoomAnimS0) * (1.f - E));     // even speed in log scale, like a web map
 		// FN7 (Mac session, view-fix go-ahead): the new level's tiles rise from flat (height E) instead of scaling their
 		// heights with the zoom (needles going in, towers going out), and the old level's ghost moves with it.
-		const float Rise = FMath::Max(0.02f, E);
+		const float Rise = 0.55f + 0.45f * E;   // settles up a little, never rises out of a flat table
 		MapPivot->SetRelativeScale3D(FVector(Sc, Sc, Rise));
 		MapPivot->SetRelativeLocation(FVector(ZoomAnchor.X * (1.f - Sc), ZoomAnchor.Y * (1.f - Sc), ZoomAnchor.Z * (1.f - Rise)));   // the anchor stays still
 		TickZoomGhost(Sc, E);
