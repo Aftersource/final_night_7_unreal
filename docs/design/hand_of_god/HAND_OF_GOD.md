@@ -104,3 +104,7 @@ main 1c71497 (mac/pan-smooth 3905e99). Every future change, Benito's side and th
 Any change that adds a rebuild, a re-normalisation or a face switch during a drag breaks it again. Changes that touch
 input, pan, zoom or the board rebuild path get a 60-second live drag-and-zoom test in Chris's editor at her real fps
 before push, with the log lines in the report.
+
+Rule: a click on the globe goes where you click. A press that moves under 20 px (1080p-scaled) within 0.6 s is a
+click, not a grab: it undoes any tiny turn and runs the globe pick (dive to that region). Chris reported that the
+globe single click does not work.
