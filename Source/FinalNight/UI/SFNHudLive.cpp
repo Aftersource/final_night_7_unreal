@@ -38,6 +38,8 @@
 #include "FNDuelBox.h"
 #include "FN7KitHitTest.h"
 #include "FNStarBackdrop.h"
+#include "SFNHandCursor.h"
+#include "Engine/GameViewportClient.h"
 #include "Styling/CoreStyle.h"
 #include "Components/TextRenderComponent.h"
 #include "FNWood.h"
@@ -745,6 +747,7 @@ TSharedRef<SWidget> SFNHudLive::MakeOutCard()
 
 SFNHudLive::~SFNHudLive()
 {
+	if (HandCursor.IsValid() && GEngine && GEngine->GameViewport) GEngine->GameViewport->RemoveViewportWidgetContent(HandCursor.ToSharedRef());
 	if (UFNNetClient* N = Net.Get())
 	{
 		N->OnServerMessage.Remove(MessageHandle);
@@ -3198,6 +3201,12 @@ EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 	// Until we're in a room, ask the server every 10 s whether it can be reached (a judge with no key or no internet
 	// sees why at once, not a normal-looking table that never connects).
 	if (!bInRoom && FPlatformTime::Seconds() - LastServerCheck > 10.0) CheckServer();
+	// The hand of god's cursor, on top of everything in the game viewport.
+	if (!HandCursor.IsValid() && RingInput.IsValid() && GEngine && GEngine->GameViewport)
+	{
+		HandCursor = SNew(SFNHandCursor).Input(RingInput);
+		GEngine->GameViewport->AddViewportWidgetContent(HandCursor.ToSharedRef(), 10000);
+	}
 	// The star world around the table (AFNStarBackdrop), once the studio has built the room.
 	if (!StarSky.IsValid())
 		if (AFNStudio* St = FindStudio()) StarSky = AFNStarBackdrop::Ensure(St->GetWorld());
