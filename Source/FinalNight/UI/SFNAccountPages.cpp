@@ -248,7 +248,7 @@ namespace FN7SettingsUi
 		// The volumes the studio's synth mixes by (master, music = the ambient bed, sfx = the sounds).
 		const TSharedPtr<FJsonObject>* Au = nullptr;
 		if (S.IsValid() && S->TryGetObjectField(TEXT("audio"), Au) && Au && Au->IsValid())
-			for (const TCHAR* K : { TEXT("master"), TEXT("music"), TEXT("sfx") })
+			for (const TCHAR* K : { TEXT("master"), TEXT("music"), TEXT("sfx"), TEXT("voice") })
 			{
 				double V = -1.0;
 				if ((*Au)->TryGetNumberField(K, V) && V >= 0.0) FN7HudPrefs::SetInt(FString::Printf(TEXT("vol_%s_pct"), K), FMath::RoundToInt(FMath::Clamp(V, 0.0, 1.0) * 100.0));
