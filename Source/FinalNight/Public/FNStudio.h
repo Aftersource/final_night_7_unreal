@@ -143,6 +143,10 @@ public:
 	bool BeginGlobeGrab(const FVector2D& ViewportPixel);
 	void GlobeGrabTo(const FVector2D& ViewportPixel);
 	void EndGlobeGrab();
+	/** A click on the globe (no real drag): undo any tiny turn and pick the spot pressed, exactly as Benito's globe click
+	 *  did (PickSpot, by the user: the board dives to the region there). Chris noted that clicking the globe does not go to
+	 *  where I selected". */
+	void ClickGlobeAt(const FVector2D& ViewportPixel);
 	/** A press while the planet or the land coasts: stops it where it is. True if something was coasting. */
 	bool CatchHand();
 	/** Seconds since the last fling (the FLING cursor shows for 0.25 s). */

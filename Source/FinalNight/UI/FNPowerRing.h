@@ -195,6 +195,7 @@ private:
 	FString PressedWhy;          // why it can't be summoned ("" = it can)
 	bool bHandArmed = false, bHandPanning = false, bHandGlobe = false;   // the god's hand: pressed / dragging; on the globe
 	FVector2D HandFrom = FVector2D::ZeroVector;
+	double HandFromAt = 0.0;   // when the press began (a globe click vs a spin)
 	bool bHoverMine = false;
 	bool bHoverFigure = false;
 	TFunction<void(const FString&)> OnFigureDouble;
