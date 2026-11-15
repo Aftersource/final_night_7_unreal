@@ -554,4 +554,264 @@ TSharedRef<SWidget> SFNSettingsPage::TabBody(int32 InTab)
 	return V;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// DEMIGODS (ACCOUNTS.md §7): two sheets; the player's words are stored exactly unless they break a content rule.
+
+namespace FN7DemigodUi
+{
+	static const TCHAR* Fields[] = { TEXT("name"), TEXT("personality"), TEXT("style"), TEXT("creed") };
+	static FString Str(const TSharedPtr<FJsonObject>& O, const TCHAR* K) { FString V; if (O.IsValid()) O->TryGetStringField(K, V); return V; }
+}
+
+FSlateColor SFNDemigodsPage::Ink() const { return FN7Looks::Ink(Look); }
+FSlateColor SFNDemigodsPage::Dim() const { return FN7Looks::Dim(Look); }
+FSlateColor SFNDemigodsPage::Accent() const { return FN7Looks::Accent(Look); }
+
+void SFNDemigodsPage::Construct(const FArguments& InArgs)
+{
+	using namespace FN7Style;
+	Net = InArgs._Net;
+	OnBack = InArgs._OnBack;
+	Look = FN7Looks::Get(TEXT("demigods"), 1);
+	Cards[0].Hand = TEXT("left");
+	Cards[1].Hand = TEXT("right");
+	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight()[ FN7AccountUi::Header(LOCTEXT("DgTitle", "YOUR DEMIGODS"), LOCTEXT("DgWord", "THEY FIGHT IN YOUR NAME"), TEXT("demigods"), &Look) ]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+		[
+			SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNDemigodsPage::Dim).AutoWrapText(true)
+			.Text(LOCTEXT("DgTag", "Your words are kept exactly as you write them. Only text that breaks a content rule (hate, sexual content, attacks on real people, instructions to the game, personal data) is rewritten or refused."))
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, Space::M, 0.f)[ MakeCard(0) ]
+			+ SHorizontalBox::Slot().FillWidth(1.f)[ MakeCard(1) ]
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::M, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(SBox).HeightOverride(40.f).MinDesiredWidth(110.f)
+				[
+					SNew(SButton).ButtonStyle(&PillButton()).HAlign(HAlign_Center).VAlign(VAlign_Center)
+					.OnClicked_Lambda([this]() { OnBack.ExecuteIfBound(); return FReply::Handled(); })
+					[ SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(Color::Text()).Text(LOCTEXT("DgBack", "BACK")) ]
+				]
+			]
+		]
+	];
+}
+
+TSharedRef<SWidget> SFNDemigodsPage::Labeled(const FText& Label, TSharedPtr<SFNTextBox>& Box, int32 LimitIdx, bool bMulti, float Height, const FText& Hint)
+{
+	using namespace FN7Style;
+	TSharedPtr<SFNTextBox>* BoxPtr = &Box;
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 2.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f)[ SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNDemigodsPage::Dim).Text(Label) ]
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(STextBlock).TextStyle(&Type::Small())
+				.ColorAndOpacity_Lambda([this, BoxPtr, LimitIdx]() { const int32 N = BoxPtr->IsValid() ? (*BoxPtr)->GetText().ToString().Len() : 0; return N > Limit[LimitIdx] ? Accent() : Dim(); })
+				.Text_Lambda([this, BoxPtr, LimitIdx]() { const int32 N = BoxPtr->IsValid() ? (*BoxPtr)->GetText().ToString().Len() : 0; return FText::FromString(FString::Printf(TEXT("%d / %d"), N, Limit[LimitIdx])); })
+			]
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(SBox).HeightOverride(Height)[ SAssignNew(Box, SFNTextBox).bMultiLine(bMulti).HintText(Hint) ]
+		];
+}
+
+TSharedRef<SWidget> SFNDemigodsPage::MakeCard(int32 i)
+{
+	using namespace FN7Style;
+	FCard& C = Cards[i];
+	const FText HandName = i == 0 ? LOCTEXT("DgLeft", "LEFT HAND") : LOCTEXT("DgRight", "RIGHT HAND");
+	return SNew(SBorder).BorderImage(Brush::Segment(FLinearColor(0.f, 0.f, 0.f, 0.22f))).Padding(FMargin(Space::M))
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom)[ SNew(STextBlock).TextStyle(&Type::Title()).ColorAndOpacity(this, &SFNDemigodsPage::Accent).Text(HandName) ]
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Bottom).Padding(Space::S, 0.f, 0.f, 2.f)
+				[
+					SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNDemigodsPage::Dim)
+					.Text_Lambda([this, i]() { return Cards[i].MatchName.IsEmpty() ? FText::GetEmpty() : FText::FromString(TEXT("in a match: ") + Cards[i].MatchName); })
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[ Labeled(LOCTEXT("DgName", "NAME (optional)"), C.Name, 0, false, 34.f, LOCTEXT("DgNameH", "empty = <your name>'s Left / Right Hand")) ]
+			+ SVerticalBox::Slot().AutoHeight()[ Labeled(LOCTEXT("DgPers", "PERSONALITY"), C.Personality, 1, true, 118.f, LOCTEXT("DgPersH", "who they are: temper, past, fears, what they want")) ]
+			+ SVerticalBox::Slot().AutoHeight()[ Labeled(LOCTEXT("DgStyle", "SPEAKING STYLE"), C.Style, 2, true, 46.f, LOCTEXT("DgStyleH", "how they talk")) ]
+			+ SVerticalBox::Slot().AutoHeight()[ Labeled(LOCTEXT("DgCreed", "CREED"), C.Creed, 3, true, 46.f, LOCTEXT("DgCreedH", "the one thing they live by")) ]
+			// The answer: saved / the reason it was refused / the rewrite beside your words.
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::S, 0.f, 0.f)
+			[
+				SNew(STextBlock).TextStyle(&Type::Body()).AutoWrapText(true)
+				.ColorAndOpacity_Lambda([this, i]() { return Cards[i].bBad ? Accent() : Dim(); })
+				.Visibility_Lambda([this, i]() { return Cards[i].Status.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+				.Text_Lambda([this, i]() { return FText::FromString(Cards[i].Status); })
+			]
+			+ SVerticalBox::Slot().AutoHeight()[ Rephrased(i) ]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(0.f, Space::S, 0.f, 0.f)
+			[
+				SNew(SBox).HeightOverride(40.f).MinDesiredWidth(120.f)
+				[
+					SNew(SButton).ButtonStyle(&AccentButton()).HAlign(HAlign_Center).VAlign(VAlign_Center)
+					.IsEnabled_Lambda([this, i]() { return !Cards[i].bBusy; })
+					.OnClicked_Lambda([this, i]() { Save(i); return FReply::Handled(); })
+					[ SNew(STextBlock).TextStyle(&Type::Name()).ColorAndOpacity(FLinearColor(0.08f, 0.05f, 0.02f)).Text(LOCTEXT("DgSave", "SAVE")) ]
+				]
+			]
+		];
+}
+
+TSharedRef<SWidget> SFNDemigodsPage::Rephrased(int32 i)
+{
+	using namespace FN7Style;
+	// Only the fields the rewrite changed: yours on the left, what was saved on the right.
+	auto Side = [this, i](bool bFinal)
+	{
+		return SNew(STextBlock).TextStyle(&Type::Small()).AutoWrapText(true)
+			.ColorAndOpacity_Lambda([this, bFinal]() { return bFinal ? Ink() : Dim(); })
+			.Text_Lambda([this, i, bFinal]()
+			{
+				const FCard& C = Cards[i];
+				FString Out;
+				for (const TCHAR* F : FN7DemigodUi::Fields)
+				{
+					const FString O = FN7DemigodUi::Str(C.Original, F), N = FN7DemigodUi::Str(C.Final, F);
+					if (O != N) Out += FString::Printf(TEXT("%s: %s\n"), F, *(bFinal ? N : O));
+				}
+				return FText::FromString(Out.TrimEnd());
+			});
+	};
+	return SNew(SVerticalBox).Visibility_Lambda([this, i]() { return Cards[i].Final.IsValid() ? EVisibility::Visible : EVisibility::Collapsed; })
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
+		[
+			SNew(STextBlock).TextStyle(&Type::Small()).ColorAndOpacity(this, &SFNDemigodsPage::Accent).AutoWrapText(true)
+			.Text_Lambda([this, i]() { return FText::FromString(TEXT("Rewritten: ") + Cards[i].Reason); })
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, Space::S, 0.f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()[ SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNDemigodsPage::Dim).Text(LOCTEXT("DgYours", "YOU WROTE")) ]
+				+ SVerticalBox::Slot().AutoHeight()[ Side(false) ]
+			]
+			+ SHorizontalBox::Slot().FillWidth(1.f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()[ SNew(STextBlock).TextStyle(&Type::Label()).ColorAndOpacity(this, &SFNDemigodsPage::Dim).Text(LOCTEXT("DgSaved", "SAVED (THE MATCH USES THIS)")) ]
+				+ SVerticalBox::Slot().AutoHeight()[ Side(true) ]
+			]
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0.f, Space::XS, 0.f, 0.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, Space::XS, 0.f)
+			[ FN7Looks::Chip(LOCTEXT("DgKeep", "KEEP THIS"), []() { return true; }, [this, i]() { Cards[i].Final.Reset(); Cards[i].Original.Reset(); Cards[i].Status = TEXT("Saved (the rewrite)."); }) ]
+			+ SHorizontalBox::Slot().AutoWidth()
+			[ FN7Looks::Chip(LOCTEXT("DgEdit", "EDIT"), []() { return false; }, [this, i]() { SetTexts(i, Cards[i].Original); Cards[i].Final.Reset(); Cards[i].Original.Reset(); Cards[i].Status = TEXT("Your words are back in the editor: change them and SAVE again."); Cards[i].bBad = false; }) ]
+		];
+}
+
+void SFNDemigodsPage::SetTexts(int32 i, const TSharedPtr<FJsonObject>& Sheet)
+{
+	FCard& C = Cards[i];
+	TSharedPtr<SFNTextBox>* Boxes[] = { &C.Name, &C.Personality, &C.Style, &C.Creed };
+	for (int32 k = 0; k < 4; ++k) if (Boxes[k]->IsValid()) (*Boxes[k])->SetText(FText::FromString(FN7DemigodUi::Str(Sheet, FN7DemigodUi::Fields[k])));
+}
+
+void SFNDemigodsPage::Fill(int32 i, const TSharedPtr<FJsonObject>& D)
+{
+	if (!D.IsValid()) return;
+	Cards[i].MatchName = FN7DemigodUi::Str(D, TEXT("match_name"));
+	SetTexts(i, D);
+}
+
+void SFNDemigodsPage::Open()
+{
+	for (FCard& C : Cards) { C.Status = TEXT("Reading..."); C.bBad = false; C.Final.Reset(); C.Original.Reset(); }
+	TWeakPtr<SFNDemigodsPage> Weak = SharedThis(this);
+	FN7Account::Call(Net.Get(), TEXT("GET"), TEXT("/api/me/demigods"), nullptr, [Weak](int32 Code, TSharedPtr<FJsonObject> O)
+	{
+		const TSharedPtr<SFNDemigodsPage> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		if (Code != 200 || !O.IsValid()) { for (FCard& C : Self->Cards) { C.Status = FN7Account::ErrorText(Code, O); C.bBad = true; } return; }
+		const TSharedPtr<FJsonObject>* L = nullptr;
+		if (O->TryGetObjectField(TEXT("limits"), L) && L && L->IsValid())
+			for (int32 k = 0; k < 4; ++k) { double V = 0.0; if ((*L)->TryGetNumberField(FN7DemigodUi::Fields[k], V) && V > 0.0) Self->Limit[k] = (int32)V; }
+		for (int32 i = 0; i < 2; ++i)
+		{
+			const TSharedPtr<FJsonObject>* D = nullptr;
+			if (O->TryGetObjectField(Self->Cards[i].Hand, D) && D) Self->Fill(i, *D);
+			bool bSaved = false;
+			if (D && D->IsValid()) (*D)->TryGetBoolField(TEXT("saved"), bSaved);
+			Self->Cards[i].Status = bSaved ? FString() : FString(TEXT("Not written yet."));
+		}
+		UE_LOG(LogTemp, Display, TEXT("FN7 demigods: loaded (limits %d/%d/%d/%d)"), Self->Limit[0], Self->Limit[1], Self->Limit[2], Self->Limit[3]);
+	});
+}
+
+void SFNDemigodsPage::Save(int32 i)
+{
+	FCard& C = Cards[i];
+	if (C.bBusy) return;
+	TSharedPtr<FJsonObject> B = MakeShared<FJsonObject>();
+	TSharedPtr<SFNTextBox>* Boxes[] = { &C.Name, &C.Personality, &C.Style, &C.Creed };
+	for (int32 k = 0; k < 4; ++k)
+	{
+		const FString V = Boxes[k]->IsValid() ? (*Boxes[k])->GetText().ToString() : FString();
+		if (V.Len() > Limit[k]) { C.Status = FString::Printf(TEXT("%s is limited to %d characters (this is %d)."), FN7DemigodUi::Fields[k], Limit[k], V.Len()); C.bBad = true; return; }
+		B->SetStringField(FN7DemigodUi::Fields[k], k == 0 ? V.TrimStartAndEnd() : V);   // the texts go exactly as typed
+	}
+	C.bBusy = true;
+	C.bBad = false;
+	C.Status = TEXT("Saving (one moderation pass)...");
+	C.Final.Reset();
+	C.Original.Reset();
+	TWeakPtr<SFNDemigodsPage> Weak = SharedThis(this);
+	FN7Account::Call(Net.Get(), TEXT("PUT"), TEXT("/api/me/demigods/") + C.Hand, B, [Weak, i](int32 Code, TSharedPtr<FJsonObject> O)
+	{
+		const TSharedPtr<SFNDemigodsPage> Self = Weak.Pin();
+		if (!Self.IsValid()) return;
+		FCard& C = Self->Cards[i];
+		C.bBusy = false;
+		const FString Verdict = FN7DemigodUi::Str(O, TEXT("verdict")), Err = FN7DemigodUi::Str(O, TEXT("error")), Model = FN7DemigodUi::Str(O, TEXT("model"));
+		const TSharedPtr<FJsonObject>* D = nullptr;
+		if (O.IsValid() && O->TryGetObjectField(TEXT("demigod"), D) && D && D->IsValid()) C.MatchName = FN7DemigodUi::Str(*D, TEXT("match_name"));
+		UE_LOG(LogTemp, Display, TEXT("FN7 demigods: %s hand -> %d %s%s (%s)"), *C.Hand, Code, *Verdict, Err.IsEmpty() ? TEXT("") : *(TEXT(" ") + Err), *Model);
+		if (Code == 200 && Verdict == TEXT("ok")) { C.Status = TEXT("Saved exactly as you wrote it."); return; }
+		if (Code == 200 && Verdict == TEXT("rephrase"))
+		{
+			const TSharedPtr<FJsonObject>* Or = nullptr; const TSharedPtr<FJsonObject>* Fi = nullptr;
+			if (O->TryGetObjectField(TEXT("original"), Or) && Or) C.Original = *Or;
+			if (O->TryGetObjectField(TEXT("final"), Fi) && Fi) C.Final = *Fi;
+			C.Reason = FN7DemigodUi::Str(O, TEXT("reason"));
+			C.Status.Reset();
+			if (D && D->IsValid()) Self->SetTexts(i, *D);   // the editor shows what is saved; EDIT brings yours back
+			return;
+		}
+		if (Code == 422)
+		{
+			const FString Reason = FN7DemigodUi::Str(O, TEXT("reason"));
+			C.Status = TEXT("Not saved: ") + (Reason.IsEmpty() ? FN7Account::ErrorText(Code, O) : Reason) + TEXT(" Your text is still here to change.");
+			C.bBad = true;
+			return;
+		}
+		if (Err == TEXT("name_conflict")) { C.Status = TEXT("The name: ") + FN7Account::ErrorText(Code, O); C.bBad = true; return; }
+		C.Status = FN7Account::ErrorText(Code, O);   // 400 limits / control characters, 429 wait N s, ...
+		C.bBad = true;
+	});
+}
+
 #undef LOCTEXT_NAMESPACE
