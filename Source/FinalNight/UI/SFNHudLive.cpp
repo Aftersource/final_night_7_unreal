@@ -210,6 +210,24 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.ShadowOffset(FVector2D(1.f, 1.f)).ShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f))
 			.Text_Lambda([this]() { return FText::FromString(BoardInfo); })
 		]
+		// "Updating in N s": shown before the Mac session restarts this editor on a new build.
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0.f, 120.f, 0.f, 0.f))
+		[
+			SNew(SBorder).BorderImage(FN7Wood::StoneBrush()).Padding(FMargin(26.f, 12.f))
+			.Visibility_Lambda([this]()
+			{
+				const double Now = (double)FDateTime::UtcNow().ToUnixTimestamp();
+				return (UpdateAt > 0.0 && Now < UpdateAt + 5.0) ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
+			})
+			[
+				SNew(STextBlock).Font(FN7Style::Type::Font(17, TEXT("Bold"))).ColorAndOpacity(FLinearColor(1.f, 0.86f, 0.52f))
+				.Text_Lambda([this]()
+				{
+					const int32 Left = FMath::Max(0, FMath::CeilToInt(UpdateAt - (double)FDateTime::UtcNow().ToUnixTimestamp()));
+					return FText::FromString(Left > 0 ? FString::Printf(TEXT("%s in %d s"), *UpdateText, Left) : UpdateText + TEXT(" now..."));
+				})
+			]
+		]
 		// HOW TO PLAY: a stone tablet, shown once on a player's first join and from the "?" button.
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
@@ -3037,6 +3055,20 @@ FText SFNHudLive::GetTimer() const
 EActiveTimerReturnType SFNHudLive::TickTimer(double, float)
 {
 	UpdateBoardInfo();
+	// A restart is coming (the Mac session writes Saved/FN7Notice.txt = "<epoch seconds of the restart> <text>"): say so on
+	// screen first, so a fresh build never looks like a crash (the knockouts were reported to seem like a crash).
+	{
+		const FString Path = FPaths::ProjectSavedDir() / TEXT("FN7Notice.txt");
+		FString Raw;
+		if (FPaths::FileExists(Path) && FFileHelper::LoadFileToString(Raw, *Path))
+		{
+			FString When, Text;
+			if (!Raw.TrimStartAndEnd().Split(TEXT(" "), &When, &Text)) { When = Raw.TrimStartAndEnd(); Text.Reset(); }
+			UpdateAt = FCString::Atod(*When);
+			UpdateText = Text.IsEmpty() ? FString(TEXT("Updating to the newest build")) : Text;
+		}
+		else UpdateAt = 0.0;
+	}
 	// The first time this machine joins a match: the HOW TO PLAY tablet, once.
 	if (bInRoom && !bHowToChecked)
 	{
