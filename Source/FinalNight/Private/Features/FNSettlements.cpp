@@ -1,4 +1,5 @@
 #include "Features/FNSettlements.h"
+#include "../../UI/FN7KitHitTest.h"
 #include "Features/FNCellGeo.h"
 #include "FNStudio.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -209,7 +210,9 @@ void AFNSettlements::Tick(float DeltaSeconds)
 	}
 	for (const FString& K : Gone) Roads.Remove(K);
 	if (SinceAsk > 3.f) AskRegionsUnderBoard(false);   // the board moved to another region: ask for its towns
-	if (bAnim || SinceDraw > 0.25f) { SinceDraw = 0.f; Draw(); }
+	// FN7 (Mac session, Chris 2026-11-15: the towns and similar are not moving with the primary tabletop map): while the
+	// map moves (a pan, a zoom, a glide), the towns redraw every frame on it; 0.25 s steps trailed the land.
+	if (bAnim || SinceDraw > 0.25f || FN7Kit::BoardMoving(Studio.Get())) { SinceDraw = 0.f; Draw(); }
 }
 
 void AFNSettlements::Draw()

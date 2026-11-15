@@ -1,4 +1,5 @@
 #include "Features/FNPeopleLife.h"
+#include "../../UI/FN7KitHitTest.h"
 #include "FNStudio.h"
 #include "FNNetClient.h"
 #include "Dom/JsonObject.h"
@@ -269,7 +270,7 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 	if (W && !Net.IsValid())
 		for (TObjectIterator<UFNNetClient> It; It; ++It)
 			if (!It->HasAnyFlags(RF_ClassDefaultObject)) { Net = *It; MsgHandle = It->OnServerMessage.AddUObject(this, &AFNPeopleLife::OnMessage); break; }
-	if (!W || SinceDraw < 1.f / 30.f) return;
+	if (!W || (SinceDraw < 1.f / 30.f && !FN7Kit::BoardMovingAny(W))) return;   // FN7 (Mac session): every frame while the map moves
 	const float Dt = SinceDraw;
 	SinceDraw = 0.f;
 	AFNStudio* St = nullptr;

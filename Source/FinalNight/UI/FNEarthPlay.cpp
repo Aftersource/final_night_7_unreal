@@ -346,9 +346,12 @@ void AFNEarthPlay::RebuildCaps(float StartT)
 		if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, ColumnMat)) { CapMat = UMaterialInstanceDynamic::Create(M, this); Caps->SetMaterial(0, CapMat); }
 	}
 	Caps->ClearInstances();
+	Caps->SetRelativeLocation(FVector::ZeroVector);   // laid where the board stands now (the ride below moves the whole set)
 	int32 Q0, R0;
 	if (!St->BoardCentreHex(Q0, R0)) return;
 	CapsKey = St->BoardCellKey(Q0, R0);
+	bCapsAnchor = St->BoardHexLatLon(Q0, R0, CapsAnchorLat, CapsAnchorLon) && OnBoard(CapsAnchorLat, CapsAnchorLon, CapsAnchorW0);
+	CapsBase = Caps->GetComponentLocation();
 	const float S = (float)St->GetActorScale3D().X;
 	// The hex size on the table: the distance between two neighbouring hex centres / sqrt(3).
 	double La0, Lo0, La1, Lo1;
@@ -1061,12 +1064,30 @@ void AFNEarthPlay::Tick(float Dt)
 	// backgrounds or something is getting offset incorrectly").
 	if (Caps)
 	{
+		// They ride the land. Environmental effects are not scrolling with the table map: the set moves by how
+		// far its anchor point has slid on the board (the hand's slide and its seamless re-centres alike); a zoom (another
+		// level) or the anchor gone off the board hides them until the earth for the board on the table is laid.
 		int32 CQ, CR;
-		const bool bFit = !St->IsBoardPanning() && !St->IsZoomAnimating() && St->BoardCentreHex(CQ, CR) && St->BoardCellKey(CQ, CR) == CapsKey;
+		FVector Wn;
+		bool bFit = bCapsAnchor && !St->IsZoomAnimating() && St->BoardCentreHex(CQ, CR);
+		if (bFit)
+		{
+			TArray<FString> A, B;
+			St->BoardCellKey(CQ, CR).ParseIntoArray(A, TEXT(":"));
+			CapsKey.ParseIntoArray(B, TEXT(":"));
+			bFit = A.Num() == 4 && B.Num() == 4 && A[0] == B[0] && A[1] == B[1] && OnBoard(CapsAnchorLat, CapsAnchorLon, Wn);   // same face, same level
+		}
+		if (bFit) Caps->SetWorldLocation(CapsBase + FVector(Wn.X - CapsAnchorW0.X, Wn.Y - CapsAnchorW0.Y, 0.f));
 		if (Caps->IsVisible() != bFit) Caps->SetVisibility(bFit);
 	}
-	// Nothing under a moving hand: answers wait, and the board is asked for only once it rests.
-	if (St->IsBoardPanning()) { CentreChangedAt = Now; return; }
+	// Under a moving hand: the phenomena (storms, fires, smoke...) keep riding the land every frame; answers wait, and
+	// the board is asked for only once it rests.
+	if (St->IsBoardPanning())
+	{
+		CentreChangedAt = Now;
+		for (TPair<int32, FPhen>& P : Phens) PlacePhen(P.Value, Now);
+		return;
+	}
 	if (PendingBoard.IsValid()) { const TSharedPtr<FJsonObject> D = PendingBoard; PendingBoard.Reset(); OnReply(D); }
 	// The board moved (a pan, a zoom): the new disc, once it has settled.
 	if (LastBeat >= 0)

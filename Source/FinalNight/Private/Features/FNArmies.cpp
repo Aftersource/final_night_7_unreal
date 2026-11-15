@@ -1,4 +1,5 @@
 #include "Features/FNArmies.h"
+#include "../../UI/FN7KitHitTest.h"
 #include "FNStudio.h"
 #include "FNNetClient.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -255,7 +256,7 @@ void AFNArmies::Tick(float DeltaSeconds)
 	if (!Net.IsValid())
 		for (TObjectIterator<UFNNetClient> It; It; ++It)
 			if (!It->HasAnyFlags(RF_ClassDefaultObject)) { Net = *It; MsgHandle = It->OnServerMessage.AddUObject(this, &AFNArmies::OnMessage); break; }
-	if (SinceDraw < 0.05f) return;   // 20 updates a second is plenty for pieces that follow the board
+	if (SinceDraw < 0.05f && !FN7Kit::BoardMovingAny(W)) return;   // 20 a second at rest; FN7 (Mac session): every frame while the map moves
 	SinceDraw = 0.f;
 	AFNStudio* St = nullptr;
 	if (TActorIterator<AFNStudio> It(W); It) St = *It;
