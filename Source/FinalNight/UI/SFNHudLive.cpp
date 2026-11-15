@@ -1928,6 +1928,9 @@ void SFNHudLive::HandleDuelEvent(const TSharedPtr<FJsonObject>& Pub)
 				L.Tail.Reset();
 			}
 		};
+		UE_LOG(LogTemp, Display, TEXT("FN7 duel blow: %s n=%d by %s auto=%d %s %.1f dmg \"%s\""), *DuelId, (int32)FN7HudJson::Num(Pub, TEXT("n"), 0.0),
+			*FN7HudJson::Str(Pub, TEXT("by")), FN7HudJson::Flag(Pub, TEXT("auto")) ? 1 : 0, *FN7HudJson::Str(Pub, TEXT("verdict")),
+			FN7HudJson::Num(Pub, TEXT("damage"), 0.0), *FN7HudJson::Str(Pub, TEXT("text")).Left(40));
 		LogBlow(Pub, false);
 		if (const TSharedPtr<FJsonObject> Counter = FN7HudJson::Obj(Pub, TEXT("counter"))) LogBlow(Counter, true);
 		const TSharedPtr<FJsonObject> HpAfter = FN7HudJson::Obj(Pub, TEXT("hp_after")).IsValid() ? FN7HudJson::Obj(Pub, TEXT("hp_after")) : FN7HudJson::Obj(Pub, TEXT("hp"));
@@ -1999,6 +2002,9 @@ EActiveTimerReturnType SFNHudLive::TickDuelFast(double, float)
 			UE_LOG(LogTemp, Display, TEXT("FN7 duel tick: %s panel %d"), *Duel->DuelId, P.Key);
 		}
 		TrySendDuelKeys();   // a keystroke the bucket held back
+		// Your duel keeps the keyboard in your line the whole time (the input should simply be set to have focus),
+		// unless you're typing in another box.
+		if (Tray.IsValid() && !Tray->HasInputFocus() && !FN7TypingInText() && FN7GameHasFocus()) Tray->FocusInput();
 		Duel->bSending = N->HeldDuelLines() > 0;
 	}
 	return EActiveTimerReturnType::Continue;
