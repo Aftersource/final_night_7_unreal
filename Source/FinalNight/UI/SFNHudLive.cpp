@@ -775,6 +775,22 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 {
 	NetProblem.Reset();   // the server answered
 	// The earth simulator on the table (AFNEarthPlay): each beat's field and phenomena, the board's records, a cast's strike.
+	// Earth time travel: the field at a beat, a join / reconnect / fork at the present, a new match.
+	if (T == TEXT("game.earth_at") || T == TEXT("match.snapshot") || T == TEXT("match.started"))
+		if (AFNStudio* St = FindStudio())
+			if (AFNEarthPlay* E = AFNEarthPlay::Get(St->GetWorld(), true))
+			{
+				E->Bind(Net.Get());
+				if (T == TEXT("game.earth_at")) E->OnFieldAt(D);
+				else if (T == TEXT("match.started")) E->ResetMatch();
+				else
+				{
+					const TSharedPtr<FJsonObject> PV = FN7HudJson::Obj(D, TEXT("public_state"));
+					TSharedPtr<FJsonObject> PE = FN7HudJson::Obj(PV, TEXT("earth"));
+					if (!PE.IsValid()) PE = FN7HudJson::Obj(FN7HudJson::Obj(PV, TEXT("present")), TEXT("earth"));
+					E->OnSnapshot(PE);
+				}
+			}
 	if (T == TEXT("round.outcome") || T == TEXT("game.earth") || T == TEXT("phase.event"))
 		if (AFNStudio* St = FindStudio())
 			if (AFNEarthPlay* E = AFNEarthPlay::Get(St->GetWorld(), true))

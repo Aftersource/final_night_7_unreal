@@ -212,12 +212,22 @@ void AFNEarthPlay::OnOutcome(const TSharedPtr<FJsonObject>& Earth)
 	using namespace FN7EarthPlay;
 	if (!Earth.IsValid()) return;
 	const int32 Beat = (int32)Num(Earth, TEXT("beat"), LastBeat);
-	if (LastBeat >= 0 && Beat > LastBeat) BeatLen = FMath::Clamp((float)(FPlatformTime::Seconds() - BeatStart), 2.f, 20.f);
+	if (LastBeat >= 0 && Beat == LastBeat + 1) BeatLen = FMath::Clamp((float)(FPlatformTime::Seconds() - BeatStart), 2.f, 20.f);
 	LastBeat = Beat;
+	const FString Hash = Str(Earth, TEXT("hash"));
+	if (!Hash.IsEmpty())
+	{
+		OutcomeHash.Add(Beat, Hash);
+		for (auto It = OutcomeHash.CreateIterator(); It; ++It) if (It.Key() < Beat - 64) It.RemoveCurrent();
+	}
+	if (bHeld) return;   // a scrub is on the table: the live beat waits for BackToLive
+	if (DrawnBeat < 0 || Beat != DrawnBeat + 1) { JumpTo(Beat); return; }   // a jump (first beat, reconnect, replay seek)
 	BeatStart = FPlatformTime::Seconds();
 	static const TArray<TSharedPtr<FJsonValue>> None;
 	const TArray<TSharedPtr<FJsonValue>>* List = Arr(Earth, TEXT("phenomena"));
 	SyncPhenomena(List ? *List : None, Arr(Earth, TEXT("ended")));
+	DrawnBeat = Beat;
+	DrawnHash = Hash;
 	// The board: only what changed since the beat it was drawn at (the whole disc the first time or after a move).
 	AskBoard(BoardBeat < 0);
 	AskGlobe();
@@ -231,14 +241,44 @@ void AFNEarthPlay::OnReply(const TSharedPtr<FJsonObject>& D)
 		Tops.Reset();
 		for (const TSharedPtr<FJsonValue>& V : *T) Tops.Add(V->AsString());
 	}
+	const int32 AnsBeat = (int32)Num(D, TEXT("beat"), -1);
 	if (const TSharedPtr<FJsonObject> B = Obj(D, TEXT("board")))
 	{
 		// Never under a moving hand: a board answer that lands mid-drag waits for the release (Tick).
 		if (AFNStudio* St = FindStudio(); St && St->IsBoardPanning()) { PendingBoard = D; return; }
-		ApplyBoard(B);
-		BoardBeat = (int32)Num(D, TEXT("beat"), BoardBeat);
+		const FString Centre = Str(B, TEXT("center"));
+		const bool bFull = !B->HasField(TEXT("changed"));
+		if (bFull && AnsBeat >= 0)
+		{
+			const FString CKey = FString::Printf(TEXT("%s@%d"), *Centre, AnsBeat);
+			if (!BoardCache.Contains(CKey)) { CacheOrder.Add(CKey); while (CacheOrder.Num() > 32) BoardCache.Remove(CacheOrder[0]), CacheOrder.RemoveAt(0); }
+			BoardCache.Add(CKey, D);
+		}
+		if (bFull && AnsBeat == FirstBeat && BaseAsked.Contains(Centre) && !BaseKnown.Contains(Centre)) ApplyBaseline(B);
+		else if (bFull && bJumpBoard && AnsBeat == JumpBeat) ApplyJumpBoard(D);
+		else
+		{
+			ApplyBoard(B);
+			BoardBeat = AnsBeat >= 0 ? AnsBeat : BoardBeat;
+		}
+		// A place seen for the first time after the first beat: its heights are measured from the first beat.
+		if (bFull && AnsBeat > FirstBeat && !BaseKnown.Contains(Centre) && !BaseAsked.Contains(Centre) && Net.IsValid())
+		{
+			BaseAsked.Add(Centre);
+			TSharedPtr<FJsonObject> A = MakeShared<FJsonObject>();
+			A->SetStringField(TEXT("cell"), Centre);
+			A->SetNumberField(TEXT("beat"), FirstBeat);
+			A->SetNumberField(TEXT("max_phenomena"), 0);
+			Net->Query(TEXT("game.earth"), A);
+		}
+		else if (bFull && AnsBeat >= 0 && AnsBeat <= FirstBeat) BaseKnown.Add(Centre);
 	}
-	if (const TSharedPtr<FJsonObject> T = Obj(D, TEXT("tiles"))) { ApplyTiles(T); GlobeBeat = (int32)Num(D, TEXT("beat"), GlobeBeat); }
+	if (const TSharedPtr<FJsonObject> T = Obj(D, TEXT("tiles")))
+	{
+		if (bJumpTiles && AnsBeat == JumpBeat && !T->HasField(TEXT("changed"))) { GlobeTiles.Reset(); bJumpTiles = false; }
+		ApplyTiles(T);
+		GlobeBeat = AnsBeat >= 0 ? AnsBeat : GlobeBeat;
+	}
 }
 
 void AFNEarthPlay::ApplyBoard(const TSharedPtr<FJsonObject>& Board)
@@ -287,6 +327,7 @@ void AFNEarthPlay::ApplyBoard(const TSharedPtr<FJsonObject>& Board)
 	}
 	MoveStart = FPlatformTime::Seconds();
 	bMovePending = Moves.Num() > 0;
+	CapBlend = MoveTime;
 	if (bCurrent) RebuildCaps(0.f);
 	UE_LOG(LogTemp, Display, TEXT("FN7 earth: beat %d, %d cells changed, %d phenomena drawn (board %s, %d records%s, %d hexes moving)"),
 		LastBeat, NChanged, Phens.Num(), *Centre, N, bSince ? TEXT(" since") : TEXT(""), Moves.Num());
@@ -341,7 +382,7 @@ void AFNEarthPlay::RebuildCaps(float StartT)
 	}
 	Caps->MarkRenderStateDirty();
 	UE_LOG(LogTemp, Display, TEXT("FN7 earth: %d hexes drawn over the board (cap size %.1f cm, %s)"), Caps->GetInstanceCount(), R, StartT < 1.f ? TEXT("blending in") : TEXT("settled"));
-	CapStart = FPlatformTime::Seconds() - StartT * MoveTime;
+	CapStart = FPlatformTime::Seconds() - StartT * FMath::Max(0.05f, CapBlend);
 	if (CapMat) CapMat->SetScalarParameterValue(TEXT("BeatT"), StartT);
 }
 
@@ -735,6 +776,195 @@ void AFNEarthPlay::OnStreak(const TSharedPtr<FJsonObject>& Pub)
 	}
 }
 
+// --- time travel ------------------------------------------------------------------------------------------------
+
+void AFNEarthPlay::JumpTo(int32 Beat)
+{
+	// Not the next beat: no deltas. The board, the globe's tiles and the field (phenomena + hash) as they stood at Beat.
+	using namespace FN7EarthPlay;
+	AFNStudio* St = FindStudio();
+	UFNNetClient* N = Net.Get();
+	if (!St || !N || Beat < 0) return;
+	JumpFrom = DrawnBeat;
+	JumpBeat = Beat;
+	bJumpBoard = bJumpTiles = bJumpField = true;
+	int32 Q0, R0;
+	if (St->BoardCentreHex(Q0, R0))
+	{
+		const FString Centre = St->BoardCellKey(Q0, R0);
+		if (const TSharedPtr<FJsonObject>* Hit = BoardCache.Find(FString::Printf(TEXT("%s@%d"), *Centre, Beat))) ApplyJumpBoard(*Hit);   // instant
+		else
+		{
+			TSharedPtr<FJsonObject> A = MakeShared<FJsonObject>();
+			A->SetStringField(TEXT("cell"), Centre);
+			A->SetNumberField(TEXT("beat"), Beat);
+			A->SetNumberField(TEXT("max_phenomena"), 0);
+			N->Query(TEXT("game.earth"), A);
+			AskedAt = FPlatformTime::Seconds();
+			LastCentre = Centre;
+		}
+	}
+	TSharedPtr<FJsonObject> T = MakeShared<FJsonObject>();
+	T->SetNumberField(TEXT("tiles"), 4);
+	T->SetNumberField(TEXT("beat"), Beat);
+	N->Query(TEXT("game.earth"), T);
+	TSharedPtr<FJsonObject> F = MakeShared<FJsonObject>();
+	F->SetNumberField(TEXT("beat"), Beat);
+	N->Query(TEXT("game.earth_at"), F);
+	DrawnBeat = Beat;
+}
+
+void AFNEarthPlay::ApplyJumpBoard(const TSharedPtr<FJsonObject>& D)
+{
+	// A jump's board: the whole disc replaces what was drawn, heights at once (no rise), caps cross-fading in 0.3 s.
+	using namespace FN7EarthPlay;
+	bJumpBoard = false;
+	const TSharedPtr<FJsonObject> B = Obj(D, TEXT("board"));
+	if (!B.IsValid()) return;
+	ApplyBoard(B);
+	BoardBeat = (int32)Num(D, TEXT("beat"), JumpBeat);
+	if (bMovePending) { bMovePending = false; HeightsNow(); }
+	CapBlend = 0.3f;
+	RebuildCaps(0.f);
+}
+
+void AFNEarthPlay::ApplyBaseline(const TSharedPtr<FJsonObject>& Board)
+{
+	// The first beat's heights for this disc become its baseline; what is drawn now is re-measured from them.
+	using namespace FN7EarthPlay;
+	AFNStudio* St = FindStudio();
+	const FString Centre = Str(Board, TEXT("center"));
+	BaseKnown.Add(Centre);
+	TArray<FString> Parts;
+	Centre.ParseIntoArray(Parts, TEXT(":"));
+	if (!St || Parts.Num() != 4) return;
+	const int32 Q0 = FCString::Atoi(*Parts[2]), R0 = FCString::Atoi(*Parts[3]);
+	const TArray<uint8> Data = Bytes(Str(Board, TEXT("data")));
+	const TArray<FIntPoint>& Order = RingOrder();
+	int32 Moved = 0;
+	for (int32 j = 0; j < Data.Num() / 9 && Order.IsValidIndex(j); ++j)
+	{
+		const FString Key = FString::Printf(TEXT("%s:%s:%d:%d"), *Parts[0], *Parts[1], Q0 + Order[j].X, R0 + Order[j].Y);
+		uint8& Base = Base16.FindOrAdd(Key, Data[j * 9]);
+		if (Base != Data[j * 9]) { Base = Data[j * 9]; ++Moved; }
+	}
+	UE_LOG(LogTemp, Display, TEXT("FN7 earth: first-beat baseline for %s (%d hexes differ from first sight)"), *Centre, Moved);
+	if (Moved > 0) HeightsNow();
+}
+
+void AFNEarthPlay::HeightsNow()
+{
+	// Every drawn hex of the board on the table at its height and state from Cur and its baseline, in one rebuild.
+	using namespace FN7EarthPlay;
+	AFNStudio* St = FindStudio();
+	int32 Q0, R0;
+	if (!St || !St->BoardCentreHex(Q0, R0)) return;
+	for (const FIntPoint& H : RingOrder())
+	{
+		const int32 Q = Q0 + H.X, R = R0 + H.Y;
+		const FString Key = St->BoardCellKey(Q, R);
+		const FRec* Rec = Cur.Find(Key);
+		const uint8* Base = Base16.Find(Key);
+		if (!Rec || !Base) continue;
+		const int32 Dl = ((int32)Rec->H16 - *Base) / 16;
+		const uint8 State = (uint8)StateOf(*Rec, TopName(Rec->Top), Dl);
+		float Def; FVector W;
+		if (Dl != 0 && !DefaultTop.Contains(Key) && St->BoardHexTop(Q, R, false, Def, W)) DefaultTop.Add(Key, Def);
+		const float* Dp = DefaultTop.Find(Key);
+		const bool bHeight = Dl != 0 && Dp;
+		St->SetHexOverride(Key, bHeight ? FMath::Clamp(*Dp + Dl * CmPerLevel, 0.6f, 24.f) : NAN, (EFNHexState)State);
+		Committed.Add(Key, bHeight ? Dl * CmPerLevel : NAN);
+		CommittedState.Add(Key, State);
+	}
+	Moves.Reset();
+	St->RebuildBoard();
+}
+
+void AFNEarthPlay::OnFieldAt(const TSharedPtr<FJsonObject>& D)
+{
+	// The field at a beat: its phenomena (stable ids, snapped, no tween across a jump) and its hash, checked.
+	using namespace FN7EarthPlay;
+	const int32 Beat = (int32)Num(D, TEXT("beat"), -1);
+	if (!bJumpField || Beat != JumpBeat) return;
+	bJumpField = false;
+	ClearPhenomena();
+	static const TArray<TSharedPtr<FJsonValue>> None;
+	const TArray<TSharedPtr<FJsonValue>>* List = Arr(D, TEXT("phenomena"));
+	SyncPhenomena(List ? *List : None, nullptr);
+	for (TPair<int32, FPhen>& P : Phens) { P.Value.ToLat = P.Value.Lat; P.Value.ToLon = P.Value.Lon; }   // a jump snaps
+	BeatStart = FPlatformTime::Seconds();
+	const FString Hash = Str(D, TEXT("hash"));
+	DrawnHash = Hash;
+	const FString* Want = OutcomeHash.Find(Beat);
+	if (Want && !Hash.IsEmpty() && *Want != Hash)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("FN7 earth: hash mismatch at %d (field %s, outcome %s)%s"), Beat, *Hash.Left(12), *Want->Left(12), bHashRetried ? TEXT("") : TEXT(": refetching"));
+		if (!bHashRetried) { bHashRetried = true; BoardCache.Empty(); CacheOrder.Reset(); JumpTo(Beat); }
+		return;
+	}
+	bHashRetried = false;
+	UE_LOG(LogTemp, Display, TEXT("FN7 earth: jump to beat %d (from %d): board full, %d phenomena, hash %s"), Beat, JumpFrom, Phens.Num(), Want ? TEXT("ok") : TEXT("unverified (no outcome for that beat seen)"));
+}
+
+void AFNEarthPlay::OnSnapshot(const TSharedPtr<FJsonObject>& PresentEarth)
+{
+	using namespace FN7EarthPlay;
+	if (!PresentEarth.IsValid()) return;
+	FirstBeat = (int32)Num(PresentEarth, TEXT("first_beat"), FirstBeat);
+	const int32 Beat = (int32)Num(PresentEarth, TEXT("beat"), -1);
+	const FString Hash = Str(PresentEarth, TEXT("hash"));
+	if (Beat < 0) return;
+	if (!Hash.IsEmpty()) OutcomeHash.Add(Beat, Hash);
+	LastBeat = FMath::Max(LastBeat, Beat);
+	if (!bHeld && Beat != DrawnBeat) JumpTo(Beat);
+}
+
+void AFNEarthPlay::ScrubTo(int32 Beat)
+{
+	bHeld = true;
+	JumpTo(Beat);
+}
+
+void AFNEarthPlay::BackToLive()
+{
+	bHeld = false;
+	if (LastBeat >= 0 && LastBeat != DrawnBeat) JumpTo(LastBeat);
+}
+
+void AFNEarthPlay::ClearPhenomena()
+{
+	for (TPair<int32, FPhen>& P : Phens)
+	{
+		for (UStaticMeshComponent* C : P.Value.Parts) if (C) C->DestroyComponent();
+		if (P.Value.Light) P.Value.Light->DestroyComponent();
+		if (P.Value.GlobeDot) P.Value.GlobeDot->DestroyComponent();
+	}
+	Phens.Reset();
+}
+
+void AFNEarthPlay::ResetMatch()
+{
+	// A new match: a new earth. Nothing of the last one stays on the table.
+	AFNStudio* St = FindStudio();
+	if (St)
+	{
+		EndHeave(St, false);
+		St->ClearHexOverrides();
+		St->RebuildBoard();
+	}
+	ClearPhenomena();
+	Cur.Reset(); Base16.Reset(); DefaultTop.Reset(); Committed.Reset(); CommittedState.Reset();
+	Moves.Reset(); bMovePending = false;
+	GlobeTiles.Reset();
+	if (Caps) Caps->ClearInstances();
+	if (GlobeCaps) GlobeCaps->ClearInstances();
+	BoardCache.Empty(); CacheOrder.Reset(); BaseKnown.Reset(); BaseAsked.Reset(); OutcomeHash.Reset();
+	DrawnBeat = LastBeat = BoardBeat = GlobeBeat = JumpBeat = -1;
+	bJumpBoard = bJumpTiles = bJumpField = bHeld = false;
+	FirstBeat = 1;
+	UE_LOG(LogTemp, Display, TEXT("FN7 earth: new match, the table's earth cleared"));
+}
+
 // --- the Populous earth-heave -----------------------------------------------------------------------------------
 
 void AFNEarthPlay::StartHeave(double Lat, double Lon, float AmpCm, float RadiusKm, float Dur)
@@ -833,7 +1063,7 @@ void AFNEarthPlay::Tick(float Dt)
 		}
 	}
 	// The beat's blend and the rising hexes.
-	const float U = FMath::Clamp((float)((Now - CapStart) / MoveTime), 0.f, 1.f);
+	const float U = FMath::Clamp((float)((Now - CapStart) / FMath::Max(0.05f, CapBlend)), 0.f, 1.f);
 	if (CapMat) CapMat->SetScalarParameterValue(TEXT("BeatT"), U * U * (3.f - 2.f * U));
 	if (bMovePending && Now - MoveStart > MoveTime + 0.05) CommitMoves();   // (never during a drag: see above)
 	TickHeave(Now, St);
