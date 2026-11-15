@@ -45,6 +45,7 @@
 #include "FNDuelRules.h"
 #include "SFNMemoryTree.h"
 #include "FNSoundPass.h"
+#include "FNVoiceOver.h"
 #include "Features/FNInventoryShelf.h"
 
 #include "Styling/CoreStyle.h"
@@ -1013,6 +1014,7 @@ void SFNHudLive::HandleMessage(const FString& T, TSharedPtr<FJsonObject> D)
 		if (bVictory && VictoryFadeAt <= 0.0) VictoryFadeAt = FPlatformTime::Seconds();   // the next one: fade it out
 		bInRoom = true;
 		NewMatch(FN7HudJson::Has(D, TEXT("match_id")) ? FN7HudJson::Str(D, TEXT("match_id")) : FString::Printf(TEXT("m%.0f"), FPlatformTime::Seconds()));
+		FN7Voice::SayOnce(FN7Voice::ELine::Intro, FN7HudJson::Str(D, TEXT("match_id")));   // the narrator opens the match
 		bOut = false;
 		bTakeAsked = false;
 		Model.Status = LOCTEXT("Started", "The match has begun.");
@@ -2192,6 +2194,7 @@ void SFNHudLive::HandleChallengeLock(const TSharedPtr<FJsonObject>& Lock, bool b
 	// has spun there as well"): the flash and the banner at once, the glide as soon as you aren't typing or dragging.
 	FlashStart = FPlatformTime::Seconds();
 	if (AFNStudio* Sst = FindStudio()) FN7Sound::Play(Sst->GetWorld(), FN7Sound::ESnd::Clash, Info.bMine ? 0.6f : 0.35f);   // steel on steel
+	if (Info.bMine && !bRestore) FN7Voice::SayOnce(FN7Voice::ELine::Clash, DuelId);   // "CLASH! Will against will."
 	if (Info.bMine)
 		ShowBanner(LOCTEXT("YourDuel", "YOUR DUEL: TYPE!"), FText::FromString(FString::Printf(TEXT("each line is a blow  -  %s  vs  %s"), *Info.AName, *Info.BName)), FLinearColor(1.f, 0.62f, 0.2f), 0.0, 6.0);
 	else
@@ -2768,6 +2771,8 @@ void SFNHudLive::ShowVictory(const TSharedPtr<FJsonObject>& Summary)
 	UE_LOG(LogTemp, Display, TEXT("FN7 victory: %s (champion %s, seat %d, mine %d)"), *VictoryTitle.ToString(), *ChampPlayer, ChampSeat, bVictoryMine ? 1 : 0);
 	// The sting: a rising chord when your side won, the low falling tone when it didn't.
 	if (AFNStudio* St = FindStudio()) FN7Sound::Play(St->GetWorld(), bVictoryMine ? FN7Sound::ESnd::Victory : FN7Sound::ESnd::Fall, 0.6f);
+	if (MySeat >= 0 || MineRefs.Num() > 0)   // a player at the table (a watcher hears no verdict)
+		FN7Voice::SayOnce(bVictoryMine ? FN7Voice::ELine::Victory : FN7Voice::ELine::Defeat, MatchId);
 	FetchNextMatch();
 }
 
@@ -2902,6 +2907,7 @@ void SFNHudLive::HandleDuelsOutcome(const TSharedPtr<FJsonObject>& Pub)
 			if (bMine)
 			{
 				const bool bWon = !Winner.IsEmpty() && MineRefs.Contains(Winner);
+				if (!Winner.IsEmpty()) FN7Voice::SayOnce(bWon ? FN7Voice::ELine::DuelWon : FN7Voice::ELine::DuelLost, DuelId);   // a draw: no verdict
 				const FText Title = Winner.IsEmpty() ? LOCTEXT("DuelDraw", "DRAW") : bWon ? LOCTEXT("DuelWon", "VICTORY!") : LOCTEXT("DuelLost", "DEFEAT");
 				const FLinearColor Col = Winner.IsEmpty() ? FLinearColor(0.75f, 0.75f, 0.78f) : bWon ? FLinearColor(1.f, 0.82f, 0.3f) : FLinearColor(0.95f, 0.25f, 0.2f);
 				ShowBanner(Title, FText::FromString(Line), Col, 0.0, 6.0);

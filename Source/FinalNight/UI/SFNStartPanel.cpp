@@ -1,4 +1,5 @@
 #include "SFNStartPanel.h"
+#include "FNVoiceOver.h"
 #include "FNWood.h"
 
 #include "Dom/JsonObject.h"
@@ -328,6 +329,7 @@ void SFNStartPanel::Opened()
 	RefreshStats();
 	RefreshHouse();
 	if (UFNNetClient* N = Net.Get()) if (bConnected) N->ListRooms();
+	if (FN7Account::IsSignedIn()) FN7Voice::SayOnce(FN7Voice::ELine::Welcome, TEXT("run"));   // "Welcome, god." (once a run)
 }
 
 // Swallow every click on the scrim: nothing falls through to the globe or the table.
@@ -755,6 +757,7 @@ void SFNStartPanel::OnBooted(bool bSignedIn)
 	const FN7Account::FConfig& C = FN7Account::Config();
 	Page = (!bSignedIn && !bInGame.Get() && C.bKnown && C.bGuest) ? EPage::Welcome : EPage::Lobby;
 	if (bSignedIn && Settings.IsValid()) Settings->Open();   // reads the settings and keeps reduce flashing / text size locally
+	if (bSignedIn && Page == EPage::Lobby) FN7Voice::SayOnce(FN7Voice::ELine::Welcome, TEXT("run"));
 	UE_LOG(LogTemp, Display, TEXT("FN7 login: %s"), bSignedIn ? TEXT("signed in, the lobby") : Page == EPage::Welcome ? TEXT("welcome (no session)") : TEXT("no accounts on this server, the lobby"));
 }
 
