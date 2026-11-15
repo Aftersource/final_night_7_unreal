@@ -112,6 +112,10 @@ private:
 	void RestoreDuels(const TSharedPtr<FJsonObject>& Present);
 	FString NetProblem;
 	FString BoardInfo;     // the studio's board debug lines, shown under the title bar
+	struct FNewItem { FString Name; double At = 0.0; };
+	TMap<FString, FNewItem> NewItems;   // demigod ref -> its just-gained item (the card's NEW badge)
+	TSet<FString> SeenLooks;            // look.changed seen (ref|memory|ready)
+	void HandleLooks(const TSharedPtr<FJsonObject>& Pub);
 	TWeakObjectPtr<class UTextRenderComponent> BoardInfoComp;
 	void UpdateBoardInfo();    // the client can't reach the server: shown as a centred card until it answers
 	void OpenDuelBox();    // the challenge box on the table (FNDuelBox): rises, opens, plays the panels
