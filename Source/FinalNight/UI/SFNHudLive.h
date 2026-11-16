@@ -166,6 +166,7 @@ private:
 	TMap<FString, bool> AliveSeen;   // the sound pass: your hands' last known standing
 	int32 LastUrgency = 0;
 	double LastEntropy = -1.0;   // the voice's 80-band crossing
+	TMap<FString, FString> CardArtLog;   // "FN7 card: <name> wants <hash> got ..." once per change
 	// The tree of consequence overlay (game.memory_tree); asked again when the beat turns while it is open.
 	TSharedPtr<class SFNMemoryTree> MemTree;
 	bool bTreeOpen = false;
