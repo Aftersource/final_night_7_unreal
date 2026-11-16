@@ -98,6 +98,7 @@ public:
 	// Scene animator (mirrors SceneAnimator in the Unity client)
 	void PlayerEaselDown();
 	void SetGuardBlitz(bool bBlitz);
+	bool IsGuardBlitz() const { return bBlitz; }   // FN7 (Mac session, the iso globe): true until you join
 	void SetGuardLocked(bool bLocked);
 	void SetWillPanelState(const FString& Label, bool bActive);
 
