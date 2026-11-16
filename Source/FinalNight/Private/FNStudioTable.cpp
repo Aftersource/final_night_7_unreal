@@ -85,7 +85,7 @@ void AFNStudio::PickSpot(double Lat, double Lon, bool bByUser)
 	PickLon = Lon;
 	PickDir = BoardDir(PickLon, PickLat).GetSafeNormal();
 	bUserPicked |= bByUser;
-	if (bByUser) { PlaySfx(EFNSfx::Chime, 0.5f); if (OnUserPickedSpot) OnUserPickedSpot(PickLon, PickLat); }
+	if (bByUser && OnUserPickedSpot) OnUserPickedSpot(PickLon, PickLat);   // no ding: you chose this spot yourself (Benito)
 	RebuildIn = 0.f;
 }
 
@@ -537,8 +537,7 @@ bool AFNStudio::ClickDemigod(FName Id)
 	}
 	else return false;
 	UE_LOG(LogTemp, Display, TEXT("FNPick: demigod %s ref=%s"), *Name, *Ref);
-	PlaySfx(EFNSfx::Chime, 0.5f);
-	CenterMapOn(Ref, Name);
+	CenterMapOn(Ref, Name);   // no ding: your own click (Benito)
 	if (OnDemigodClicked) OnDemigodClicked(Ref, Name);
 	return true;
 }
