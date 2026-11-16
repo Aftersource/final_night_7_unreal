@@ -779,7 +779,7 @@ void AFNStudio::ShowWorld(const TArray<FFNPiece>& Pieces)
 	PieceKinds.SetNum(PieceRoots.Num());
 	for (int32 i = 0; i < PieceRoots.Num(); ++i)
 	{
-		const bool bOn = All.IsValidIndex(i);
+		const bool bOn = All.IsValidIndex(i) && All[i].Kind != 0;   // Benito: the main YOU token on the globe "needs to go" (your hands mark you)
 		PieceRoots[i]->SetVisibility(bOn, true);
 		PieceLabels[i]->SetVisibility(bOn);
 		PieceKinds[i] = bOn ? All[i].Kind : -1;
@@ -1350,7 +1350,8 @@ void AFNStudio::UpdateDice(float Dt)
 		DicePivot->SetRelativeLocation(Rest + FVector(-20.f * (1.6f - DiceT), 10.f * (1.6f - DiceT), H));
 		DicePivot->AddLocalRotation(FRotator(DiceSpin.X * Dt, DiceSpin.Y * Dt, DiceSpin.Z * Dt) * FMath::Exp(-1.5f * DiceT));
 		static const float Hits[3] = { 0.224f, 0.673f, 1.122f };
-		while (DiceSounds < 3 && DiceT >= Hits[DiceSounds]) { PlaySfx(EFNSfx::Click, 1.f - 0.25f * DiceSounds); ++DiceSounds; }
+		// Benito: a faint, chill dice roll, nothing distracting: soft wooden taps, no bell at the end
+		while (DiceSounds < 3 && DiceT >= Hits[DiceSounds]) { PlaySfx(EFNSfx::Click, 0.3f - 0.08f * DiceSounds); ++DiceSounds; }
 	}
 	else if (DiceSounds < 4)
 	{
@@ -1359,7 +1360,8 @@ void AFNStudio::UpdateDice(float Dt)
 		DicePivot->SetRelativeRotation(FRotator(0.f, Rng.FRandRange(0.f, 360.f), 0.f));
 		if (DiceNumber) DiceNumber->SetVisibility(true);
 		if (DiceLine) DiceLine->SetVisibility(true);
-		if (bDiceGood) PlaySfx(EFNSfx::Chime, 0.8f); else { PlaySfx(EFNSfx::Boom, 0.6f); ShakeAmt = FMath::Max(ShakeAmt, 1.2f); }
+		PlaySfx(EFNSfx::Click, 0.12f);   // the die settles
+		if (!bDiceGood) ShakeAmt = FMath::Max(ShakeAmt, 1.2f);
 		FlashAmt = FMath::Max(FlashAmt, 0.4f);
 	}
 	// the number floats above the die and faces you

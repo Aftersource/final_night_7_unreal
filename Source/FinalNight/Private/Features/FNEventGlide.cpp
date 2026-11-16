@@ -146,6 +146,7 @@ void AFNEventGlide::Tick(float DeltaSeconds)
 	}
 	if (!bAway) St->GetViewSpot(SavedLat, SavedLon, bSavedPicked);   // where you were (kept through a chain of two)
 	St->CenterBoardAndGlobe(G.Lat, G.Lon);
+	St->PlaySfx(EFNSfx::Chime, 0.45f);   // Benito: the ding is for when the game moves your view for you, never your own clicks
 	bool bP;
 	St->GetViewSpot(AwayLat, AwayLon, bP);
 	if (TActorIterator<AFNEventFx> Fx(W); Fx) Fx->Play(G.Lon, G.Lat, G.Kind, G.Mag, 0, 0.8f);   // it was off the board when it came in
