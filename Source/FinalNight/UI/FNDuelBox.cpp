@@ -491,14 +491,32 @@ void AFNDuelBox::Open(const TSharedPtr<FFNDuelSession>& InSession, AFNStudio* St
 
 	if (bNew)
 	{
-		auto Skin = [](USkeletalMeshComponent* M, const FString& Name)
+		// A player's demigod with a rigged figure fights as that figure. Demigod players should be properly posed.
+		// was always the plan"): Meshy's ue5_mannequin rig, imported on the mannequin's own skeleton, so every duel clip plays
+		// on it unchanged, in its own textures (no skin tint). Everyone else (the AI demigods tonight) is the mannequin in its
+		// lock skin. The figure is found by the demigod's name, as figures.json keys it ("Chris's Left Hand" -> chris_left_hand).
+		auto Dress = [](USkeletalMeshComponent* M, const FString& FighterName, const FString& SkinName)
 		{
-			const FString MiPath = FString::Printf(TEXT("/Game/Duel/Skins/MI_Skin_%s.MI_Skin_%s"), *Name, *Name);
+			if (!M) return;
+			FString Slug;
+			for (const TCHAR C : FighterName.ToLower().Replace(TEXT("'s "), TEXT("_")).Replace(TEXT(" "), TEXT("_")))
+				if (FChar::IsAlnum(C) || C == TEXT('_')) Slug.AppendChar(C);
+			USkeletalMesh* Figure = Slug.IsEmpty() ? nullptr
+				: LoadObject<USkeletalMesh>(nullptr, *FString::Printf(TEXT("/Game/Duel/Figures/%s/%s_rigged.%s_rigged"), *Slug, *Slug, *Slug), nullptr, LOAD_NoWarn | LOAD_Quiet);
+			if (Figure)
+			{
+				if (M->GetSkeletalMeshAsset() != Figure) M->SetSkeletalMesh(Figure);
+				M->EmptyOverrideMaterials();
+				UE_LOG(LogTemp, Display, TEXT("FN7 duel box: %s fights as its rigged figure %s"), *FighterName, *Slug);
+				return;
+			}
+			if (USkeletalMesh* Mannequin = LoadObject<USkeletalMesh>(nullptr, FN7Box::MeshPath); Mannequin && M->GetSkeletalMeshAsset() != Mannequin) M->SetSkeletalMesh(Mannequin);
+			const FString MiPath = FString::Printf(TEXT("/Game/Duel/Skins/MI_Skin_%s.MI_Skin_%s"), *SkinName, *SkinName);
 			if (UMaterialInterface* Mi = LoadObject<UMaterialInterface>(nullptr, *MiPath))
-				for (int32 s = 0; M && s < M->GetNumMaterials(); ++s) M->SetMaterial(s, Mi);
+				for (int32 s = 0; s < M->GetNumMaterials(); ++s) M->SetMaterial(s, Mi);
 		};
-		Skin(FighterA, InSession->ASkin);
-		Skin(FighterB, InSession->BSkin);
+		Dress(FighterA, InSession->AName, InSession->ASkin);
+		Dress(FighterB, InSession->BName, InSession->BSkin);
 		NameA->SetText(FText::FromString(InSession->AName));
 		NameB->SetText(FText::FromString(InSession->BName));
 		LastPanel = -1;
