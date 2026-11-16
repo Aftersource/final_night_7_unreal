@@ -8,7 +8,7 @@ Tip: note the time on your clock when something goes wrong. It helps us find it 
 
 ## Getting in
 
-- [ ] Put the access key you were sent in `FinalNight\Config\FN7Key.txt`, launch `FinalNight.exe` → the welcome page
+- [ ] Launch `FinalNight.exe` → the welcome page
       appears, with no "CAN'T REACH THE GAME" card.
 - [ ] Type a name, press **PLAY AS GUEST** → the lobby opens, the narrator welcomes you, and it says "Server online".
 - [ ] Press **JOIN THE GAME** → you're at the table, the **HOW TO PLAY** tablet shows (first time only), **GOT IT**
