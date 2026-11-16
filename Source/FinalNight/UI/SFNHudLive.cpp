@@ -3530,10 +3530,10 @@ void SFNHudLive::OnPowerDragEnded(const FString& Power)
 	}
 }
 
-FString SFNHudLive::WhoNear(double Lat, double Lon, bool& bMine) const
+FString SFNHudLive::WhoNear(double Lat, double Lon, bool& bMine, double RadiusKm) const
 {
 	bMine = false;
-	double Best = 300.0;   // km
+	double Best = RadiusKm;   // km: the power's reach, at least 2 hexes at this zoom (not a flat 300 km at every level)
 	const FSeatInfo* Hit = nullptr;
 	for (const FSeatInfo& S : Seats)
 	{
@@ -3550,6 +3550,7 @@ FString SFNHudLive::WhoNear(double Lat, double Lon, bool& bMine) const
 
 void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPosition)
 {
+	if (SFNPanelMover::IsOverAnyPanel(ScreenPosition)) return;   // let go over a panel: nothing happens (before the hold)
 	// your own demigod under the drop and no warning yet: warn, keep the power, cast on a second drop there
 	{
 		double La = 0.0, Lo = 0.0, HexM = 0.0;
@@ -3557,10 +3558,15 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 		FVector2D Pixel;
 		AFNStudio* WSt = FindStudio();
 		const TSharedPtr<FFNPowerDragDrop> WOp = FFNPowerDragDrop::GetActive();
-		const bool bAt = WSt && ((WOp.IsValid() && WOp->bFromRing) ? RingTarget(ScreenPosition, La, Lo, World, Pixel) > 0
+		int32 Where = 0;
+		const bool bAt = WSt && ((WOp.IsValid() && WOp->bFromRing) ? (Where = RingTarget(ScreenPosition, La, Lo, World, Pixel)) > 0
 			: (FN7ViewportPx::AbsToPixel(ScreenPosition, Pixel) && WSt->HexAtScreen(Pixel, La, Lo, World, HexM)));
+		// the reach that counts: the power's own radius at its tier, never less than two hexes at the board's zoom
+		static const double TwoHexKm[4] = { 0.006, 0.06, 6.0, 240.0 };
+		const FString Tier = Where == 2 ? FString(TEXT("mega")) : Where == 1 ? FString(TEXT("mini")) : (WOp.IsValid() && !WOp->Tier.IsEmpty()) ? WOp->Tier : FString(TEXT("mini"));
+		const double Reach = FMath::Max(RadiusFor(Power, Tier), TwoHexKm[WSt ? FMath::Clamp(WSt->GetMapLevel(), 0, 3) : 3]);
 		bool bMine = false;
-		const FString Who = bAt ? WhoNear(La, Lo, bMine) : FString();
+		const FString Who = bAt ? WhoNear(La, Lo, bMine, Reach) : FString();
 		const double Now = FPlatformTime::Seconds();
 		const bool bAgain = Now - OwnHitWarnAt < 8.0 && FMath::Abs(La - OwnHitLat) < 3.0 && FMath::Abs(Lo - OwnHitLon) < 3.0;
 		if (bMine && !bAgain)
@@ -3571,7 +3577,6 @@ void SFNHudLive::OnPowerDropped(const FString& Power, const FVector2D& ScreenPos
 			return;   // the power stays in hand
 		}
 	}
-	if (SFNPanelMover::IsOverAnyPanel(ScreenPosition)) return;   // let go over a panel: nothing happens
 	{
 		const TSharedPtr<FFNPowerDragDrop> RingOp = FFNPowerDragDrop::GetActive();   // still set while OnDroppedOnWorld runs
 		if (RingOp.IsValid() && RingOp->bFromRing)
