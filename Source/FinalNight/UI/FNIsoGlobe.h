@@ -25,6 +25,8 @@ private:
 	UPROPERTY() TObjectPtr<class UStaticMesh> Mesh;
 	bool bBuilt = false;
 	float Spin = 0.f;
+	float Age = 0.f;     // seconds on screen
+	float FadeT = -1.f;  // the fade out, once begun
 	void Build();
 };
 
