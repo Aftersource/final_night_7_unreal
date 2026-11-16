@@ -163,7 +163,7 @@ void AFNTurnBar::ReadMine(const TSharedPtr<FJsonObject>& View)
 		const bool bStop = Tx.IsEmpty() || FString(TEXT(".!?")).Contains(Tx.Right(1));
 		ServerHint = Why.IsEmpty() ? Tx : Tx + (bStop ? TEXT("\n") : TEXT(".\n")) + Why;
 		// the powers live in the jar on the right; nothing said so (audit: "drag a power" from where?)
-		ServerHint = ServerHint.Replace(TEXT("drag a power"), TEXT("click the jar on the right, drag a power"));
+		ServerHint = ServerHint.Replace(TEXT("drag a power"), TEXT("open the sack on the right, drag a power"));   // FN7 (Mac session, Benito's playtest): it's a sack, not a jar
 		ServerHint = FNTurnBarImpl::Plain(ServerHint);
 		// the same move several beats running read as a frozen hint: say it's still the move
 		if (Tx != HintKey) { HintKey = Tx; HintSince = Beat; }

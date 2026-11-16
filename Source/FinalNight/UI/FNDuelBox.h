@@ -109,6 +109,12 @@ private:
 	FVector BurstAt = FVector::ZeroVector;
 	float RuleLeft = 0.f;
 	FVector RuleAt = FVector::ZeroVector;
+	/** Every blow's damage shown over the fighter it hit ("-2", "-5", "miss"), rising and fading, every time a blow lands.
+	 *  i hit enter i need to see how much damage ... -1 -2 -5"). */
+	UPROPERTY() TObjectPtr<UTextRenderComponent> DmgText;
+	float DmgLeft = 0.f;
+	float BarHpA = -1.f, BarHpB = -1.f;   // the HP bars as drawn, sliding to the shown health
+	FVector DmgAt = FVector::ZeroVector;
 	bool bActionPanel = false;   // the panel fires or draws: "wide" frames the stage, not the lid
 	FString Caption;
 	FVector CamPos = FVector::ZeroVector, CamLook = FVector::ZeroVector;

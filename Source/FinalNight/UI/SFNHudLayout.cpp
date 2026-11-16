@@ -783,13 +783,13 @@ TSharedRef<SWidget> SFNHudLayout::MakeMine()
 	TSharedRef<SHorizontalBox> Purse = SNew(SHorizontalBox);
 	Purse->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
 	[
-		FN7Engrave::Stat(TEXT("lightning"), FText::Format(LOCTEXT("BoltTip2", "{0} bolts: they pay for BIG powers (open the jar on the right, drag one onto the globe)"), Model.Bolts),
+		FN7Engrave::Stat(TEXT("lightning"), FText::Format(LOCTEXT("BoltTip2", "{0} bolts: they pay for the BIG Entropy powers (open the sack on the right, drag one onto the globe)"), Model.Bolts),
 			FText::FromString(FN7Engrave::Roman(Model.Bolts)), FLinearColor(1.f, 0.82f, 0.4f), 20.f)
 	];
 	if (Model.Sparks >= 0)
 		Purse->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, Space::XS, 0.f)
 		[
-			FN7Engrave::Stat(TEXT("spark"), FText::Format(LOCTEXT("SparkTip2", "{0} sparks: small powers on the board; Death takes them to raise a fallen hand"), Model.Sparks),
+			FN7Engrave::Stat(TEXT("spark"), FText::Format(LOCTEXT("SparkTip2", "{0} sparks: the small Entropy powers on the board; Death takes them to raise a fallen hand"), Model.Sparks),
 				FText::FromString(FN7Engrave::Roman(Model.Sparks)), Color::AIAura(), 20.f)
 		];
 	if (Model.Debt >= 0.0)
@@ -861,7 +861,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeNotes()
 		return B;
 	}();
 	TArray<FText> Lines;
-	Lines.Add(LOCTEXT("NoteBolts", "Bolts and sparks pay for powers: the jar on the right."));
+	Lines.Add(LOCTEXT("NoteBolts", "Bolts and sparks pay for the Entropy powers: the sack on the right."));
 	Lines.Add(LOCTEXT("NoteDebt", "The hourglass is what slowing time costs you."));
 	if (!Model.Place.IsEmpty()) Lines.Add(Model.Place);
 	if (!Model.ArenaLine.IsEmpty()) Lines.Add(Model.ArenaLine);

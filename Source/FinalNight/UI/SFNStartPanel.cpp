@@ -1009,6 +1009,8 @@ TSharedRef<SWidget> SFNStartPanel::MakeChoices()
 		];
 }
 
+void SFNStartPanel::PlayAgainVsBots() { Choose((uint8)UFNNetClient::ELobbyIntent::VsBots); }
+
 void SFNStartPanel::Choose(uint8 Intent)
 {
 	UFNNetClient* N = Net.Get();
