@@ -295,6 +295,13 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 		return;
 	}
 	const float D = FMath::Max(FVector::Dist2D(C0, C1), 0.5f);
+	// Benito noted that many NPCs wander around in forests: out in the wild only the fields right by a house keep people
+	Spots.RemoveAll([&](const FFNPeopleSpot& S)
+	{
+		if (S.Place > 0) return false;
+		for (const FVector& Hs : HouseW) if (FVector::Dist2D(Hs, S.Pos) < D * 3.f) return false;
+		return true;
+	});
 	// the people pictures: the whole library once (game.sprites, location-free), and what lives under the board
 	SinceAsk += Dt;
 	if (UFNNetClient* Nq = Net.Get())
@@ -343,11 +350,10 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 					}
 				}
 			const float U = Dice(Q, R, 3);
-			// the trades of the place: a city's market folk, a village's farmers, the wild's witches and warriors
+			// the trades of the place: a city's market folk, a village's farmers (a field by a house counts as the village)
 			static const uint8 City[] = { Merchant, Merchant, Merchant, Guard, Guard, Woman, Woman, Woman, Noble, Priest, Smith, Smith, Child, Child, Elder, Warrior };
 			static const uint8 Village[] = { Farmer, Farmer, Farmer, Farmer, Woman, Woman, Woman, Child, Child, Smith, Elder, Elder, Priest, Witch, Merchant, Warrior };
-			static const uint8 Wild[] = { Farmer, Farmer, Farmer, Farmer, Farmer, Witch, Witch, Warrior, Warrior, Warrior, Elder, Woman, Woman, Child, Fisherman, Farmer };
-			const uint8* Pick = S.Place == 2 ? City : S.Place == 1 ? Village : Wild;
+			const uint8* Pick = S.Place == 2 ? City : Village;
 			N.Role = Pick[FMath::Min((int32)(U * 16.f), 15)];
 			if (N.bShore && Dice(Q, R, 5) < 0.6f) N.Role = Fisherman;
 			N.bFemale = N.Role == Woman || N.Role == Witch || ((N.Role == Noble || N.Role == Elder || N.Role == Child || N.Role == Merchant || N.Role == Priest || N.Role == Farmer) && Dice(Q, R, 6) < 0.4f);
