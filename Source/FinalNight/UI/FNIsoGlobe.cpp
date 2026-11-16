@@ -163,14 +163,36 @@ void AFNIsoGlobe::Build()
 void AFNIsoGlobe::Tick(float Dt)
 {
 	Super::Tick(Dt);
-	if (!bBuilt) { Build(); if (!bBuilt) return; }
+	// Once. The effect cannot persist: turn it off after a 10-second smooth fadeout, and keep it off after that.
+	// at most 10 s on screen, shrinking away over the last 1.5 s (sooner if you join), then gone for good, never shown again
+	static bool bShownOnce = false;
+	if (!bBuilt)
+	{
+		if (bShownOnce) { Destroy(); return; }
+		Build();
+		if (!bBuilt) return;
+		bShownOnce = true;
+	}
 	AFNStudio* St = nullptr;
 	if (TActorIterator<AFNStudio> It(GetWorld()); It) St = *It;
-	const bool bShow = St && St->IsGuardBlitz();   // before you join only
-	if (Shell->IsVisible() != bShow) { Shell->SetVisibility(bShow); UE_LOG(LogTemp, Display, TEXT("FN7 iso globe: %s"), bShow ? TEXT("shown (not joined)") : TEXT("hidden (joined)")); }
-	if (!bShow) return;
+	Age += Dt;
+	if (FadeT < 0.f && (Age >= 8.5f || !St || !St->IsGuardBlitz())) { FadeT = 0.f; UE_LOG(LogTemp, Display, TEXT("FN7 iso globe: fading out (%.1f s on screen)"), Age); }
+	float Sc = 1.f;
+	if (FadeT >= 0.f)
+	{
+		FadeT += Dt;
+		const float E = FMath::Clamp(FadeT / 1.5f, 0.f, 1.f);
+		Sc = 1.f - E * E * (3.f - 2.f * E);
+		if (E >= 1.f)
+		{
+			UE_LOG(LogTemp, Display, TEXT("FN7 iso globe: gone (shown once)"));
+			Destroy();
+			return;
+		}
+	}
 	Spin += Dt * 6.f;
 	SetActorRotation(FRotator(0.f, Spin, 0.f));
+	SetActorScale3D(FVector(FMath::Max(Sc, 0.001f)));
 }
 
 bool UFNIsoGlobeSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
