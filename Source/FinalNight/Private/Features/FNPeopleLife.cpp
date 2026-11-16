@@ -557,7 +557,7 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 					SpriteMat.Add(Hash, M);
 				}
 				if (Card->GetMaterial(0) != M) Card->SetMaterial(0, M);
-				const float Ch = H * 0.55f, Cw = Ch * 0.62f;   // FN7 (backend): Chris asked why oversized images of people are cluttering the board; one hex tall again
+				const float Ch = H * 0.34f, Cw = Ch * 0.62f;   // FN7 (Mac session, Chris asked why these are not 4:1): a quarter of the old 1.35, a person-sized card   // FN7 (backend, Chris asked why giant images of people are cluttering up the board): one hex tall again
 				const FVector CardAtW = Base + FVector::UpVector * Ch * 0.5f;
 				Card->SetWorldLocation(CardAtW);
 				Card->SetWorldRotation(FRotator(0.f, (Cam - CardAtW).GetSafeNormal2D().Rotation().Yaw + 90.f, 0.f));
