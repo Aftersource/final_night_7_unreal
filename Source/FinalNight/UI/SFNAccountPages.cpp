@@ -1154,29 +1154,16 @@ void SFNGodPage::PollPreview()
 void SFNGodPage::LoadImage(const FString& Hash, const FString& Url)
 {
 	if (Hash.IsEmpty() || Hash == TexHash) return;
-	TArray<uint8> Bytes;
-	if (FN7Media::LoadCached(Hash, Bytes))
-		if (UTexture2D* T = FN7Media::TextureFromPng(Bytes))
-		{
-			Tex.Reset(T); TexHash = Hash; ImageBrush.SetResourceObject(T);
-			ImageBrush.ImageSize = FVector2D(T->GetSizeX(), T->GetSizeY()) * (300.f / FMath::Max(1, FMath::Max(T->GetSizeX(), T->GetSizeY())));
-			return;
-		}
 	UFNNetClient* N = Net.Get();
 	if (!N) return;
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(N->MediaUrl(Url));
-	Req->SetVerb(TEXT("GET"));
-	Req->SetTimeout(30.f);
+	// by its full hash only, verified against the sidecar (FN7Media::Fetch)
 	TWeakPtr<SFNGodPage> Weak = SharedThis(this);
-	Req->OnProcessRequestComplete().BindLambda([Weak, Hash](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	FN7Media::Fetch(N, Hash, [Weak, Hash](const TArray<uint8>& B)
 	{
 		const TSharedPtr<SFNGodPage> Self = Weak.Pin();
-		if (!Self.IsValid() || !bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) { UE_LOG(LogTemp, Display, TEXT("FN7 god: picture not fetched (%d)"), Resp.IsValid() ? Resp->GetResponseCode() : 0); return; }
-		const TArray<uint8>& B = Resp->GetContent();
+		if (!Self.IsValid()) return;
 		if (UTexture2D* T = FN7Media::TextureFromPng(B))
 		{
-			FN7Media::SaveCached(Hash, B);
 			Self->Tex.Reset(T);
 			Self->TexHash = Hash;
 			Self->ImageBrush.SetResourceObject(T);
@@ -1184,7 +1171,6 @@ void SFNGodPage::LoadImage(const FString& Hash, const FString& Url)
 			UE_LOG(LogTemp, Display, TEXT("FN7 god: picture shown (%dx%d)"), T->GetSizeX(), T->GetSizeY());
 		}
 	});
-	Req->ProcessRequest();
 }
 
 void SFNGodPage::Accept()

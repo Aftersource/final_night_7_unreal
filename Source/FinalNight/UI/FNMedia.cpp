@@ -1,8 +1,17 @@
 #include "FNMedia.h"
 
+#include "FNNetClient.h"
+#include "Dom/JsonObject.h"
 #include "Engine/Texture2D.h"
+#include "HAL/FileManager.h"
+#include "HttpModule.h"
 #include "ImageCore.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "ImageUtils.h"
+#include "Containers/Ticker.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
@@ -16,14 +25,158 @@ namespace FN7MediaGen
 	}
 }
 
+namespace FN7MediaCheck
+{
+	static TMap<FString, int64> Sidecar;   // the server's byte length per hash (-1: no sidecar)
+	struct FWait { TFunction<void(const TArray<uint8>&)> OnPng; TFunction<void()> OnFail; };
+	static TMap<FString, TArray<FWait>> Waiting;
+	static TSet<FString> Asking;
+	static TWeakObjectPtr<UFNNetClient> GNet;
+	static int32 Mismatch = 0, Checked = 0;
+	static bool ValidHash(const FString& H)
+	{
+		if (H.Len() < 16 || H.Len() > 128) return false;
+		for (const TCHAR C : H) if (!FChar::IsAlnum(C) && C != TEXT('-') && C != TEXT('_')) return false;
+		return true;
+	}
+	static void Bad(const FString& Hash, const TCHAR* What, int64 Got, int64 Want)
+	{
+		++Mismatch;
+		UE_LOG(LogTemp, Warning, TEXT("FN7 media: hash mismatch %s: %s %lld bytes, the server's %lld; deleted, refetched (%d mismatches so far, %d checked)"), *Hash, What, Got, Want, Mismatch, Checked);
+		IFileManager::Get().Delete(*FN7MediaGen::CachePath(Hash), false, true, true);
+	}
+	/** The sidecar's byte length (once per hash per session), then Then(bytes). */
+	static void WithSidecar(UFNNetClient* N, const FString& Hash, TFunction<void(int64)> Then)
+	{
+		if (const int64* B = Sidecar.Find(Hash)) { Then(*B); return; }
+		if (!N) { Then(-1); return; }
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+		Req->SetURL(N->MediaUrl(FString::Printf(TEXT("/media/%s.json"), *Hash)));
+		Req->SetVerb(TEXT("GET"));
+		Req->SetHeader(TEXT("ngrok-skip-browser-warning"), TEXT("1"));
+		Req->SetTimeout(15.f);
+		Req->OnProcessRequestComplete().BindLambda([Hash, Then](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+		{
+			int64 Bytes = -1;
+			if (bOk && Resp.IsValid() && Resp->GetResponseCode() == 200)
+			{
+				TSharedPtr<FJsonObject> J;
+				TSharedRef<TJsonReader<>> Rd = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+				double B = -1.0;
+				FString Key;
+				if (FJsonSerializer::Deserialize(Rd, J) && J.IsValid())
+				{
+					if (J->TryGetNumberField(TEXT("bytes"), B)) Bytes = (int64)B;
+					if (J->TryGetStringField(TEXT("key"), Key) && !Key.IsEmpty() && Key != Hash)
+						UE_LOG(LogTemp, Warning, TEXT("FN7 media: sidecar of %s names key %s"), *Hash, *Key);
+				}
+			}
+			Sidecar.Add(Hash, Bytes);
+			Then(Bytes);
+		});
+		Req->ProcessRequest();
+	}
+	/** A cached file checked after the fact (callers that read the cache themselves): a wrong one is deleted and counted. */
+	static void CheckLater(const FString& Hash, int64 Have)
+	{
+		if (!ValidHash(Hash) || Asking.Contains(Hash)) return;
+		Asking.Add(Hash);
+		WithSidecar(GNet.Get(), Hash, [Hash, Have](int64 Want)
+		{
+			Asking.Remove(Hash);
+			++Checked;
+			if (Want >= 0 && Have != Want) Bad(Hash, TEXT("cached"), Have, Want);
+		});
+	}
+}
+
 bool FN7Media::LoadCached(const FString& Hash, TArray<uint8>& OutPng)
 {
-	return !Hash.IsEmpty() && FFileHelper::LoadFileToArray(OutPng, *FN7MediaGen::CachePath(Hash), FILEREAD_Silent) && OutPng.Num() > 8;
+	using namespace FN7MediaCheck;
+	if (!ValidHash(Hash) || !FFileHelper::LoadFileToArray(OutPng, *FN7MediaGen::CachePath(Hash), FILEREAD_Silent) || OutPng.Num() <= 8) return false;
+	if (const int64* Want = Sidecar.Find(Hash))
+	{
+		if (*Want >= 0 && OutPng.Num() != *Want) { Bad(Hash, TEXT("cached"), OutPng.Num(), *Want); OutPng.Reset(); return false; }
+		return true;
+	}
+	CheckLater(Hash, OutPng.Num());
+	return true;
 }
 
 void FN7Media::SaveCached(const FString& Hash, const TArray<uint8>& Png)
 {
-	if (!Hash.IsEmpty() && Png.Num() > 8) FFileHelper::SaveArrayToFile(Png, *FN7MediaGen::CachePath(Hash));
+	if (!FN7MediaCheck::ValidHash(Hash) || Png.Num() <= 8) return;
+	FFileHelper::SaveArrayToFile(Png, *FN7MediaGen::CachePath(Hash));
+	FN7MediaCheck::CheckLater(Hash, Png.Num());
+}
+
+FString FN7Media::PathFor(const FString& Hash) { return FString::Printf(TEXT("/media/%s.png"), *Hash); }
+void FN7Media::SetNet(UFNNetClient* Net) { FN7MediaCheck::GNet = Net; }
+int32 FN7Media::Mismatches() { return FN7MediaCheck::Mismatch; }
+
+void FN7Media::Fetch(UFNNetClient* Net, const FString& Hash, TFunction<void(const TArray<uint8>&)> OnPng, TFunction<void()> OnFail)
+{
+	using namespace FN7MediaCheck;
+	if (!Net || !ValidHash(Hash))
+	{
+		UE_LOG(LogTemp, Display, TEXT("FN7 media: not fetched (%s)"), Net ? *FString::Printf(TEXT("bad hash \"%s\""), *Hash) : TEXT("no client"));
+		if (OnFail) OnFail();
+		return;
+	}
+	GNet = Net;
+	{
+		// the launch count: how many pictures were wrong in the first 90 s (Chris's editor shows if this was the cause)
+		static bool bSummary = false;
+		if (!bSummary)
+		{
+			bSummary = true;
+			FTSTicker::GetCoreTicker().AddTicker(TEXT("FN7MediaSummary"), 90.f, [](float)
+			{
+				UE_LOG(LogTemp, Display, TEXT("FN7 media: %d hash mismatches in the first 90 s (%d pictures checked against their sidecars)"), Mismatch, Checked);
+				return false;
+			});
+		}
+	}
+	if (TArray<FWait>* W = Waiting.Find(Hash)) { W->Add({ MoveTemp(OnPng), MoveTemp(OnFail) }); return; }
+	Waiting.Add(Hash).Add({ MoveTemp(OnPng), MoveTemp(OnFail) });
+	auto Finish = [Hash](const TArray<uint8>* Png)
+	{
+		TArray<FWait> Cbs;
+		Waiting.RemoveAndCopyValue(Hash, Cbs);
+		for (FWait& F : Cbs) { if (Png) { if (F.OnPng) F.OnPng(*Png); } else if (F.OnFail) F.OnFail(); }
+	};
+	TWeakObjectPtr<UFNNetClient> WN(Net);
+	WithSidecar(Net, Hash, [WN, Hash, Finish](int64 Want)
+	{
+		++Checked;
+		TArray<uint8> Disk;
+		if (FFileHelper::LoadFileToArray(Disk, *FN7MediaGen::CachePath(Hash), FILEREAD_Silent) && Disk.Num() > 8)
+		{
+			if (Want < 0 || Disk.Num() == Want) { Finish(&Disk); return; }
+			Bad(Hash, TEXT("cached"), Disk.Num(), Want);
+		}
+		if (!WN.IsValid()) { Finish(nullptr); return; }
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+		Req->SetURL(WN->MediaUrl(PathFor(Hash)));
+		Req->SetVerb(TEXT("GET"));
+		Req->SetHeader(TEXT("ngrok-skip-browser-warning"), TEXT("1"));
+		Req->SetTimeout(30.f);
+		Req->OnProcessRequestComplete().BindLambda([Hash, Want, Finish](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+		{
+			if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) { Finish(nullptr); return; }
+			const TArray<uint8> Png = Resp->GetContent();
+			if (Png.Num() <= 8 || (Want >= 0 && Png.Num() != Want))
+			{
+				++Mismatch;
+				UE_LOG(LogTemp, Warning, TEXT("FN7 media: hash mismatch %s: downloaded %d bytes, the server's %lld; not shown (%d mismatches so far)"), *Hash, Png.Num(), Want, Mismatch);
+				Finish(nullptr);
+				return;
+			}
+			FFileHelper::SaveArrayToFile(Png, *FN7MediaGen::CachePath(Hash));
+			Finish(&Png);
+		});
+		Req->ProcessRequest();
+	});
 }
 
 UTexture2D* FN7Media::TextureFromPng(const TArray<uint8>& Png, bool bGrey)

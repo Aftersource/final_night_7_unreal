@@ -155,7 +155,7 @@ void AFNInventoryShelf::Fetch(const FItem& It)
 	if (!N || It.Url.IsEmpty()) return;
 	Downloading.Add(It.Hash);
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(N->MediaUrl(It.Url));
+	Req->SetURL(N->MediaUrl(FN7Media::PathFor(It.Hash)));   // FN7 (Mac session, lead: pictures by their full hash only, from /media/<hash>.png; the cache checks the server byte length)
 	Req->SetVerb(TEXT("GET"));
 	Req->SetTimeout(30.f);
 	TWeakObjectPtr<AFNInventoryShelf> W(this);

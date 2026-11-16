@@ -1,4 +1,5 @@
 #include "SFNRootWidget.h"
+#include "../UI/FNMedia.h"
 #include "FNNetClient.h"
 #include "FNStudio.h"
 #include "Features/FNDayNight.h"
@@ -855,6 +856,24 @@ void SFNRootWidget::OnGlobePicked(double Lon, double Lat)
 void SFNRootWidget::FetchPortrait(const FString& Hash, const FString& Url)
 {
 	if (Hash.IsEmpty() || Url.IsEmpty() || PortraitTex.Contains(Hash) || PortraitPending.Contains(Hash) || !Net.IsValid()) return;
+	// Server pictures by their full hash only, verified against the sidecar (FN7Media::Fetch: /media/<hash>.png, the byte
+	// length the server states, never another picture); the local test portraits below keep their own path.
+	if (Url.Contains(TEXT("/media/")))
+	{
+		PortraitPending.Add(Hash);
+		TWeakPtr<SFNRootWidget> Weak = SharedThis(this);
+		FN7Media::Fetch(Net.Get(), Hash, [Weak, Hash](const TArray<uint8>& Bytes)
+		{
+			TSharedPtr<SFNRootWidget> Self = Weak.Pin();
+			if (!Self.IsValid()) return;
+			Self->PortraitPending.Remove(Hash);
+			UTexture2D* Tex = FImageUtils::ImportBufferAsTexture2D(TArrayView64<const uint8>(Bytes.GetData(), Bytes.Num()));
+			if (!Tex) return;
+			Self->PortraitTex.Add(Hash, TStrongObjectPtr<UTexture2D>(Tex));
+			Self->PushSeats();
+		}, [Weak, Hash]() { if (TSharedPtr<SFNRootWidget> Self = Weak.Pin()) Self->PortraitPending.Remove(Hash); });
+		return;
+	}
 	// Images are immutable by hash: the disk cache (Saved/FN7Media/<hash>.<ext>) is tried first, so each image downloads once ever.
 	FString Ext = FPaths::GetExtension(Url.Left(Url.Find(TEXT("?")) == INDEX_NONE ? Url.Len() : Url.Find(TEXT("?"))));
 	if (Ext.IsEmpty()) Ext = TEXT("png");
