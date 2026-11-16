@@ -169,7 +169,7 @@ void AFNArmies::OnMedia(const TSharedPtr<FJsonObject>& D)
 AFNArmies::FCard& AFNArmies::CardFor(const FString& Ref)
 {
 	if (FCard* C = Cards.Find(Ref)) return *C;
-	static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
+	static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Masked.Widget3DPassThrough_Masked"));
 	auto Make = [&](const TCHAR* Mesh)
 	{
 		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);

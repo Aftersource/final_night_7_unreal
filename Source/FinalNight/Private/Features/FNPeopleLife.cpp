@@ -551,7 +551,7 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 				UMaterialInstanceDynamic* M = SpriteMat.FindRef(Hash);
 				if (!M)
 				{
-					static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
+					static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Masked.Widget3DPassThrough_Masked"));
 					M = UMaterialInstanceDynamic::Create(Unlit, this);
 					M->SetTextureParameterValue(TEXT("SlateUI"), Tx->Get());
 					SpriteMat.Add(Hash, M);
