@@ -235,7 +235,7 @@ void AFNHouseCards::Tick(float DeltaSeconds)
 			}
 			UStaticMeshComponent* Card = CardAt(Used++);
 			if (Card->GetMaterial(0) != M) Card->SetMaterial(0, M);
-			const float Sz = D * SizeOf(B.Kind) * (Level == 0 ? 2.2f : 1.f);
+			const float Sz = D * SizeOf(B.Kind) * (Level == 0 ? 1.1f : 0.5f)   /* half: at full size the cards stood as a wall over the town (shot 19:42) */;
 			const FVector Mid = At + FVector(0.f, 0.f, Sz * 0.5f);
 			Card->SetWorldLocation(Mid);
 			Card->SetWorldRotation(FRotator(0.f, (Cam - Mid).GetSafeNormal2D().Rotation().Yaw + 90.f, 0.f));
@@ -283,7 +283,7 @@ void AFNHouseCards::Tick(float DeltaSeconds)
 				if (!M) { M = UMaterialInstanceDynamic::Create(UnlitL, this); M->SetTextureParameterValue(TEXT("SlateUI"), Tx->Get()); Mat.Add(Hash, M); }
 				UStaticMeshComponent* Card = CardAt(Used++);
 				if (Card->GetMaterial(0) != M) Card->SetMaterial(0, M);
-				const float Sz = D * SizeOf(Kind) * (Level == 0 ? 2.6f : 1.2f);
+				const float Sz = D * SizeOf(Kind) * (Level == 0 ? 1.3f : 0.6f)   /* half: see above */;
 				const FVector Mid = H + FVector(0.f, 0.f, Sz * 0.5f);
 				Card->SetWorldLocation(Mid);
 				Card->SetWorldRotation(FRotator(0.f, (Cam - Mid).GetSafeNormal2D().Rotation().Yaw + 90.f, 0.f));
