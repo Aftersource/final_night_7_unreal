@@ -42,7 +42,7 @@
 
 
 /** The kit's tooltip (tooltips looked poor): a stone tablet with readable type instead of the engine's grey box. */
-static TSharedRef<SToolTip> FN7StoneTip(const FText& Text)
+static TSharedRef<SToolTip> FN7StoneTip(const TAttribute<FText>& Text)
 {
 	return SNew(SToolTip)
 		.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
@@ -1028,13 +1028,15 @@ TSharedRef<SWidget> SFNHudLayout::MakeWillChips()
 	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
 	for (int32 i = 0; i < 4; ++i)
 	{
-		Row->AddSlot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
-		[
-			SNew(SButton)
+		// Engraved like the power tiles on the table (properly engraved, not bright orange ... proper glow on
+		// hover): an ivory tile with a dark rim and a raised edge, the icon carved in dark ink; a warm glow breathes around it
+		// under the pointer, and a gold rim while its line waits to go.
+		TSharedPtr<SButton> Btn;
+		SAssignNew(Btn, SButton)
 			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
 			.ContentPadding(FMargin(0.f))
 			.Visibility_Lambda([this, i]() { return Model.WillHotSlugs.IsValidIndex(i) ? EVisibility::Visible : EVisibility::Collapsed; })
-			.ToolTipText_Lambda([this, i]() { return Model.WillHotTips.IsValidIndex(i) ? FText::FromString(Model.WillHotTips[i]) : FText::GetEmpty(); })
+			.ToolTip(FN7StoneTip(TAttribute<FText>::CreateLambda([this, i]() { return Model.WillHotTips.IsValidIndex(i) ? FText::FromString(Model.WillHotTips[i]) : FText::GetEmpty(); })))
 			.OnClicked_Lambda([this, i]()
 			{
 				if (!Compose.IsValid() || !Model.WillHotFills.IsValidIndex(i)) return FReply::Handled();
@@ -1044,20 +1046,51 @@ TSharedRef<SWidget> SFNHudLayout::MakeWillChips()
 				HotSendAt = FPlatformTime::Seconds() + 5.0;
 				UE_LOG(LogTemp, Display, TEXT("FN7 will: hot button %s: \"%s\", sends in 5 s"), *HotSlug, *HotText);
 				return FReply::Handled();
-			})
+			});
+		const TWeakPtr<SButton> W = Btn;
+		auto Waiting = [this, i]() { return HotSendAt > 0.0 && Model.WillHotSlugs.IsValidIndex(i) && HotSlug == Model.WillHotSlugs[i]; };
+		auto Glow = [W, Waiting](float Layer)
+		{
+			return TAttribute<FSlateColor>::CreateLambda([W, Waiting, Layer]()
+			{
+				const TSharedPtr<SButton> P = W.Pin();
+				const bool bHot = P.IsValid() && P->IsHovered();
+				if (!bHot && !Waiting()) return FSlateColor(FLinearColor::Transparent);
+				const float Breathe = 0.8f + 0.2f * FMath::Sin((float)FPlatformTime::Seconds() * 4.f);
+				return FSlateColor(FLinearColor(1.f, 0.8f, 0.36f, FMath::Min(1.f, Layer * Breathe * (bHot ? 1.f : 0.55f))));
+			});
+		};
+		static const FSlateRoundedBoxBrush GlowR(FLinearColor::White, 14.f), RimR(FLinearColor::White, 10.f), FaceR(FLinearColor::White, 8.f);
+		Btn->SetContent(
+			SNew(SBox).WidthOverride(60.f).HeightOverride(60.f)
 			[
-				SNew(SBox).WidthOverride(52.f).HeightOverride(52.f)
+				SNew(SOverlay)
+				// the glow, three soft layers
+				+ SOverlay::Slot()[SNew(SBorder).BorderImage(&GlowR).BorderBackgroundColor(Glow(0.34f))]
+				+ SOverlay::Slot().Padding(2.5f)[SNew(SBorder).BorderImage(&GlowR).BorderBackgroundColor(Glow(0.5f))]
+				+ SOverlay::Slot().Padding(4.5f)[SNew(SBorder).BorderImage(&RimR).BorderBackgroundColor(Glow(0.85f))]
+				// the tile: a dark rim (gold while its line waits), the raised edge (light above, shadow below), the ivory face
+				+ SOverlay::Slot().Padding(6.f)
 				[
-					SNew(SBorder)
-					.BorderImage(Brush::PillAccent())
-					.BorderBackgroundColor_Lambda([this, i]() { return (HotSendAt > 0.0 && Model.WillHotSlugs.IsValidIndex(i) && HotSlug == Model.WillHotSlugs[i]) ? FLinearColor(1.f, 0.85f, 0.45f) : FLinearColor(0.93f, 0.82f, 0.6f); })
-					.HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(4.f)
+					SNew(SBorder).BorderImage(&RimR).Padding(1.5f)
+					.BorderBackgroundColor_Lambda([Waiting]() { return Waiting() ? FLinearColor(0.78f, 0.55f, 0.16f) : FLinearColor(0.11f, 0.075f, 0.045f); })
 					[
-						SNew(SFNPowerIcon).Slug_Lambda([this, i]() { return Model.WillHotSlugs.IsValidIndex(i) ? Model.WillHotSlugs[i] : FString(); }).Size(36.f).Color(FN7Wood::Ink())
+						SNew(SOverlay)
+						+ SOverlay::Slot()[SNew(SBorder).BorderImage(&FaceR).BorderBackgroundColor(FLinearColor(0.42f, 0.36f, 0.27f))]
+						+ SOverlay::Slot().Padding(FMargin(0.f, 0.f, 1.5f, 2.f))[SNew(SBorder).BorderImage(&FaceR).BorderBackgroundColor(FLinearColor(1.f, 0.98f, 0.92f))]
+						+ SOverlay::Slot().Padding(FMargin(1.f, 1.f, 1.5f, 2.f))
+						[
+							SNew(SBorder).BorderImage(&FaceR).BorderBackgroundColor(FLinearColor(0.9f, 0.86f, 0.76f))
+							.HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(2.f)
+							[
+								SNew(SFNPowerIcon).Slug_Lambda([this, i]() { return Model.WillHotSlugs.IsValidIndex(i) ? Model.WillHotSlugs[i] : FString(); }).Size(34.f)
+								.Color_Lambda([W]() { const TSharedPtr<SButton> P = W.Pin(); return (P.IsValid() && P->IsHovered()) ? FLinearColor(0.32f, 0.06f, 0.03f) : FLinearColor(0.1f, 0.065f, 0.035f); })
+							]
+						]
 					]
 				]
-			]
-		];
+			]);
+		Row->AddSlot().AutoWidth().Padding(0.f, 0.f, 4.f, 0.f)[Btn.ToSharedRef()];
 	}
 	return SNew(SVerticalBox)
 		.Visibility_Lambda([this]() { return (bWillOpen && Model.WillHotSlugs.Num() > 0) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
