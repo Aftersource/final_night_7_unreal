@@ -396,10 +396,33 @@ void AFNArmies::Tick(float DeltaSeconds)
 		};
 		if (Level <= 1)
 		{
-			// individuals, standing still: one per hexagon fully zoomed in, three per hexagon one level out
+			// Benito described one picture of a distant army that splits into different images as the player gets closer: one level out
+			// (houses) the army's picture stands as a few smaller cards across its hexagons, one per company; the main
+			// picture's double-click outline is unchanged (these extra cards are not clickable)
+			TObjectPtr<UTexture2D>* Tex1 = Level == 1 && G.Kind == 0 ? ArmyTex.Find(G.Ref) : nullptr;
+			if (Level == 1 && G.Kind == 0) AskMedia(G.Ref);
+			if (Tex1)
+			{
+				const int32 Nc = FMath::Clamp(Hexes.Num() / 12, 2, 5);
+				const float Wd = D * (bMine ? 1.3f : 1.05f), Ht = Wd * (*Tex1)->GetSizeY() / FMath::Max(1, (*Tex1)->GetSizeX());
+				for (int32 c = 0; c < Nc; ++c)
+				{
+					const FString Key = FString::Printf(TEXT("%s#%d"), *G.Ref, c);
+					FCard& K = CardFor(Key);
+					CardsShown.Add(Key);
+					const FVector& At = Hexes[c * Hexes.Num() / Nc];
+					if (UMaterialInstanceDynamic* M = Cast<UMaterialInstanceDynamic>(K.Image->GetMaterial(0))) M->SetTextureParameterValue(TEXT("SlateUI"), *Tex1);
+					K.Image->SetWorldLocation(At + FVector(0, 0, Ht * 0.5f));
+					K.Image->SetWorldRotation(FRotator(0.f, (Cam - At).GetSafeNormal2D().Rotation().Yaw + 90.f, 0.f));
+					K.Image->SetWorldScale3D(FVector(Wd, Wd * 0.03f, Ht) / 100.f);
+					K.Base->SetVisibility(false); K.Rim->SetVisibility(false);
+				}
+			}
+			// individuals, standing still: one per hexagon fully zoomed in, three per hexagon one level out (when no picture yet)
 			for (const FVector& H : Hexes)
 			{
 				if (Level == 0) { Person(H, Fig); continue; }
+				if (Tex1) continue;
 				for (int32 i = 0; i < 3; ++i)
 				{
 					const float Ang = 2.f * PI * i / 3.f + 0.5f;
