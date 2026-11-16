@@ -1797,15 +1797,14 @@ void SFNHudLive::Publish()
 		auto NameOfD = [&HandOf](const FFNHudDemigod* D) { return D && !D->Name.IsEmpty() ? D->Name.ToString() : TEXT("my ") + HandOf(D); };
 		const FFNHudDemigod* Up = nullptr;
 		for (const FFNHudDemigod& D : Model.Mine) if (D.bAlive && !Up) Up = &D;
+		// All four, always: a button with nothing to say today has an empty line and shows disabled
+		// (the ankh while none of yours has fallen; the other three while none stands).
 		if (Model.Mine.Num() > 0 && Alive == 0) Hot(TEXT("ankh"), TEXT("Death, bring back my demigods"), TEXT("Bring them back"));
 		else if (Fallen) Hot(TEXT("ankh"), FString::Printf(TEXT("Death, bring back %s, I offer 2 bolts"), *NameOfD(Fallen)), TEXT("Bring back your fallen hand"));
-		else if (Up) Hot(TEXT("ankh"), FString::Printf(TEXT("Death, spare %s tonight, I offer 1 bolt"), *NameOfD(Hurt ? Hurt : Up)), TEXT("Ask Death to spare a hand"));   // always four (Chris)
-		if (Alive > 0)
-		{
-			Hot(TEXT("bow"), FString::Printf(TEXT("%s, arm yourself with an obsidian blade in %s and hunt %s"), *NameOfD(Up), *City, *Rival), TEXT("Arm and hunt"));
-			Hot(TEXT("meal"), FString::Printf(TEXT("Nature, heal %s"), *NameOfD(Hurt)), TEXT("Heal"));
-			Hot(TEXT("armies"), FString::Printf(TEXT("%s, raise an army of 10,000 fishermen at the harbour of %s"), *NameOfD(Up), *City), TEXT("Raise an army"));
-		}
+		else Hot(TEXT("ankh"), FString(), TEXT(""));
+		Hot(TEXT("bow"), Alive > 0 ? FString::Printf(TEXT("%s, arm yourself with an obsidian blade in %s and hunt %s"), *NameOfD(Up), *City, *Rival) : FString(), TEXT("Arm and hunt"));
+		Hot(TEXT("meal"), Alive > 0 ? FString::Printf(TEXT("Nature, heal %s"), *NameOfD(Hurt)) : FString(), TEXT("Heal"));
+		Hot(TEXT("armies"), Alive > 0 ? FString::Printf(TEXT("%s, raise an army of 10,000 fishermen at the harbour of %s"), *NameOfD(Up), *City) : FString(), TEXT("Raise an army"));
 		Model.WillChipHint = Model.Mine.Num() > 0 && Alive == 0
 			? FText::FromString(TEXT("Death charges sparks; can't pay = a quest"))
 			: FText::FromString(TEXT("Name who, where and with what \u00B7 say how big \u00B7 pay a god in bolts \u00B7 r: = Right Hand"));
