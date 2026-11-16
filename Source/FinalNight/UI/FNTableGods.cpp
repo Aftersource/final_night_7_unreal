@@ -777,9 +777,14 @@ void AFNDemigodFigure::Tick(float Dt)
 	const float Raise = bOnBoard ? 40.f : 0.f;
 	// With a figure on the plinth the card floats over its head, smaller (the statue is the piece; the card its portrait).
 	const float Over = FigureH > 0.f ? FigureH + 6.f : 0.f;
-	const float CardS = FigureH > 0.f ? 0.62f : 1.f;
+	// on the board the portrait is a quarter of its size (oversized images were cluttering the board; the ratio is 4:1):
+	// a small badge over its piece, never a wall of pictures over the towns
+	const float CardS = (FigureH > 0.f ? 0.62f : 1.f) * (bOnBoard ? 0.25f : 1.f);
 	Card->SetRelativeLocation(FVector(0.f, 0.f, FMath::Lerp(4.2f + 17.f * CardS + Over + Raise, 4.2f + 0.8f, Tip) + 9.f * HeldT + 1.2f * HeldT * FMath::Sin(Time * 6.f)));
 	Card->SetRelativeScale3D(FVector(CardS * (1.f + 0.18f * HeldT)));
+	// On the board no picture floats over the piece (the stray black portrait should go, and the
+	// piece stands alone on its hex.
+	if (bOnBoard) Card->SetVisibility(false, true);
 	// The figure faces the camera (turning gently), and lies down when the demigod falls.
 	{
 		const float WantYaw = ToH.IsNearlyZero() ? FigureYaw : ToH.Rotation().Yaw - 90.f;
@@ -1193,8 +1198,8 @@ void AFNTableGods::TickFx(float Dt)
 				{
 					const float E = (U - 0.75f) / 0.25f;
 					const float Ease = E * E * (3.f - 2.f * E);
-					Sc = FMath::Lerp(Big, 0.11f * S, Ease);
-					Up = FMath::Lerp(52.f * S, 23.f * S, Ease);
+					Sc = FMath::Lerp(Big, 0.0275f * S, Ease);   // into the piece's card, a quarter size on the board (4:1)
+					Up = FMath::Lerp(52.f * S, 17.5f * S, Ease);
 				}
 				const FVector P = F.A + FVector(0, 0, Up);
 				Root->SetWorldLocation(P);
