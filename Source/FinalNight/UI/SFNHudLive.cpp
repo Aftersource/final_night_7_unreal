@@ -1842,12 +1842,17 @@ void SFNHudLive::Publish()
 	// Your cards lead with the diorama (the dioramas should lead), the portrait as a small inset.
 	for (int32 i = 0; i < Model.Mine.Num(); ++i)
 	{
+		// your seat view's own hashes for THIS demigod (they never get overridden); the public seat's, by the same ref, only
+		// when the seat view carries none
 		FString PH = MinePortraitHash.IsValidIndex(i) ? MinePortraitHash[i] : FString();
 		FString DH = MineDioramaHash.IsValidIndex(i) ? MineDioramaHash[i] : FString();
+		if (PH.IsEmpty()) PH = LoadedArt(Model.Mine[i].Ref, false);
+		if (DH.IsEmpty()) DH = LoadedArt(Model.Mine[i].Ref, true);
 		{
-			const FString LD = LoadedArt(Model.Mine[i].Ref, true), LP = LoadedArt(Model.Mine[i].Ref, false);
-			if (!LD.IsEmpty() && Portraits.Contains(LD)) DH = LD;
-			if (!LP.IsEmpty() && Portraits.Contains(LP)) PH = LP;
+			const FString Line = FString::Printf(TEXT("%s wants portrait %s diorama %s, got %s/%s"), *Model.Mine[i].Name.ToString(),
+				PH.IsEmpty() ? TEXT("none") : *PH.Left(16), DH.IsEmpty() ? TEXT("none") : *DH.Left(16),
+				Portraits.Contains(PH) ? TEXT("portrait") : TEXT("-"), Portraits.Contains(DH) ? TEXT("diorama") : TEXT("-"));
+			if (CardArtLog.FindRef(Model.Mine[i].Ref) != Line) { CardArtLog.Add(Model.Mine[i].Ref, Line); UE_LOG(LogTemp, Display, TEXT("FN7 card: %s"), *Line); }
 		}
 		UTexture2D* Portrait = MediaTexture(PH);
 		UTexture2D* Dio = MediaTexture(DH, !Model.Mine[i].bAlive);
@@ -3176,36 +3181,16 @@ void SFNHudLive::HandleSummoned(const TSharedPtr<FJsonObject>& E, const TArray<T
 	AddNews(LOCTEXT("SummonedTag", "SUMMON"), Deed.IsEmpty() ? FString::Printf(TEXT("%s is summoned."), *Name) : Deed);
 }
 
-/** "Chris's Left Hand (2)" -> "Chris's Left Hand" (the server's de-dup suffix). */
-static FString FN7BaseName(const FString& N)
-{
-	int32 Open = INDEX_NONE;
-	if (!N.EndsWith(TEXT(")")) || !N.FindLastChar(TEXT('('), Open) || Open < 1 || N[Open - 1] != TEXT(' ')) return N;
-	const FString Inner = N.Mid(Open + 1, N.Len() - Open - 2);
-	return Inner.IsNumeric() ? N.Left(Open - 1) : N;
-}
 
 FString SFNHudLive::LoadedArt(const FString& Ref, bool bDiorama)
 {
 	const FSeatInfo* S = Seats.FindByPredicate([&Ref](const FSeatInfo& X) { return X.Ref == Ref; });
 	if (!S) return FString();
-	const FString& Own = bDiorama ? S->DioramaHash : S->PortraitHash;
-	if (!Own.IsEmpty() && Portraits.Contains(Own)) return Own;
-	const FString Base = FN7BaseName(S->Name);
-	for (const FSeatInfo& O : Seats)
-		if (O.Ref != Ref && FN7BaseName(O.Name) == Base)
-		{
-			const FString& H = bDiorama ? O.DioramaHash : O.PortraitHash;
-			if (!H.IsEmpty() && Portraits.Contains(H)) return H;
-		}
-	const FString Player = FN7BaseName(S->Player);
-	if (!Player.IsEmpty() && !S->Side.IsEmpty() && (S->Controller == TEXT("human") || IsMyDemigod(Ref)))
-	{
-		const FString Key = Player.ToLower() + TEXT("|") + S->Side + (bDiorama ? TEXT("|dio") : TEXT("|por"));
-		if (const FString* H = ProfileArt.Find(Key)) { if (Portraits.Contains(*H)) return *H; }
-		else FetchProfileArt(Player);
-	}
-	return Own;
+	// The demigod's own image, by its full media hash, and nothing else (a reported problem with one demigod's left-hand portrait; the
+	// HUMAN WOMAN PORTRAIT WHY"): no art borrowed from another seat with the same base name, no profile art looked up by the
+	// player's display name and hand (a name is not an identity: it drew someone else's picture on a player's own card).
+	// Until its own image has loaded the card shows none.
+	return bDiorama ? S->DioramaHash : S->PortraitHash;
 }
 
 void SFNHudLive::FetchProfileArt(const FString& Player)
