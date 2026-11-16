@@ -17,8 +17,6 @@ way more than we'd guess.
   within 300 km, the same at every zoom and for every power, mega or mini. A fix is coming.
 - **Performance depends on your PC.** The globe, the board and the living world are heavy. On a slower machine
   expect stutters, especially while panning or zooming. Tell us your graphics card if it's choppy.
-- **The access key isn't in the zip.** You need the access key you were sent, in `FinalNight\Config\FN7Key.txt`. See
-  `README_FIRST.txt`.
 - **The build isn't code-signed.** Windows may say "Windows protected your PC": click More info, then Run anyway.
 
 ## Unconfirmed

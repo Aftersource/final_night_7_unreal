@@ -256,7 +256,7 @@ footer .fine { font-size: 13.5px; max-width: 680px; margin: 0 auto; }
 </header>
 
 <section class="panel parch" id="setup">
-  <h2><span class="num">I.</span>Three steps to the table</h2>
+  <h2><span class="num">I.</span>Two steps to the table</h2>
   <div class="steps">
     <div class="step">
       <div class="n">1</div>
@@ -266,20 +266,11 @@ footer .fine { font-size: 13.5px; max-width: 680px; margin: 0 auto; }
     </div>
     <div class="step">
       <div class="n">2</div>
-      <h3>Drop in your key</h3>
-      <p>You'll be sent an access key privately. It's <b>not</b> in the zip. Make a plain text file with that key on one line, here:</p>
-      <span class="path">FinalNight\<wbr>Config\<wbr>FN7Key.txt</span>
-      <p class="dim">That's the <code>FinalNight</code> folder next to <code>FinalNight.exe</code>. If there's no <code>Config</code> folder in it, create one. The file holds one line: <code>&lt;the access key you were sent&gt;</code></p>
-    </div>
-    <div class="step">
-      <div class="n">3</div>
       <h3>Launch</h3>
-      <p>Double-click <code>FinalNight.exe</code>. The server address is already built into the game, so there's nothing to type in.</p>
+      <p>Double-click <code>FinalNight.exe</code>. The server address is already built into the game, so there's nothing to type in. No access key is needed: sign in as a guest and play.</p>
     </div>
   </div>
-  <div class="warn"><b>Notepad trap:</b> Windows hides file extensions, so Notepad can quietly save <code>FN7Key.txt.txt</code>. Turn on <i>View &rarr; File name extensions</i> in Explorer and check.
-  <br><b>Prefer an environment variable?</b> Instead of the file, run <code>setx FN7_KEY "&lt;the access key you were sent&gt;"</code> in a Command Prompt, then launch the game. The game reads the file first, then the variable.
-  <br><b>Keep the key to yourself.</b> Don't post it or pass it on.</div>
+  
 </section>
 
 <section class="panel" id="first-minute">
@@ -419,12 +410,7 @@ footer .fine { font-size: 13.5px; max-width: 680px; margin: 0 auto; }
     </div>
     <div class="card">
       <div class="cant"><div class="t">CAN'T REACH THE GAME</div><div class="b">The game can't get to the server yet. It retries every few seconds by itself.</div></div>
-      <h3>"&hellip;this copy of the game has no access key"</h3>
-      <ul>
-        <li>The file is exactly <code>FinalNight\Config\FN7Key.txt</code>, next to the exe.</li>
-        <li>It isn't secretly <code>FN7Key.txt.txt</code>.</li>
-        <li>It holds just the key, copied exactly. Restart the game after fixing it; still stuck, ask for the key again.</li>
-      </ul>
+      
       <h3>"Check your internet"</h3>
       <ul>
         <li>The game connects over a normal secure web connection (port 443). If the firewall or antivirus asks, allow <code>FinalNight</code>.</li>

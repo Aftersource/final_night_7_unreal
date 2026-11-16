@@ -22,7 +22,7 @@ one god is left.
 
 
 ---------------------------------------------------------------------
- I. THREE STEPS TO THE TABLE
+ I. TWO STEPS TO THE TABLE
 ---------------------------------------------------------------------
 
  1. UNZIP
@@ -30,33 +30,11 @@ one god is left.
     example your Desktop. Inside you'll find FinalNight.exe, an
     Engine folder and a FinalNight folder.
 
- 2. DROP IN YOUR KEY
-    You'll be sent an access key privately. It is NOT in the zip.
-    Make a plain text file with that key on one line, here:
-
-        FinalNight\Config\FN7Key.txt
-
-    That's the FinalNight folder next to FinalNight.exe. If there's no
-    Config folder in it, create one. The file holds one line:
-
-        <the access key you were sent>
-
- 3. LAUNCH
+ 2. LAUNCH
     Double-click FinalNight.exe. The server address is already built
     into the game, so there's nothing to type in.
 
- NOTEPAD TRAP: Windows hides file extensions, so Notepad can quietly
- save "FN7Key.txt.txt". Turn on View > File name extensions in
- Explorer and check.
-
- PREFER AN ENVIRONMENT VARIABLE? Instead of the file, run this in a
- Command Prompt, then launch the game:
-
-        setx FN7_KEY "<the access key you were sent>"
-
- The game reads the file first, then the variable.
-
- KEEP THE KEY TO YOURSELF. Don't post it or pass it on.
+ No access key is needed: sign in as a guest and play.
 
 
 ---------------------------------------------------------------------
@@ -317,15 +295,6 @@ one god is left.
  "CAN'T REACH THE GAME"
    If this stone card sits over the table, the game can't get to the
    server yet. It retries every few seconds by itself.
-
- "...this copy of the game has no access key"
-   The key didn't load, or it's wrong. Check:
-   * The file is exactly FinalNight\Config\FN7Key.txt, inside the
-     FinalNight folder next to the exe.
-   * It isn't secretly FN7Key.txt.txt.
-   * It holds just the key, copied exactly (no quotes needed).
-   * Restart the game after fixing it. Still no luck? Ask for the
-     key again.
 
  "Check your internet"
    * The game connects out over a normal secure web connection (port
