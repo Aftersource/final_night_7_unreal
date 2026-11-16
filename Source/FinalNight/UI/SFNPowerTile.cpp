@@ -163,14 +163,14 @@ TArray<TArray<FVector2f>> SFNPowerIcon::Strokes(const FString& InSlug)
 	}
 	else if (K == TEXT("meal"))
 	{
-		TArray<FVector2f> Dome, Plate;
-		for (int32 i = 0; i <= 14; ++i) { const float A = PI * i / 14.f; Dome.Add(V(12.f - 8.f * FMath::Cos(A), 16.f - 8.5f * FMath::Sin(A))); }
-		S.Add(Dome);
-		for (int32 i = 0; i <= 20; ++i) { const float A = 2.f * PI * i / 20.f; Plate.Add(V(12.f + 10.f * FMath::Cos(A), 18.f + 2.2f * FMath::Sin(A))); }
-		S.Add(Plate);
-		S.Add(Circle(12.f, 6.6f, 1.2f, 10));                                // the lid's knob
-		S.Add(Poly({ V(7, 5), V(7.9f, 3.5f), V(7, 2) }));                   // steam
-		S.Add(Poly({ V(17, 5), V(17.9f, 3.5f), V(17, 2) }));
+		// a loaf of bread and a goblet (never anything that reads as a burger)
+		S.Add(Join({ Arc(8.f, 19.f, 6.f, 180.f, 0.f, 16), Poly({ V(14, 19), V(2, 19) }) }));          // the loaf
+		S.Add(Poly({ V(4.8f, 16.4f), V(6.2f, 14.6f) }));                                               // its scored crust
+		S.Add(Poly({ V(7.3f, 15.8f), V(8.7f, 14.f) }));
+		S.Add(Poly({ V(9.8f, 16.4f), V(11.2f, 14.6f) }));
+		S.Add(Poly({ V(15, 4.5f), V(15.4f, 7.8f), V(16.5f, 9.8f), V(18, 10.6f), V(19.5f, 9.8f), V(20.6f, 7.8f), V(21, 4.5f), V(15, 4.5f) }));   // the cup
+		S.Add(Poly({ V(18, 10.6f), V(18, 18.5f) }));                                                   // the stem
+		S.Add(Poly({ V(15.5f, 19), V(20.5f, 19) }));                                                   // the foot
 	}
 	// The engraved HUD (Chris, 2026-11-15 graphics notes): the header, the purse, the items button.
 	else if (K == TEXT("door"))

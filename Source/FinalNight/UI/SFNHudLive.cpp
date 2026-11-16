@@ -1816,6 +1816,7 @@ void SFNHudLive::Publish()
 		for (const FFNHudDemigod& D : Model.Mine) if (D.bAlive && !Up) Up = &D;
 		if (Model.Mine.Num() > 0 && Alive == 0) Hot(TEXT("ankh"), TEXT("Death, bring back my demigods"), TEXT("Bring them back"));
 		else if (Fallen) Hot(TEXT("ankh"), FString::Printf(TEXT("Death, bring back %s, I offer 2 bolts"), *NameOfD(Fallen)), TEXT("Bring back your fallen hand"));
+		else if (Up) Hot(TEXT("ankh"), FString::Printf(TEXT("Death, spare %s tonight, I offer 1 bolt"), *NameOfD(Hurt ? Hurt : Up)), TEXT("Ask Death to spare a hand"));   // always four (Chris)
 		if (Alive > 0)
 		{
 			Hot(TEXT("bow"), FString::Printf(TEXT("%s, arm yourself with an obsidian blade in %s and hunt %s"), *NameOfD(Up), *City, *Rival), TEXT("Arm and hunt"));
