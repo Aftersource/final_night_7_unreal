@@ -500,7 +500,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeHeader()
 		// only the number ("WEATHER 38" -> 38)
 		FString E = Model.Entropy.ToString(), Num;
 		for (int32 k = E.Len() - 1; k >= 0 && (FChar::IsDigit(E[k]) || E[k] == TEXT('.')); --k) Num = FString::Chr(E[k]) + Num;
-		Add(FN7Engrave::Stat(TEXT("swirl"), FText::Format(LOCTEXT("EntropyTip2", "Entropy {0} of 100: at 100 the world ends. Big powers raise it."), FText::FromString(Num.IsEmpty() ? E : Num)), FText::FromString(Num.IsEmpty() ? E : Num)));
+		Add(FN7Engrave::Stat(TEXT("swirl"), FText::Format(LOCTEXT("EntropyTip", "Entropy {0} of 100: at 100 the world ends (heat death: the Final Night comes at once). Every MEGA power raises it by 10, every MINI by 1."), FText::FromString(Num.IsEmpty() ? E : Num)), FText::FromString(Num.IsEmpty() ? E : Num)));
 	}
 	if (Model.bReplay) Add(InkStat(FText::GetEmpty(), LOCTEXT("Replay", "REPLAY")));
 
