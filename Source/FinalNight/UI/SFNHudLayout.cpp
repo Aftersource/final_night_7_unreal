@@ -1036,10 +1036,10 @@ TSharedRef<SWidget> SFNHudLayout::MakeWillChips()
 			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
 			.ContentPadding(FMargin(0.f))
 			.Visibility_Lambda([this, i]() { return Model.WillHotSlugs.IsValidIndex(i) ? EVisibility::Visible : EVisibility::Collapsed; })
-			.ToolTip(FN7StoneTip(TAttribute<FText>::CreateLambda([this, i]() { return Model.WillHotTips.IsValidIndex(i) ? FText::FromString(Model.WillHotTips[i]) : FText::GetEmpty(); })))
+			.IsEnabled_Lambda([this, i]() { return Model.WillHotFills.IsValidIndex(i) && !Model.WillHotFills[i].IsEmpty(); })   // nothing to say today: disabled, never hidden
 			.OnClicked_Lambda([this, i]()
 			{
-				if (!Compose.IsValid() || !Model.WillHotFills.IsValidIndex(i)) return FReply::Handled();
+				if (!Compose.IsValid() || !Model.WillHotFills.IsValidIndex(i) || Model.WillHotFills[i].IsEmpty()) return FReply::Handled();
 				HotText = Model.WillHotFills[i];
 				HotSlug = Model.WillHotSlugs[i];
 				Compose->SetText(FText::FromString(HotText));
@@ -1054,7 +1054,7 @@ TSharedRef<SWidget> SFNHudLayout::MakeWillChips()
 			return TAttribute<FSlateColor>::CreateLambda([W, Waiting, Layer]()
 			{
 				const TSharedPtr<SButton> P = W.Pin();
-				const bool bHot = P.IsValid() && P->IsHovered();
+				const bool bHot = P.IsValid() && P->IsHovered() && P->IsEnabled();
 				if (!bHot && !Waiting()) return FSlateColor(FLinearColor::Transparent);
 				const float Breathe = 0.8f + 0.2f * FMath::Sin((float)FPlatformTime::Seconds() * 4.f);
 				return FSlateColor(FLinearColor(1.f, 0.8f, 0.36f, FMath::Min(1.f, Layer * Breathe * (bHot ? 1.f : 0.55f))));
@@ -1080,11 +1080,17 @@ TSharedRef<SWidget> SFNHudLayout::MakeWillChips()
 						+ SOverlay::Slot().Padding(FMargin(0.f, 0.f, 1.5f, 2.f))[SNew(SBorder).BorderImage(&FaceR).BorderBackgroundColor(FLinearColor(1.f, 0.98f, 0.92f))]
 						+ SOverlay::Slot().Padding(FMargin(1.f, 1.f, 1.5f, 2.f))
 						[
-							SNew(SBorder).BorderImage(&FaceR).BorderBackgroundColor(FLinearColor(0.9f, 0.86f, 0.76f))
+							SNew(SBorder).BorderImage(&FaceR)
+							.BorderBackgroundColor_Lambda([W]() { const TSharedPtr<SButton> P = W.Pin(); return (P.IsValid() && !P->IsEnabled()) ? FLinearColor(0.74f, 0.71f, 0.65f) : FLinearColor(0.9f, 0.86f, 0.76f); })
 							.HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(2.f)
 							[
 								SNew(SFNPowerIcon).Slug_Lambda([this, i]() { return Model.WillHotSlugs.IsValidIndex(i) ? Model.WillHotSlugs[i] : FString(); }).Size(34.f)
-								.Color_Lambda([W]() { const TSharedPtr<SButton> P = W.Pin(); return (P.IsValid() && P->IsHovered()) ? FLinearColor(0.32f, 0.06f, 0.03f) : FLinearColor(0.1f, 0.065f, 0.035f); })
+								.Color_Lambda([W]()
+								{
+									const TSharedPtr<SButton> P = W.Pin();
+									if (P.IsValid() && !P->IsEnabled()) return FLinearColor(0.1f, 0.065f, 0.035f, 0.25f);   // disabled: a faint carving
+									return (P.IsValid() && P->IsHovered()) ? FLinearColor(0.32f, 0.06f, 0.03f) : FLinearColor(0.1f, 0.065f, 0.035f);
+								})
 							]
 						]
 					]
@@ -1354,7 +1360,8 @@ FFNHudModel SFNHudLayout::SampleModel()
 	M.WillChipLabels = { FText::FromString(TEXT("arm yourself with an obsidian blade in Vienna and hunt Vex's Right Hand")), FText::FromString(TEXT("raise an army of 10,000 fishermen at the harbour of Vienna")), FText::FromString(TEXT("Nature, heal my Right Hand")), FText::FromString(TEXT("r: march to Western Europe and topple their shrine")) };
 	for (const FText& T : M.WillChipLabels) M.WillChipFills.Add(T.ToString());
 	M.WillHotSlugs = { TEXT("ankh"), TEXT("bow"), TEXT("meal"), TEXT("armies") };
-	M.WillHotFills = { TEXT("Death, bring back my Left Hand, I offer 2 bolts"), TEXT("arm yourself with an obsidian blade in Vienna and hunt Vex's Right Hand"), TEXT("Nature, heal my Right Hand"), TEXT("raise an army of 10,000 fishermen at the harbour of Vienna") };
+	M.WillHotFills = { FString(),   // the ankh disabled: none fallen in the sample
+		 TEXT("arm yourself with an obsidian blade in Vienna and hunt Vex's Right Hand"), TEXT("Nature, heal my Right Hand"), TEXT("raise an army of 10,000 fishermen at the harbour of Vienna") };
 	for (const FString& F : M.WillHotFills) M.WillHotTips.Add(F);
 	M.WillChipHint = FText::FromString(TEXT("Name who, where and with what \u00B7 say how big \u00B7 pay a god in bolts \u00B7 r: = Right Hand"));
 	return M;
