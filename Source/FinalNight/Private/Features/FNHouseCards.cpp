@@ -215,7 +215,7 @@ void AFNHouseCards::Tick(float DeltaSeconds)
 		ParseCell(Cell, LevelName, Iq, Ir);
 		FVector Cam = FVector::ZeroVector;
 		if (APlayerController* PC = W->GetFirstPlayerController()) if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
-		static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
+		static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Masked.Widget3DPassThrough_Masked"));
 		for (const TPair<FString, FBuilding>& KV : Buildings)
 		{
 			const FBuilding& B = KV.Value;
@@ -267,7 +267,7 @@ void AFNHouseCards::Tick(float DeltaSeconds)
 			Kinds.Sort();
 			FVector Cam = FVector::ZeroVector;
 			if (APlayerController* PC = W->GetFirstPlayerController()) if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation();
-			static UMaterialInterface* UnlitL = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
+			static UMaterialInterface* UnlitL = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Masked.Widget3DPassThrough_Masked"));
 			for (const FVector& H : HouseW)
 			{
 				// a stable pick per house from its board position; the most homely kinds first

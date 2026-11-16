@@ -551,13 +551,13 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 				UMaterialInstanceDynamic* M = SpriteMat.FindRef(Hash);
 				if (!M)
 				{
-					static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque"));
+					static UMaterialInterface* Unlit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Masked.Widget3DPassThrough_Masked"));
 					M = UMaterialInstanceDynamic::Create(Unlit, this);
 					M->SetTextureParameterValue(TEXT("SlateUI"), Tx->Get());
 					SpriteMat.Add(Hash, M);
 				}
 				if (Card->GetMaterial(0) != M) Card->SetMaterial(0, M);
-				const float Ch = H * 0.55f, Cw = Ch * 0.62f;   // ~one hexagon tall: at 1.35 the cards stood as a wall hiding the village (shot 19:41)
+				const float Ch = H * 1.35f, Cw = Ch * 0.62f;
 				const FVector CardAtW = Base + FVector::UpVector * Ch * 0.5f;
 				Card->SetWorldLocation(CardAtW);
 				Card->SetWorldRotation(FRotator(0.f, (Cam - CardAtW).GetSafeNormal2D().Rotation().Yaw + 90.f, 0.f));
