@@ -49,6 +49,7 @@ private:
 		FVector2D ReactTo = FVector2D::ZeroVector;
 	};
 	TMap<FIntPoint, FPerson> People;
+	TMap<FIntVector, float> Wear;   // worn ground: (home q, home r, packed quarter-hexagon cell) -> seconds walked there
 	// what happens nearby (round.outcome events): people flee and shelter from disasters, crowd riots, cheer armies
 	struct FAlarm { double Lat = 0, Lon = 0, RadiusM = 0; uint8 Kind = 1; float Until = 0.f; FString What; };
 	TArray<FAlarm> Alarms;
