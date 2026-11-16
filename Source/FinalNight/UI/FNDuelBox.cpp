@@ -316,6 +316,8 @@ void AFNDuelBox::Build()
 	Burst->SetVisibility(false);
 	RuleText = Label(Lift, FVector::ZeroVector, 1.9f, FColor(240, 236, 220), FString());
 	RuleText->SetVisibility(false);
+	DmgText = Label(Lift, FVector::ZeroVector, 6.5f, FColor(255, 80, 60), FString());
+	DmgText->SetVisibility(false);
 	UPointLightComponent* L = NewObject<UPointLightComponent>(this);
 	L->SetupAttachment(Lift);
 	L->SetRelativeLocation(FVector(-26.f, 52.f, 74.f));   // a warm key from the front left, above the audience
@@ -503,6 +505,7 @@ void AFNDuelBox::Open(const TSharedPtr<FFNDuelSession>& InSession, AFNStudio* St
 		LastPanelT = 0.0;
 		ClipA = ClipB = -1;
 		ShownHpA = InSession->HpA;
+		BarHpA = BarHpB = -1.f;   // a new duel: the bars start where its health is
 		ShownHpB = InSession->HpB;
 		bCamInit = false;
 	}
@@ -893,6 +896,18 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 						RuleAt = (By == TEXT("a") ? Pa.At : Pb.At) + FVector(0, 0, 29.f);   // over the striker, under the burst word
 						RuleText->SetVisibility(true);
 						RuleLeft = 1.4f;
+						{
+							// the damage over the one it hit
+							const TSharedPtr<FJsonObject>& Sb = Strikes[s].Value;
+							const double Dmg = Num(Sb, TEXT("damage"), 0.0);
+							const FString Vd = Str(Sb, TEXT("verdict"));
+							const bool bHit = Dmg > 0.05;
+							DmgText->SetText(FText::FromString(bHit ? FString::Printf(TEXT("-%s"), *FString::SanitizeFloat(FMath::RoundToDouble(Dmg * 10.0) / 10.0, 0)) : (Vd.Contains(TEXT("penalty")) ? FString(TEXT("penalty")) : FString(TEXT("miss")))));
+							DmgText->SetTextRenderColor(bHit ? (Vd == TEXT("crit_success") ? FColor(255, 210, 60) : FColor(255, 80, 60)) : FColor(190, 190, 190));
+							DmgAt = (By == TEXT("a") ? Pb.At : Pa.At) + FVector(0, 0, 36.f);   // over the one struck
+							DmgText->SetVisibility(true);
+							DmgLeft = 1.3f;
+						}
 						break;
 					}
 				const FString On = Str(C, TEXT("on"));
@@ -944,8 +959,19 @@ void AFNDuelBox::PlayStage(double Now, float Dt)
 		const float Base = GroundFloor == TEXT("lava") ? 28.f : GroundFloor == TEXT("burning") ? 18.f : 0.f;
 		GroundLight->SetIntensity(Base * (0.8f + 0.2f * FMath::PerlinNoise1D(Tm * 5.f)));
 	}
-	SetHpBars(ShownHpA, ShownHpB);
+	// the bars slide down to each blow's health. Health bars should work like Pokemon-style bars, going down turn by turn.
+	if (BarHpA < 0.f) { BarHpA = ShownHpA; BarHpB = ShownHpB; }
+	BarHpA = FMath::FInterpTo(BarHpA, ShownHpA, Dt, 5.f);
+	BarHpB = FMath::FInterpTo(BarHpB, ShownHpB, Dt, 5.f);
+	SetHpBars(BarHpA, BarHpB);
 
+	if (DmgLeft > 0.f)
+	{
+		DmgLeft -= Dt;
+		DmgText->SetRelativeLocation(DmgAt + FVector(0, 0, (1.3f - DmgLeft) * 9.f));
+		DmgText->SetWorldSize(6.5f * FMath::Clamp(DmgLeft / 0.4f, 0.2f, 1.f));
+		if (DmgLeft <= 0.f) DmgText->SetVisibility(false);
+	}
 	if (RuleLeft > 0.f)
 	{
 		RuleLeft -= Dt;

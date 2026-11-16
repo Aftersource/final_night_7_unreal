@@ -153,7 +153,7 @@ void AFNStudio::ShowSeats(const TArray<FFNSeatInfo>& Seats)
 		FNSeats::SetCol(S.FigHead, Col * 1.15f);
 		FNSeats::SetCol(S.FigBase, I.bMine ? FLinearColor(0.9f, 0.9f, 0.85f) : FNSeats::SeatBrass);   // mine stands on a white base
 		S.Fig->SetRelativeRotation(FRotator(0.f, 0.f, I.bAlive ? 0.f : 80.f));    // the fallen lie on the table
-		S.FigLabel->SetText(FText::FromString(I.bMine ? I.Name + TEXT(" (you)") : I.Name));
+		S.FigLabel->SetText(FText::FromString(I.Name));   // FN7 (Mac session, Benito's playtest found the you token is an old artifact): no (you) suffix; your L/R hands mark you
 		S.FigLabel->SetTextRenderColor(Col.ToFColor(true));
 
 		if (!S.Body) continue;

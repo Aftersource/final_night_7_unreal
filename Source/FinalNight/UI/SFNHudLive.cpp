@@ -393,7 +393,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			.BorderImage(FN7Style::Brush::Segment(FLinearColor::Black))
 			.BorderBackgroundColor_Lambda([this]() { return FLinearColor(0.f, 0.f, 0.02f, 0.6f * VictoryAlpha()); })
 			.ColorAndOpacity_Lambda([this]() { return FLinearColor(1.f, 1.f, 1.f, VictoryAlpha()); })
-			.Visibility_Lambda([this]() { return bVictory ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.Visibility_Lambda([this]() { return bVictory ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })   // its buttons take clicks
 			.HAlign(HAlign_Center).VAlign(VAlign_Center)
 			[
 				SNew(SBox).WidthOverride(780.f)
@@ -447,6 +447,39 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 								const int32 Left = FMath::Max(0, FMath::CeilToInt(NextMatchAt - FPlatformTime::Seconds()));
 								return FText::Format(LOCTEXT("VicIn", "NEXT MATCH IN {0} s"), FText::AsNumber(Left));
 							})
+						]
+						// Never a dead end (playtesting showed it said the next match was coming soon and got stuck there): back to
+						// the lobby, a new match against the AI, or keep watching (Esc too).
+						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 16.f, 0.f, 0.f)
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot().AutoWidth().Padding(6.f, 0.f)
+							[
+								SNew(SBox).HeightOverride(44.f).MinDesiredWidth(170.f)
+								[
+									SNew(SButton).ButtonStyle(&FN7Style::AccentButton()).HAlign(HAlign_Center).VAlign(VAlign_Center).ContentPadding(FMargin(14.f, 0.f))
+									.OnClicked_Lambda([this]() { UE_LOG(LogTemp, Display, TEXT("FN7 victory: back to the lobby")); bVictory = false; SetLobbyOpen(true); return FReply::Handled(); })
+									[ SNew(STextBlock).Font(FN7Style::Type::Font(14, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.05f, 0.03f, 0.02f)).Text(LOCTEXT("VicLobby", "BACK TO LOBBY")) ]
+								]
+							]
+							+ SHorizontalBox::Slot().AutoWidth().Padding(6.f, 0.f)
+							[
+								SNew(SBox).HeightOverride(44.f).MinDesiredWidth(150.f)
+								[
+									SNew(SButton).ButtonStyle(&FN7Style::AccentButton()).HAlign(HAlign_Center).VAlign(VAlign_Center).ContentPadding(FMargin(14.f, 0.f))
+									.OnClicked_Lambda([this]() { UE_LOG(LogTemp, Display, TEXT("FN7 victory: play again (vs bots)")); bVictory = false; if (StartPanel.IsValid()) StartPanel->PlayAgainVsBots(); return FReply::Handled(); })
+									[ SNew(STextBlock).Font(FN7Style::Type::Font(14, TEXT("Bold"))).ColorAndOpacity(FLinearColor(0.05f, 0.03f, 0.02f)).Text(LOCTEXT("VicAgain", "PLAY AGAIN")) ]
+								]
+							]
+							+ SHorizontalBox::Slot().AutoWidth().Padding(6.f, 0.f)
+							[
+								SNew(SBox).HeightOverride(44.f).MinDesiredWidth(150.f)
+								[
+									SNew(SButton).HAlign(HAlign_Center).VAlign(VAlign_Center).ContentPadding(FMargin(14.f, 0.f))
+									.OnClicked_Lambda([this]() { UE_LOG(LogTemp, Display, TEXT("FN7 victory: keep watching")); bVictory = false; return FReply::Handled(); })
+									[ SNew(STextBlock).Font(FN7Style::Type::Font(14, TEXT("Bold"))).Text(LOCTEXT("VicWatch", "KEEP WATCHING")) ]
+								]
+							]
 						]
 					]
 				]
@@ -632,6 +665,7 @@ void SFNHudLive::Construct(const FArguments& InArgs)
 			if (Self.IsValid() && Self->Layout.IsValid() && Self->Layout->GetChat().IsValid() && Self->Layout->GetChat()->IsOpen()) { Self->Layout->GetChat()->Close(); return true; }
 			if (!Self.IsValid() || !Self->bInRoom) return false;
 			if (Self->bConfirmOpen) { Self->bConfirmOpen = false; return true; }   // Esc cancels a challenge confirm
+			if (Self->bVictory) { Self->bVictory = false; UE_LOG(LogTemp, Display, TEXT("FN7 victory: dismissed (Esc)")); return true; }   // never a dead end
 			if (Self->bTreeOpen) { Self->bTreeOpen = false; UE_LOG(LogTemp, Display, TEXT("FN7 tree: closed (Esc)")); return true; }
 			// Writing: Esc rolls the WILL back up (the text stays). Otherwise it opens or closes the lobby.
 			if (!Self->bLobbyOpen && Self->Layout.IsValid() && Self->Layout->IsWillOpen()) { Self->Layout->RollUpWill(); return true; }

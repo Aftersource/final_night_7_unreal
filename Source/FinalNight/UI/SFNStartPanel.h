@@ -50,6 +50,8 @@ public:
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
+	/** The victory card's PLAY AGAIN: a new match against the AI (leaves the room you are in first). */
+	void PlayAgainVsBots();
 private:
 	TWeakObjectPtr<UFNNetClient> Net;
 	TAttribute<bool> bInGame;
