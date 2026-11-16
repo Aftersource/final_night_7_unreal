@@ -249,6 +249,7 @@ void AFNPeopleLife::Decide(FPerson& P, const TArray<FVector2D>& Spots, const TAr
 	if (P.Role == Fisherman && P.bShore) { P.To = P.Off.Equals(P.Shore, 0.2f) ? FVector2D::ZeroVector : P.Shore; return; }
 	if (P.Role == Farmer && U < 0.6f) { P.To = FVector2D(FMath::FRandRange(-1.2f, 1.2f), FMath::FRandRange(-1.2f, 1.2f)); return; }   // along its own field
 	if (P.Role == Guard) { P.To = P.Off.Size() > 1.f ? FVector2D::ZeroVector : FVector2D(FMath::Cos(Q * 1.7f + R), FMath::Sin(Q * 1.7f + R)) * 4.f; return; }   // a beat back and forth
+	if ((P.Role == Merchant || P.Role == Smith) && U < 0.6f) { P.To = FVector2D(FMath::FRandRange(-0.15f, 0.15f), FMath::FRandRange(-0.15f, 0.15f)); return; }   // back to the stall / forge
 	if (P.Role == Child) { P.To = FVector2D(FMath::FRandRange(-2.5f, 2.5f), FMath::FRandRange(-2.5f, 2.5f)); return; }
 	if (U < 0.45f && Near(Houses, 6.f, T)) { P.To = T + FVector2D(FMath::FRandRange(-0.6f, 0.6f), 1.4f); return; }   // to a house's door
 	if (U < 0.8f && Near(Spots, 5.f, T))
@@ -295,13 +296,10 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 		return;
 	}
 	const float D = FMath::Max(FVector::Dist2D(C0, C1), 0.5f);
-	// Benito noted that many NPCs wander around in forests: out in the wild only the fields right by a house keep people
-	Spots.RemoveAll([&](const FFNPeopleSpot& S)
-	{
-		if (S.Place > 0) return false;
-		for (const FVector& Hs : HouseW) if (FVector::Dist2D(Hs, S.Pos) < D * 3.f) return false;
-		return true;
-	});
+	// Benito noted that many NPCs just wander around in forests and that there should still be people in forests: the wild keeps
+	// the fields by a house, plus a few hunters, woodcutters and witches deep in the woods
+	auto ByHouse = [&](const FVector& Pos) { for (const FVector& Hs : HouseW) if (FVector::Dist2D(Hs, Pos) < D * 3.f) return true; return false; };
+	Spots.RemoveAll([&](const FFNPeopleSpot& S) { return S.Place == 0 && !ByHouse(S.Pos) && Dice(S.Hex.X, S.Hex.Y, 13) > 0.2f; });
 	// the people pictures: the whole library once (game.sprites, location-free), and what lives under the board
 	SinceAsk += Dt;
 	if (UFNNetClient* Nq = Net.Get())
@@ -350,10 +348,11 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 					}
 				}
 			const float U = Dice(Q, R, 3);
-			// the trades of the place: a city's market folk, a village's farmers (a field by a house counts as the village)
+			// the trades of the place: a city's market folk, a village's farmers (a field by a house counts as the village), the deep woods' hunters and witches
 			static const uint8 City[] = { Merchant, Merchant, Merchant, Guard, Guard, Woman, Woman, Woman, Noble, Priest, Smith, Smith, Child, Child, Elder, Warrior };
-			static const uint8 Village[] = { Farmer, Farmer, Farmer, Farmer, Woman, Woman, Woman, Child, Child, Smith, Elder, Elder, Priest, Witch, Merchant, Warrior };
-			const uint8* Pick = S.Place == 2 ? City : Village;
+			static const uint8 Village[] = { Farmer, Farmer, Farmer, Merchant, Woman, Woman, Woman, Child, Child, Smith, Smith, Elder, Priest, Witch, Merchant, Warrior };
+			static const uint8 Woods[] = { Warrior, Warrior, Warrior, Witch, Witch, Farmer, Farmer, Elder, Warrior, Witch, Farmer, Warrior, Farmer, Witch, Elder, Warrior };
+			const uint8* Pick = S.Place == 2 ? City : (S.Place == 1 || ByHouse(S.Pos)) ? Village : Woods;
 			N.Role = Pick[FMath::Min((int32)(U * 16.f), 15)];
 			if (N.bShore && Dice(Q, R, 5) < 0.6f) N.Role = Fisherman;
 			N.bFemale = N.Role == Woman || N.Role == Witch || ((N.Role == Noble || N.Role == Elder || N.Role == Child || N.Role == Merchant || N.Role == Priest || N.Role == Farmer) && Dice(Q, R, 6) < 0.4f);
@@ -447,6 +446,9 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 			const float Len = Step.Size(), Mv = P.Speed * Dt;
 			if (Len <= Mv) { P.Off = P.To; P.Left = 0.f; }
 			else { P.Off += Step / Len * Mv; P.Yaw = FMath::RadiansToDegrees(FMath::Atan2(Step.Y, Step.X)); P.Left = 1.f; }
+			// the ground wears where people walk: paths write themselves (quarter-hexagon cells around the walker's home)
+			float& Wv = Wear.FindOrAdd(FIntVector(P.Home.X, P.Home.Y, (FMath::RoundToInt(P.Off.X * 4.f) + 512) * 1024 + FMath::RoundToInt(P.Off.Y * 4.f) + 512));
+			Wv = FMath::Min(Wv + Dt, 30.f);
 		}
 		if (P.Left <= 0.f)
 		{
@@ -483,10 +485,42 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 	const FPerson* Hovered = nullptr; FVector HoverAt = FVector::ZeroVector; float HoverBest = 28.f;
 	TMap<uint8, int32> RoleCount; int32 Walking = 0, Chatting = 0;
 	const float G = D * 1.9f;   // figures bigger than their hexagon: they must read from the chair
+	// worn paths: a dirt patch per walked cell, wider the more it was walked
+	if (Wear.Num() > 8000) for (auto Wi = Wear.CreateIterator(); Wi; ++Wi) if (Wi.Value() < 3.f) Wi.RemoveCurrent();
+	for (const TPair<FIntVector, float>& Wp : Wear)
+	{
+		const FVector* Hw = Wp.Value >= 0.4f ? HomeW.Find(FIntPoint(Wp.Key.X, Wp.Key.Y)) : nullptr;
+		if (!Hw) continue;
+		const FVector2D O((Wp.Key.Z / 1024 - 512) / 4.f, (Wp.Key.Z % 1024 - 512) / 4.f);
+		const float Sz = D * 0.34f * FMath::Clamp(Wp.Value / 10.f, 0.3f, 1.f);
+		Add(MCyl, FColor(146, 112, 74), FTransform(FRotator::ZeroRotator, *Hw + FVector(O.X * D, O.Y * D, D * 0.01f), FVector(Sz, Sz, D * 0.004f) / 100.f));
+	}
 	for (const TPair<FIntPoint, FPerson>& It : People)
 	{
 		const FPerson& P = It.Value;
 		const FVector Hw = HomeW[P.Home];
+		// a merchant's market stall (striped awning) and a smith's forge (glowing embers) stand at their home for good
+		if (P.Role == Merchant || P.Role == Smith)
+		{
+			const float Sy = Dice(P.Home.X, P.Home.Y, 14) * 360.f;
+			const FVector Sf(FMath::Cos(FMath::DegreesToRadians(Sy)), FMath::Sin(FMath::DegreesToRadians(Sy)), 0.f), Sr(-Sf.Y, Sf.X, 0.f);
+			const FVector At = Hw + Sf * G * 0.45f;
+			if (P.Role == Merchant)
+			{
+				Add(MCube, FColor(170, 120, 70), FTransform(FRotator(0, Sy, 0), At + FVector(0, 0, G * 0.22f), FVector(G * 0.3f, G * 0.6f, G * 0.1f) / 100.f));   // counter
+				Add(MCube, Gold, FTransform(FRotator(0, Sy, 0), At + FVector(0, 0, G * 0.3f) + Sr * G * 0.12f, FVector(G * 0.12f, G * 0.12f, G * 0.1f) / 100.f));   // wares
+				for (int32 s = -1; s <= 1; s += 2) Stick(At + Sr * G * 0.28f * s, At + Sr * G * 0.28f * s + FVector(0, 0, G * 0.7f), G * 0.03f, Wood);
+				Add(MCube, Dress[(P.Home.X + P.Home.Y) & 3], FTransform(FRotator(12.f, Sy, 0), At + FVector(0, 0, G * 0.72f), FVector(G * 0.42f, G * 0.66f, G * 0.04f) / 100.f));   // awning
+				Add(MCube, FColor(245, 240, 225), FTransform(FRotator(12.f, Sy, 0), At + FVector(0, 0, G * 0.745f), FVector(G * 0.43f, G * 0.2f, G * 0.02f) / 100.f));   // its stripe
+			}
+			else
+			{
+				Add(MCube, FColor(95, 90, 88), FTransform(FRotator(0, Sy, 0), At + FVector(0, 0, G * 0.18f), FVector(G * 0.36f, G * 0.36f, G * 0.36f) / 100.f));   // the stone forge
+				Add(MBall, FColor(255, 120, 30), FTransform(FRotator::ZeroRotator, At + FVector(0, 0, G * (0.37f + 0.02f * FMath::Sin(Time * 5.f + P.Phase))), FVector(G * 0.22f, G * 0.22f, G * 0.08f) / 100.f));   // embers
+				Add(MCube, FColor(60, 60, 66), FTransform(FRotator(0, Sy, 0), At - Sr * G * 0.4f + FVector(0, 0, G * 0.12f), FVector(G * 0.25f, G * 0.14f, G * 0.24f) / 100.f));   // the anvil
+				Stick(At + Sr * G * 0.12f + FVector(0, 0, G * 0.36f), At + Sr * G * 0.12f + FVector(0, 0, G * 0.95f), G * 0.07f, FColor(70, 66, 64));   // chimney
+			}
+		}
 		const float A = Time * 6.f + P.Phase;
 		const bool bArrived = P.React && P.Off.Equals(P.ReactTo, 0.05f);
 		if (P.React == 1 && P.bHide && bArrived) continue;   // sheltering inside
@@ -581,12 +615,10 @@ void AFNPeopleLife::Tick(float DeltaSeconds)
 			const FVector End = Hand + (Fwd * 0.6f + Up * (Hit * 1.2f - 0.3f)).GetSafeNormal() * G * 0.35f;
 			Stick(Hand, End, G * 0.03f, Wood);
 			Add(MCube, Black, FTransform(FRotator(0, Yaw, 0), End, FVector(G * 0.12f, G * 0.07f, G * 0.07f) / 100.f));
-			if (bWork) Add(MCube, FColor(60, 60, 66), FTransform(FRotator(0, Yaw, 0), Base + Fwd * G * 0.45f + Up * G * 0.12f, FVector(G * 0.25f, G * 0.14f, G * 0.24f) / 100.f));   // the anvil
 			break;
 		}
 		case Merchant:
 			Add(MBall, FColor(150, 110, 60), FTransform(FRotator::ZeroRotator, Base + Up * BodyH * 0.7f - Fwd * Wd * 0.9f, FVector(Wd * 1.0f, Wd * 0.9f, Wd * 1.1f) / 100.f));   // a sack on the back
-			if (bWork) Add(MCube, FColor(170, 120, 70), FTransform(FRotator(0, Yaw, 0), Base + Fwd * G * 0.5f + Up * G * 0.2f, FVector(G * 0.5f, G * 0.3f, G * 0.08f) / 100.f));   // a stall
 			break;
 		case Guard: case Warrior:
 		{
