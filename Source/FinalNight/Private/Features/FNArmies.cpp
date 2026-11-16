@@ -146,7 +146,7 @@ void AFNArmies::OnMedia(const TSharedPtr<FJsonObject>& D)
 	if (!N) return;
 	Downloading.Add(Hash);
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(N->MediaUrl(Url));
+	Req->SetURL(N->MediaUrl(FN7Media::PathFor(Hash)));   // FN7 (Mac session, lead: pictures by their full hash only, from /media/<hash>.png; the cache checks the server byte length)
 	Req->SetVerb(TEXT("GET"));
 	Req->SetTimeout(30.f);
 	TWeakObjectPtr<AFNArmies> W(this);

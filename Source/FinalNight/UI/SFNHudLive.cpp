@@ -1732,39 +1732,22 @@ void SFNHudLive::RequestPortrait(const FString& Hash, const FString& Url)
 {
 	UFNNetClient* N = Net.Get();
 	if (!N || Portraits.Contains(Hash) || PortraitRequests.Contains(Hash)) return;
-	// The disk cache first (Saved/FN7Media): full fidelity, a full mip chain.
-	{
-		TArray<uint8> Cached;
-		if (FN7Media::LoadCached(Hash, Cached))
-			if (UTexture2D* Tex = FN7Media::TextureFromPng(Cached))
-			{
-				Portraits.Add(Hash, TStrongObjectPtr<UTexture2D>(Tex));
-				MediaPng.Add(Hash, MoveTemp(Cached));
-				return;
-			}
-	}
+	// By its full hash only, verified against the server's sidecar (FN7Media::Fetch): never the payload's url, never
+	// another picture. (Url is kept for the call sites; the picture always comes from /media/<hash>.png.)
 	PortraitRequests.Add(Hash);
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(N->MediaUrl(Url));
-	Req->SetVerb(TEXT("GET"));
-	Req->SetTimeout(30.f);
 	TWeakPtr<SFNHudLive> Weak = StaticCastSharedRef<SFNHudLive>(AsShared());
-	Req->OnProcessRequestComplete().BindLambda([Weak, Hash](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+	FN7Media::Fetch(N, Hash, [Weak, Hash](const TArray<uint8>& Png)
 	{
 		TSharedPtr<SFNHudLive> Self = Weak.Pin();
 		if (!Self.IsValid()) return;
 		Self->PortraitRequests.Remove(Hash);
-		if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200) return;
-		const TArray<uint8> Png = Resp->GetContent();
 		UTexture2D* Tex = FN7Media::TextureFromPng(Png);
 		if (!Tex) Tex = FImageUtils::ImportBufferAsTexture2D(Png);
 		if (!Tex) return;
-		FN7Media::SaveCached(Hash, Png);
 		Self->MediaPng.Add(Hash, Png);
 		Self->Portraits.Add(Hash, TStrongObjectPtr<UTexture2D>(Tex));
 		Self->Publish();
-	});
-	Req->ProcessRequest();
+	}, [Weak, Hash]() { if (TSharedPtr<SFNHudLive> Self = Weak.Pin()) Self->PortraitRequests.Remove(Hash); });
 }
 
 void SFNHudLive::Publish()
