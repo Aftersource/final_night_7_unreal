@@ -18,7 +18,20 @@
    "result": "SUCCEEDED 30",
    "source_image": "benito_left_hand/heroic.png",
    "statue_fbx": "benito_left_hand/benito_left_hand_statue.fbx",
-   "statue_glb": "benito_left_hand/benito_left_hand_statue.glb"
+   "statue_glb": "benito_left_hand/benito_left_hand_statue.glb",
+   "rigged": {
+    "skeleton": "meshy ue5_mannequin (the duel mannequin's)",
+    "pose": "a-pose",
+    "glb": "benito_left_hand/benito_left_hand_rigged.glb",
+    "fbx": "benito_left_hand/benito_left_hand_rigged.fbx",
+    "preview": "benito_left_hand/rigged_preview.png",
+    "source_image": "benito_left_hand/apose.png",
+    "model_task": "01a1e1b6-de12-7095-98d8-85fa7afef600",
+    "remesh_task": "01a1e1ba-8eae-7788-b228-8003bbdcfea2",
+    "remesh_tris": 30000,
+    "rig_task": "01a1e1bb-cfb7-72d7-8d00-16f0f554a563",
+    "credits": 40
+   }
   },
   "benito_right_hand": {
    "kind": "demigod",
@@ -28,7 +41,20 @@
    "result": "SUCCEEDED 30",
    "source_image": "benito_right_hand/heroic.png",
    "statue_fbx": "benito_right_hand/benito_right_hand_statue.fbx",
-   "statue_glb": "benito_right_hand/benito_right_hand_statue.glb"
+   "statue_glb": "benito_right_hand/benito_right_hand_statue.glb",
+   "rigged": {
+    "skeleton": "meshy ue5_mannequin (the duel mannequin's)",
+    "pose": "a-pose",
+    "glb": "benito_right_hand/benito_right_hand_rigged.glb",
+    "fbx": "benito_right_hand/benito_right_hand_rigged.fbx",
+    "preview": "benito_right_hand/rigged_preview.png",
+    "source_image": "benito_right_hand/apose.png",
+    "model_task": "01a1e1b6-e990-724a-87d5-68f2d8584e96",
+    "remesh_task": "01a1e1ba-96dc-7744-81f9-3188600a5e6d",
+    "remesh_tris": 30000,
+    "rig_task": "01a1e1bb-d89f-7237-8005-d2bf425677fd",
+    "credits": 40
+   }
   },
   "chris_god": {
    "kind": "god",
@@ -48,7 +74,20 @@
    "result": "SUCCEEDED 30",
    "source_image": "chris_left_hand/heroic.png",
    "statue_fbx": "chris_left_hand/chris_left_hand_statue.fbx",
-   "statue_glb": "chris_left_hand/chris_left_hand_statue.glb"
+   "statue_glb": "chris_left_hand/chris_left_hand_statue.glb",
+   "rigged": {
+    "skeleton": "meshy ue5_mannequin (the duel mannequin's)",
+    "pose": "a-pose",
+    "glb": "chris_left_hand/chris_left_hand_rigged.glb",
+    "fbx": "chris_left_hand/chris_left_hand_rigged.fbx",
+    "preview": "chris_left_hand/rigged_preview.png",
+    "source_image": "chris_left_hand/apose.png",
+    "model_task": "01a1e1b5-8b28-724c-96ad-9da30f191b59",
+    "remesh_task": "01a1e1b8-381c-75a3-b15c-badd5ece0eb6",
+    "remesh_tris": 30000,
+    "rig_task": "01a1e1b9-ca58-73a6-833a-2d025a6b03d2",
+    "credits": 40
+   }
   },
   "chris_right_hand": {
    "kind": "demigod",
@@ -58,7 +97,20 @@
    "result": "SUCCEEDED 30",
    "source_image": "chris_right_hand/heroic.png",
    "statue_fbx": "chris_right_hand/chris_right_hand_statue.fbx",
-   "statue_glb": "chris_right_hand/chris_right_hand_statue.glb"
+   "statue_glb": "chris_right_hand/chris_right_hand_statue.glb",
+   "rigged": {
+    "skeleton": "meshy ue5_mannequin (the duel mannequin's)",
+    "pose": "a-pose",
+    "glb": "chris_right_hand/chris_right_hand_rigged.glb",
+    "fbx": "chris_right_hand/chris_right_hand_rigged.fbx",
+    "preview": "chris_right_hand/rigged_preview.png",
+    "source_image": "chris_right_hand/apose.png",
+    "model_task": "01a1e1b6-d242-706a-a8a6-306b9f4bc4a1",
+    "remesh_task": "01a1e1ba-86c4-7791-85d2-965c13a80f1b",
+    "remesh_tris": 30000,
+    "rig_task": "01a1e1bb-c8b4-70e4-953b-074457f392d3",
+    "credits": 40
+   }
   },
   "juno_god": {
    "kind": "god",

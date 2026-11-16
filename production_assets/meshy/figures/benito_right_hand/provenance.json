@@ -81,5 +81,20 @@
    ],
    "fbx": "kept locally, not committed (size)"
   }
- ]
+ ],
+ "rigged": {
+  "step": 4,
+  "what": "rigged A-pose figure: image-to-3d (a-pose) -> remesh 30k -> rig ue5_mannequin",
+  "model_task": "01a1e1b6-e990-724a-87d5-68f2d8584e96",
+  "remesh_task": "01a1e1ba-96dc-7744-81f9-3188600a5e6d",
+  "rig_task": "01a1e1bb-d89f-7237-8005-d2bf425677fd",
+  "credits": 40,
+  "date": "2026-11-15",
+  "files": {
+   "benito_right_hand_rigged.glb": "76ee40c08ff887ecd4bee4dfec32f3179491086e4caa4c0a456b05cc69f4f18e",
+   "benito_right_hand_rigged.fbx": "493a30475b32846d796126513dba830ff9610c44ba5eda344e4e88fd55f852c8",
+   "apose.png": "631efaa25c13b669075c3163a6ed222b78fb7df28cc6dda53e0faa05237dedf3",
+   "rigged_preview.png": "68098c45a3850edd95806be1a77cb8094c18b67a77ce55aab9d5330be10a090a"
+  }
+ }
 }
