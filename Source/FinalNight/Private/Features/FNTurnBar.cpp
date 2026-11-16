@@ -162,8 +162,8 @@ void AFNTurnBar::ReadMine(const TSharedPtr<FJsonObject>& View)
 		// the reason on its own line, after a full stop (the two used to run together: "gear may wait there  Your Left Hand...")
 		const bool bStop = Tx.IsEmpty() || FString(TEXT(".!?")).Contains(Tx.Right(1));
 		ServerHint = Why.IsEmpty() ? Tx : Tx + (bStop ? TEXT("\n") : TEXT(".\n")) + Why;
-		// the powers live in the jar on the right; nothing said so (audit: "drag a power" from where?)
-		ServerHint = ServerHint.Replace(TEXT("drag a power"), TEXT("click the jar on the right, drag a power"));
+		// the powers live in the sack on the right; nothing said so (audit asked where a power should be dragged from; Benito noted it is a sack, not a jar, for its entropy powers)
+		ServerHint = ServerHint.Replace(TEXT("drag a power"), TEXT("click the sack on the right, drag an Entropy power"));
 		ServerHint = FNTurnBarImpl::Plain(ServerHint);
 		// the same move several beats running read as a frozen hint: say it's still the move
 		if (Tx != HintKey) { HintKey = Tx; HintSince = Beat; }
